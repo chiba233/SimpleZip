@@ -105,6 +105,55 @@ choice is preferred for shared / public machines.
 
 ---
 
+## On-Device AI Assistance — privacy and red lines
+
+The optional AI assistant (Apple's on-device **FoundationModels**, macOS 26+) powers
+the inline file/archive suggestions, the report "explain this" helpers, recommended
+create/extract settings, the adaptive toolbar, and the Activity Center workbench. It is
+**off by default** and designed so that, even when enabled, it can never weaken the
+safety guarantees elsewhere in this document.
+
+### Where it runs
+
+- **Entirely on your Mac.** Inference uses Apple's on-device model. Nothing is uploaded;
+  there is no network call, no telemetry, no account.
+- **In a separate process.** The model runs in a dedicated XPC service / LaunchAgent
+  helper, not the main app — so the main binary performs no model inference. Background
+  baking only runs when you opt in, on whitelisted folders, while the Mac is idle and
+  power conditions allow.
+- **The XPC boundary is size-bounded.** Configuration and per-pass input payloads are
+  rejected above hard limits (1 MB / 32 MB) before decoding, so a malformed or hostile
+  message can't OOM the helper.
+
+### Hard red lines (enforced by design)
+
+- **It only explains, classifies, summarizes, suggests, and drafts.** It **never**
+  deletes, moves, overwrites, extracts, signs, approves, bypasses a safety prompt, or
+  changes a file, a setting, or a task on its own. Every write-capable action a
+  suggestion proposes still routes through the same confirmation / task flow and the
+  same path-safety checks as a manual action; read-only checks (hash / test) only show
+  their result inline.
+- **It never sees secrets.** Passphrases, encryption keys, the contents of encrypted
+  archive entries, and decrypted plaintext are **never** sent to the model, indexed, or
+  logged. Encrypted-archive entry *names* and ciphertext are excluded from AI input.
+- **It is not a safety oracle.** No AI output decides whether an archive is safe to
+  extract or whether a signature is valid — those remain rule-based / cryptographic
+  (see the `.siz` / `.szs` and path-safety sections). AI may *describe* a result, never
+  gate on one.
+
+### What it may read, and your control over it
+
+- Indexing/preread is **whitelist-only and read-only**: only folders you explicitly add,
+  only file metadata plus (separately opt-in) non-encrypted text content, used to build a
+  local index and short summaries. Non-encrypted paths, names and metadata are not
+  treated as secret and may appear in prompts; encrypted content never does.
+- Everything is **revocable**: turning the assistant off hides its entry points and stops
+  baking, and "clear" wipes everything it built in the background — the file index,
+  suggestions, learned ranking, cross-surface feedback and the pending-check queue —
+  without touching your real files or your Spotlight results.
+
+---
+
 ## Non-destructive file operations
 
 SimpleZip writes to the user's disk in several flows beyond extraction: in-place

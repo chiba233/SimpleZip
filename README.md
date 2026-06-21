@@ -23,6 +23,35 @@ on the official 7-Zip engine, which ships inside the app.
 
 ---
 
+## ✨ New in 0.4.5
+
+- **Download & extract straight from a URL.** Paste an `http(s)` link to a zip or
+  tar-family archive into the address bar and SimpleZip opens a *Download & Extract*
+  panel that unpacks **as it downloads** — the bytes flow from the network into
+  extraction on the fly, so the whole archive never has to land on disk first (an
+  opt-in checkbox keeps a copy if you want one). It checks first whether the server
+  actually serves a streamable archive and says so honestly instead of pretending.
+- **Optional on-device AI suggestions, right in the file browser.** Expand a file or
+  archive row and an opt-in, on-device assistant offers an at-a-glance summary and
+  *fitting* actions — compute a checksum, open with the right app, pull a single file
+  out of an archive, surface a link found inside. It only ever suggests; if the model
+  has nothing to say the row stays empty. Everything runs on your Mac, on whitelisted
+  folders only, and it never reads encrypted contents or uploads anything.
+- **Settings and a toolbar that adapt to you.** The create and extract dialogs can
+  apply recommended settings in one tap, and the toolbar reorders its actions for the
+  file at hand — habit-based with AI off, smarter with it on. Passwords, encryption
+  strength and destinations are never auto-changed.
+- **Streaming fast extraction.** For ZIP and tar-family archives, an opt-in streaming
+  mode reads sequentially — noticeably quicker for big archives and over network
+  volumes.
+- **Faster, lighter, hardened.** Opening and browsing huge archives no longer freezes
+  the window or risks running out of memory, scrolling big folders is smoother, and a
+  broad security pass tightened path-traversal, command-argument and signing safety.
+
+See the [changelog](CHANGELOG.md) for the full list.
+
+---
+
 ## 📸 A look inside
 
 | | |
