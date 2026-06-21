@@ -156,7 +156,13 @@ if [[ -n "${SIGN_IDENTITY:-}" ]]; then
   AGENT_BIN="$APP_PATH/Contents/MacOS/SimpleZipAIAgent"
   if [[ -f "$AGENT_BIN" ]]; then
     echo "  signing embedded AI agent: ${AGENT_BIN#"$APP_PATH"/}"
-    codesign --force --options runtime --timestamp --sign "$SIGN_IDENTITY" "$AGENT_BIN"
+    # helper 是裸 Mach-O(无 Info.plist bundle)→ codesign 默认拿**产品名** `SimpleZipAIAgent` 当签名 identifier,
+    # 与 app(`yumeka.SimpleZip-in-mac`)/ XPC Service(`…aixpc`)的命名空间不一致。显式 `--identifier` 钉成同
+    # 命名空间的 `…aiagent`(= LaunchAgent plist 的 Label / MachServices 名),命名统一、且将来要上严格 XPC peer
+    # 签名校验时 identifier 是确定的。发布恒正式 bundle id(脚本前面已断言 app 是无 `.dev` 的正式 id)。
+    codesign --force --options runtime --timestamp \
+      --identifier yumeka.SimpleZip-in-mac.aiagent \
+      --sign "$SIGN_IDENTITY" "$AGENT_BIN"
   fi
 
   # 独立 AI 进程改造:前台 XPC Service 在 Contents/XPCServices(--deep 的标准嵌套位置),但同样**先显式逐个签**
