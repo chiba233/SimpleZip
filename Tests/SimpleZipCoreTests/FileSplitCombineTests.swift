@@ -158,4 +158,21 @@ struct SplitVolumeSetTests {
         #expect(set?.presentIndices == [1, 999, 1000])
         #expect(set?.missingIndices.count == 997)
     }
+
+    /// 批量 `volumeSets(among:)`(O(n) 热路径入口)对每个名字的结果必须与逐个 `volumeSet(forMemberNamed:among:)` 一致。
+    @Test func volumeSetsBatchMatchesPerName() {
+        let siblings = [
+            "release.7z.001", "release.7z.002", "release.7z.003",
+            "movie.part1.rar", "movie.part2.rar",
+            "notes.txt", "a.zip", "single.bin.001", "report.2024",
+        ]
+        let batch = FileSplitCombine.volumeSets(among: siblings)
+        for name in siblings {
+            let single = FileSplitCombine.volumeSet(forMemberNamed: name, among: siblings)
+            #expect((batch[name] == nil) == (single == nil), "nil-ness mismatch for \(name)")
+            #expect(batch[name]?.baseName == single?.baseName, "baseName mismatch for \(name)")
+            #expect(batch[name]?.presentNames == single?.presentNames, "presentNames mismatch for \(name)")
+            #expect(batch[name]?.volumeCount == single?.volumeCount, "volumeCount mismatch for \(name)")
+        }
+    }
 }

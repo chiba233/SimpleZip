@@ -721,9 +721,9 @@ struct FileNSOutlineView: NSViewRepresentable {
             func fileLeaves(_ items: [FileItem]) -> [LayoutPart]? {
                 if AppPreferences.collapseVolumeSets {
                     let fileNames = items.filter { !$0.isDirectory }.map { $0.url.lastPathComponent }
-                    guard !fileNames.contains(where: {
-                        FileSplitCombine.volumeSet(forMemberNamed: $0, among: fileNames)?.volumeCount ?? 0 >= 2
-                    }) else { return nil }
+                    // 一次算好分卷集(避免逐名扫全 sibling 的 O(n²)):有任一 ≥2 卷的家族 → 非平铺、走整表兜底。
+                    let volumeSets = FileSplitCombine.volumeSets(among: fileNames)
+                    guard !volumeSets.values.contains(where: { $0.volumeCount >= 2 }) else { return nil }
                 }
                 // 同 currentBaseLayoutShape:用 url.path,不要 standardizedFileURL(每文件 stat() 卡主线程)。
                 return items.map { .file($0.url.path) }
@@ -1072,8 +1072,9 @@ struct FileNSOutlineView: NSViewRepresentable {
             var memberToFirst: [String: String] = [:]
             var firstToFamily: [String: [String]] = [:]
             var seenFamilies = Set<String>()
+            let volumeSets = FileSplitCombine.volumeSets(among: fileNames)   // 一次算好,避免逐名扫全 sibling 的 O(n²)
             for name in fileNames {
-                guard let set = FileSplitCombine.volumeSet(forMemberNamed: name, among: fileNames),
+                guard let set = volumeSets[name],
                       set.volumeCount >= 2,
                       !seenFamilies.contains(set.baseName),
                       let first = set.presentNames.first else { continue }
