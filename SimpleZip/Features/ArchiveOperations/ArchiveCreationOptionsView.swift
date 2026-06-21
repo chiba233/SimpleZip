@@ -821,7 +821,8 @@ struct ArchiveCreationOptionsView: View {
                 }
                 InlineAIAdvisory(
                     token: "\(dryRun.inputFileCount)|\(dryRun.totalBytes)|\(estimatedCompressedBytes ?? -1)|\(request.options.format)|\(request.options.compressionLevel)|\(FileManager.default.fileExists(atPath: request.destinationURL.path))"
-                ) {
+                ) { _ in
+                    // 创建速览是**实时**的(输入是当下任意挑的文件,无法预烘焙)→ 忽略 forced,每次都生成。
                     guard #available(macOS 26.0, *) else { return "" }
                     let built = AIReportAssistant.createAdvisoryPrompt(
                         dryRun: dryRun,

@@ -152,13 +152,15 @@ nonisolated struct AIDevToolsPipelineProductCounts: Equatable, Sendable {
     let workbenchClusterChips: Int
     /// 建议七 Phase2:工具栏动作 AI 排序缓存数(文件级 + 类型级已烘焙的序总数)。
     let toolbarRanking: Int
+    /// 解压速览预烘焙缓存数(前台 XPC 按需烘焙写入的 `extractAdvisoryByPath` 条数;已索引归档的定性走「包定性」)。
+    let extractAdvisory: Int
 
     init(summary: Int, openWith: Int, urlOpen: Int, install: Int, activity: Int,
          archiveEntry: Int, archiveKind: Int, folderGroup: Int, organize: Int,
          inspect: Int, test: Int, hash: Int, security: Int, compress: Int,
          convert: Int, inlineResult: Int, workbenchChipRanking: Int = 0,
          workbenchNeedsAttention: Int = 0, workbenchFailureExplanation: Int = 0,
-         workbenchClusterChips: Int = 0, toolbarRanking: Int = 0) {
+         workbenchClusterChips: Int = 0, toolbarRanking: Int = 0, extractAdvisory: Int = 0) {
         self.summary = summary
         self.openWith = openWith
         self.urlOpen = urlOpen
@@ -180,6 +182,7 @@ nonisolated struct AIDevToolsPipelineProductCounts: Equatable, Sendable {
         self.workbenchFailureExplanation = workbenchFailureExplanation
         self.workbenchClusterChips = workbenchClusterChips
         self.toolbarRanking = toolbarRanking
+        self.extractAdvisory = extractAdvisory
     }
 }
 
@@ -199,6 +202,7 @@ nonisolated enum AIDevToolsPipelineCatalog {
             AIDevToolsPipelineRow(name: "活动", passName: "活动", cachedProductCount: counts.activity),
             AIDevToolsPipelineRow(name: "包内", passName: "包内", cachedProductCount: counts.archiveEntry),
             AIDevToolsPipelineRow(name: "包定性", passName: "包定性", cachedProductCount: counts.archiveKind),
+            AIDevToolsPipelineRow(name: "解压速览", passName: "包定性", cachedProductCount: counts.extractAdvisory),
             AIDevToolsPipelineRow(name: "文件组", passName: "文件组", cachedProductCount: counts.folderGroup),
             AIDevToolsPipelineRow(name: "整理", passName: "整理", cachedProductCount: counts.organize),
             AIDevToolsPipelineRow(name: "检测", passName: "包定性", cachedProductCount: counts.inspect),

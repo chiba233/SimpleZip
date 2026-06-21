@@ -249,16 +249,18 @@ struct ExtractArchiveOptionsView: View {
                 // 烘一次(写缓存,再开瞬出)。命中缓存=瞬出无菊花;首次=转圈烘一次。token 按归档路径(与目标无关)。
                 InlineAIAdvisory(
                     token: "extract|\(request.archiveURL.path)|\(preflight.fileCount)|\(preflight.totalBytes)"
-                ) {
+                ) { forced in
                     let store = AIBackgroundIndexStore.shared
                     let path = request.archiveURL.path
-                    if let baked = store.extractAdvisory(forPath: path)
-                        ?? store.record(forPath: path)?.contentSummary?.shortSummary, !baked.isEmpty {
-                        return baked
-                    }
-                    guard #available(macOS 26.0, *) else { return "" }
-                    return await AIBackgroundIndexer.shared.bakeExtractAdvisoryOnDemand(
-                        archiveURL: request.archiveURL, entries: archiveEntrySample) ?? ""
+                    let cached = store.extractAdvisory(forPath: path)
+                        ?? store.record(forPath: path)?.contentSummary?.shortSummary
+                    // 铁律:已预烘焙的内容**绝不因自动重跑而重生**(会让后台预烘焙白费 + 覆盖记录)→ 非 forced 直接返回缓存。
+                    if !forced, let c = cached, !c.isEmpty { return c }
+                    guard #available(macOS 26.0, *) else { return cached ?? "" }
+                    // 缓存为空(首次)或用户手动点重烘 → 前台 XPC 按需烘一次(覆盖缓存);失败退回旧缓存,不留空。
+                    let fresh = await AIBackgroundIndexer.shared.bakeExtractAdvisoryOnDemand(
+                        archiveURL: request.archiveURL, entries: archiveEntrySample)
+                    return fresh ?? cached ?? ""
                 }
             } else if preflightUnavailable {
                 Label(L10n.text("extract.preflight.unavailable"), systemImage: "list.bullet.rectangle")

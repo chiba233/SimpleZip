@@ -1074,6 +1074,7 @@ struct DevToolsView: View {
                 workbenchFailureExplanationCount: backgroundStore.workbenchFailureExplanationByTask.count,
                 workbenchClusterChipsCount: backgroundStore.workbenchClusterChipsByCategory.values.reduce(0) { $0 + $1.chips.count },
                 toolbarRankingCount: backgroundStore.toolbarRanking.byFile.count + backgroundStore.toolbarRanking.byType.count,
+                extractAdvisoryCount: backgroundStore.extractAdvisoryByPath.count,
                 activityLevel: AppPreferences.aiBackgroundActivityLevel.rawValue,
                 scopeCount: backgroundStore.scopes.count,
                 indexedFileCount: index.fileCount,
@@ -1176,7 +1177,8 @@ struct DevToolsView: View {
                 workbenchNeedsAttention: store.workbenchNeedsAttentionByCategory.count,
                 workbenchFailureExplanation: store.workbenchFailureExplanationByTask.count,
                 workbenchClusterChips: store.workbenchClusterChipsByCategory.values.reduce(0) { $0 + $1.chips.count },
-                toolbarRanking: store.toolbarRanking.byFile.count + store.toolbarRanking.byType.count)
+                toolbarRanking: store.toolbarRanking.byFile.count + store.toolbarRanking.byType.count,
+                extractAdvisory: store.extractAdvisoryByPath.count)
         }
 
         var out: [String] = []
@@ -1268,6 +1270,17 @@ struct DevToolsView: View {
             }
             for (ext, ids) in tb.byType.sorted(by: { $0.key < $1.key }) {
                 out.append("类型 .\(ext) → \(ids.joined(separator: " > "))")
+            }
+        }
+
+        // 解压速览预烘焙(前台 XPC 按需烘焙写入;已索引归档的定性走「包定性」的 archiveKind,不在这份缓存里)。
+        let ea = store.extractAdvisoryByPath
+        out.append("\n### 解压速览 [extractAdvisoryByPath] (\(ea.count))")
+        if ea.isEmpty {
+            out.append("（无 —— 已索引归档看「包定性」;这份只收开解压窗时前台按需烘的)")
+        } else {
+            for (path, summary) in ea.sorted(by: { $0.key < $1.key }).prefix(500) {
+                out.append("\(path) → \"\(summary)\"")
             }
         }
 
@@ -1413,6 +1426,7 @@ private nonisolated struct DevToolsAIDataSnapshot: Encodable {
         let workbenchFailureExplanationCount: Int
         let workbenchClusterChipsCount: Int
         let toolbarRankingCount: Int
+        let extractAdvisoryCount: Int
         let activityLevel: String
         let scopeCount: Int
         let indexedFileCount: Int
@@ -1441,7 +1455,9 @@ private nonisolated struct DevToolsAIDataSnapshot: Encodable {
                 workbenchChipRanking: workbenchChipRankingCount,
                 workbenchNeedsAttention: workbenchNeedsAttentionCount,
                 workbenchFailureExplanation: workbenchFailureExplanationCount,
-                workbenchClusterChips: workbenchClusterChipsCount)
+                workbenchClusterChips: workbenchClusterChipsCount,
+                toolbarRanking: toolbarRankingCount,
+                extractAdvisory: extractAdvisoryCount)
         }
     }
 

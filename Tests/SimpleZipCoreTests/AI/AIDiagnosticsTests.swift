@@ -96,10 +96,10 @@ import Testing
             inspect: 3, test: 0, hash: 0, security: 0, compress: 0, convert: 0,
             inlineResult: 1, workbenchChipRanking: 7,
             workbenchNeedsAttention: 2, workbenchFailureExplanation: 5,
-            workbenchClusterChips: 4, toolbarRanking: 36)
+            workbenchClusterChips: 4, toolbarRanking: 36, extractAdvisory: 19)
         let rows = AIDevToolsPipelineCatalog.rows(for: counts)
         #expect(rows.map(\.name) == [
-            "摘要", "打开方式", "网页", "装App", "活动", "包内", "包定性", "文件组", "整理",
+            "摘要", "打开方式", "网页", "装App", "活动", "包内", "包定性", "解压速览", "文件组", "整理",
             "检测", "测试", "哈希", "安全", "压缩", "转换", "内联结果", "筛选排序",
             "需要处理解读", "失败解释", "真建议", "工具栏序"
         ])
@@ -110,5 +110,8 @@ import Testing
         #expect(rows.first(where: { $0.name == "失败解释" })?.cachedProductCount == 5)
         #expect(rows.first(where: { $0.name == "真建议" })?.cachedProductCount == 4)
         #expect(rows.first(where: { $0.name == "工具栏序" })?.cachedProductCount == 36)
+        // 解压速览复用「包定性」管线(archiveKindGuess),自己一份缓存计数。
+        #expect(rows.first(where: { $0.name == "解压速览" })?.cachedProductCount == 19)
+        #expect(rows.first(where: { $0.name == "解压速览" })?.passName == "包定性")
     }
 }

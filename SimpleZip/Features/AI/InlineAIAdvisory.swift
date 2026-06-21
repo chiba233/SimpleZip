@@ -16,8 +16,10 @@ import SwiftUI
 struct InlineAIAdvisory: View {
     /// 输入指纹:变了就重跑(动态)。窗口一开、数据就绪即首跑。
     let token: String
-    /// 组装 prompt + 调 `AIReportAssistant.generate`(只读输入)。
-    let produce: () async throws -> String
+    /// 产出速览文本。`forced` = 这次是不是用户**手动点刷新**触发(token 变 / 首跑 = false)。
+    /// 实时速览(创建)忽略它、每次都生成;**预烘焙速览(解压)只在 `forced` 时重烘**,否则返回缓存 ——
+    /// 这是铁律:预烘焙内容绝不能因自动重跑而实时重生(会让后台预烘焙白费、且覆盖数据库记录)。
+    let produce: (_ forced: Bool) async throws -> String
 
     @State private var text: String?
     // 初始就 true:打开窗口即显示菊花(用户要的「正在生成」反馈),且保证 `.task` 挂在一个**非空**视图上
@@ -26,6 +28,9 @@ struct InlineAIAdvisory: View {
     // 手动刷新计数:用户点刷新按钮 +1 → 并进 `.task(id:)` → 重跑(切格式时若内容没变 token 不变,
     // 这给用户一个显式重算入口;用户点名要)。
     @State private var reloadNonce = 0
+    // 本次重跑是否由**手动刷新按钮**触发(区别于 token 变 / 首跑)。按钮置 true,run() 读后即清。
+    // 预烘焙速览据此判断:手动 = 重烘覆盖缓存;自动 = 只读缓存绝不重生(铁律)。
+    @State private var pendingForced = false
 
     var body: some View {
         // #76:统一走 AIGate —— 主开关一关即时消失(原先 `if isReady` 对开关不响应)。
@@ -65,6 +70,7 @@ struct InlineAIAdvisory: View {
                 // 手动重算:切了格式 / 级别想重新让 AI 看一眼,点这个。立刻置 isLoading → 菊花马上出现。
                 // 字号不设(与上方预检刷新按钮一致 —— 用户报两个刷新按钮大小不一)。
                 Button {
+                    pendingForced = true   // 手动重烘:预烘焙速览据此重生并覆盖缓存(自动重跑绝不会)
                     isLoading = true
                     reloadNonce += 1
                 } label: {
@@ -79,6 +85,9 @@ struct InlineAIAdvisory: View {
 
     @MainActor
     private func run() async {
+        // 本次是否手动重烘(进 sleep 前先捕获并清,避免被下一次触发污染)。token 变 / 首跑 → false。
+        let forced = pendingForced
+        pendingForced = false
         isLoading = true
         // 防抖:`.task(id:)` 已取消上一个;再等一拍合并连续改动(快速改格式 / 级别滑块等),避免狂跑模型。
         try? await Task.sleep(nanoseconds: 450_000_000)
@@ -86,7 +95,7 @@ struct InlineAIAdvisory: View {
         // 持续显示直到某个 task 真正跑完。这是创建对话框「预估异步到达 → token 抖动 → 菊花被闪没 → 完全不显示」的修复。
         if Task.isCancelled { return }
         do {
-            let result = try await produce()
+            let result = try await produce(forced)
             guard !Task.isCancelled else { return }
             text = result
         } catch {
