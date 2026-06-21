@@ -58,6 +58,7 @@ let package = Package(
                 "Core/AI/AIFileSuggestionMapping.swift",
                 "Core/AI/AIForegroundLock.swift",
                 "Core/AI/AIIndexMaintenance.swift",
+                "Core/AI/AIInlineReportPrompt.swift",
                 "Core/AI/AIIndexerScan.swift",
                 "Core/AI/AIIntentRouter.swift",
                 "Core/AI/AIInteractionSignal.swift",

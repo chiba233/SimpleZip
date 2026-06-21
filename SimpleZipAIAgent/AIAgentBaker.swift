@@ -43,7 +43,7 @@ enum AIAgentBaker {
     /// 每 pass 的最小时间片下限(秒)——避免 pass 数多时每片太短连一次生成都跑不完。
     private static let minPassSeconds: TimeInterval = 20
     /// 当前烘焙的 pass 数(切时间片用;加 pass 时同步 +1)。
-    private static let plannedPassCount = 9
+    private static let plannedPassCount = 10
 
     /// 跑一轮后台模型烘焙。返回更新后的索引 + 摘要。门控:AI 建议子开关 + 内容预读 + 端上模型可用。
     /// `derived`:派生数据存储(工具栏排序缓存等不在 index 里的派生数据写它)。
@@ -106,6 +106,9 @@ enum AIAgentBaker {
         // 文件夹「成组建议」/「整理进新文件夹」:据同文件夹的多文件让模型成组 / 圈一簇进新文件夹 → 派生缓存。
         summary.folderGroups = await bakeFolderGroups(index, derived: derived, lang: lang, passDeadline: slice(), log: log)
         summary.organizes = await bakeOrganize(index, derived: derived, lang: lang, passDeadline: slice(), log: log)
+        // pending 安全 / 发布包检测(确定性分析 + 仅异常时模型润色一句话;只读红线)。
+        let rsi = await bakePendingSecurityInspect(index, lang: lang, passDeadline: slice(), log: log)
+        index = rsi.index; summary.inlineChecks += rsi.count
 
         summary.note = "OK · 摘要 \(summary.fileSummaries) · 网页 \(summary.urlSuggestions) · 装App \(summary.diskImages) · 包内 \(summary.archiveEntries) · 包定性 \(summary.archiveKinds) · 检查 \(summary.inlineChecks) · 工具栏序 \(summary.toolbarRankings) · 文件组 \(summary.folderGroups) · 整理 \(summary.organizes)"
         return (index, summary)
@@ -503,6 +506,77 @@ enum AIAgentBaker {
     private static func decodeDerived<T: Decodable>(_ derived: AIDerivedDataStore, _ key: String) -> T? {
         guard let data = derived.data(forKey: key) else { return nil }
         return try? JSONDecoder().decode(T.self, from: data)
+    }
+
+    // MARK: - Pass ⑩:pending 安全 / 发布包检测(确定性分析 + 仅异常时模型润色一句话)
+
+    @available(macOS 26.0, *)
+    private static func bakePendingSecurityInspect(_ index: AIFileMemoryIndex, lang: String, passDeadline: Date,
+                                                   log: (String) -> Void) async -> (index: AIFileMemoryIndex, count: Int) {
+        var index = index
+        let defaults = AIAgentConfiguration.appDomainDefaults()
+        guard let data = defaults.data(forKey: AppPreferences.Key.aiPendingChecksData),
+              var queue = try? JSONDecoder().decode(AIPendingCheckQueue.self, from: data) else { return (index, 0) }
+        let pending = queue.checks
+            .filter { $0.status == .pending && ($0.behavior == .security || $0.behavior == .inspect) }
+            .sorted { $0.queuedAt < $1.queuedAt }
+        guard !pending.isEmpty else { return (index, 0) }
+        log("烘焙 pendingChecks(security/inspect):待执行 \(pending.count)")
+        var count = 0
+        for check in pending {
+            if Date() >= passDeadline { break }
+            guard FileManager.default.fileExists(atPath: check.path),
+                  let rec = index.records.first(where: { $0.path == check.path }) else {
+                queue.mark(id: check.id, status: .failed, executedAt: Date()); continue
+            }
+            let url = URL(fileURLWithPath: check.path)
+            do {
+                switch check.behavior {
+                case .security:
+                    let items = try await ArchiveService.list(url)
+                    let findings = ArchiveSecurityReport.analyze(items)
+                    let assessment = ArchiveRiskScore.assess(
+                        findings: findings, encryptedCount: items.filter(\.isEncrypted).count,
+                        junkCount: ArchiveJunkFiles.junkEntries(in: items).count)
+                    if AIPendingCheckJudge.securityWorthSurfacing(findings: findings, assessment: assessment) {
+                        let p = AIInlineReportPrompt.pathSafety(assessment: assessment, findings: findings, listable: true)
+                        let text = (try await runPass(.reportText, ReportTextInput(instructions: p.instructions, prompt: p.prompt), AIPassTextOutput.self, lang))
+                            .text.trimmingCharacters(in: .whitespacesAndNewlines)
+                        if !text.isEmpty { index = applyInline(index, recordID: rec.id, token: "security", text: text); log("  安全 ✓ \(rec.fileName)") }
+                    }
+                    queue.mark(id: check.id, status: .done, executedAt: Date()); count += 1
+                case .inspect:
+                    let items = try await ArchiveService.list(url)
+                    var report = ReleaseInspectionReport(archiveURL: url)
+                    report.listable = true
+                    report.stats = ReleaseInspection.stats(for: items)
+                    report.securityFindings = ArchiveSecurityReport.analyze(items)
+                    report.structuralFingerprint = ArchiveStructuralFingerprint.compute(for: items)
+                    report.hasComment = !ArchiveService.headerComment(for: url).isEmpty
+                    do { try await ArchiveService.test(url, password: ""); report.testPassed = true }
+                    catch { report.testPassed = false; report.testFailureMessage = String(error.localizedDescription.prefix(160)) }
+                    if AIPendingCheckJudge.inspectWorthSurfacing(report: report) {
+                        let p = AIInlineReportPrompt.releaseInspection(for: report)
+                        let text = (try await runPass(.reportText, ReportTextInput(instructions: p.instructions, prompt: p.prompt), AIPassTextOutput.self, lang))
+                            .text.trimmingCharacters(in: .whitespacesAndNewlines)
+                        if !text.isEmpty { index = applyInline(index, recordID: rec.id, token: "inspect", text: text); log("  发布检测 ✓ \(rec.fileName)") }
+                    }
+                    queue.mark(id: check.id, status: .done, executedAt: Date()); count += 1
+                default: continue
+                }
+            } catch {
+                queue.mark(id: check.id, status: .failed, executedAt: Date())
+            }
+        }
+        if let out = try? JSONEncoder().encode(queue) { defaults.set(out, forKey: AppPreferences.Key.aiPendingChecksData) }
+        return (index, count)
+    }
+
+    private static func applyInline(_ index: AIFileMemoryIndex, recordID: String, token: String, text: String) -> AIFileMemoryIndex {
+        guard let rec = index.records.first(where: { $0.id == recordID }) else { return index }
+        let base = rec.contentSummary ?? AIFileContentSummary(mode: "inline-result")
+        guard base.inlineResults[token] != text else { return index }
+        return index.updatingRecord(id: recordID) { $0.withContentSummary(base.withInlineResult(token: token, text: text)) }
     }
 
     // MARK: - 缓存写(与 AIBackgroundIndexStore 的 apply* 同语义,纯 Core 值类型 op)

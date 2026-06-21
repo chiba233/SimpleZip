@@ -330,69 +330,18 @@ extension AIReportAssistant {
 
     /// 归档抽屉内联「发布包检测」:确定性只读检查已经完成,AI 只把计数事实压成一句白话介绍。
     /// Prompt 刻意中性:不点名任何 App / 平台 / 具体软件,不建议发布 / 修复 / 放行。
+    /// 内联报告提示词已下沉 Core(AIInlineReportPrompt)供 App + agent 共用;这里留 forwarder,调用点不变。
     static func inlineReleaseInspectionPrompt(for report: ReleaseInspectionReport) -> (instructions: String, prompt: String) {
-        let instructions = """
-        Explain a read-only archive inspection result in exactly one plain-language sentence. Use only the \
-        provided facts. Do not mention any app, vendor, product, marketplace, publishing platform, or \
-        specific software name. Do not tell the user to publish, extract, delete, repair, trust, override a \
-        warning, or take action. Do not present a security verdict; describe what the checks found.
-        """
-        var lines: [String] = [
-            "Report kind: read-only archive inspection",
-            "Listing available: \(report.listable)"
-        ]
-        if let passed = report.testPassed {
-            lines.append("Integrity test passed: \(passed)")
-        } else {
-            lines.append("Integrity test passed: unknown")
-        }
-        if let stats = report.stats {
-            lines.append("Files: \(stats.fileCount)")
-            lines.append("Folders: \(stats.folderCount)")
-            lines.append("Total bytes: \(stats.totalBytes)")
-            lines.append("Metadata junk entries: \(stats.junkCount)")
-            lines.append("Empty folders: \(stats.emptyDirectoryCount)")
-            lines.append("Executable entries: \(stats.executableCount)")
-            lines.append("Symbolic links: \(stats.symlinkCount)")
-        }
-        lines.append("Suspicious path finding types: \(report.securityFindings.count)")
-        lines.append("Has archive comment: \(report.hasComment)")
-        return (instructions, lines.joined(separator: "\n"))
+        AIInlineReportPrompt.releaseInspection(for: report)
     }
 
-    /// 归档抽屉内联「路径安全报告」:规则系统已经定级,AI 只解释这一份只读报告的一句话摘要。
+    /// 归档抽屉内联「路径安全报告」:规则系统已经定级,AI 只解释这一份只读报告的一句话摘要(实现下沉 Core)。
     static func inlinePathSafetyPrompt(
         assessment: ArchiveRiskScore.Assessment,
         findings: [ArchiveSecurityFinding],
         listable: Bool
     ) -> (instructions: String, prompt: String) {
-        let instructions = """
-        Explain a read-only archive path-safety report in exactly one plain-language sentence. Use only the \
-        provided facts. Do not mention any app, vendor, product, marketplace, publishing platform, or \
-        specific software name. Do not tell the user to extract, delete, repair, trust, override a warning, \
-        or take action. Do not re-grade the report; describe the deterministic rule result and what was \
-        found.
-        """
-        var lines: [String] = [
-            "Report kind: read-only path-safety analysis",
-            "Listing available: \(listable)",
-            "Rule grade: \(assessment.grade.rawValue.uppercased())",
-            "Rule level: \(assessment.level.rawValue)"
-        ]
-        if let dominant = assessment.dominant {
-            lines.append("Dominant issue: \(dominant.dimension.rawValue) (\(dominant.count) entries)")
-        } else {
-            lines.append("Dominant issue: none")
-        }
-        if findings.isEmpty {
-            lines.append("Finding types: none")
-        } else {
-            lines.append("Finding types:")
-            for finding in findings {
-                lines.append("- \(finding.kind.rawValue): \(finding.entryPaths.count)")
-            }
-        }
-        return (instructions, lines.joined(separator: "\n"))
+        AIInlineReportPrompt.pathSafety(assessment: assessment, findings: findings, listable: listable)
     }
 
     // MARK: - 报告富化批:更多报告接 AI 解释(每条都喂比 UI 更全的具体数据)
