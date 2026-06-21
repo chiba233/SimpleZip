@@ -122,7 +122,8 @@ enum FilePermissionService {
         guard !paths.isEmpty else { return true }
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/bin/chmod")
-        process.arguments = (recursive ? ["-R"] : []) + [String(format: "%o", mode)] + paths.map(\.path)
+        // 安全:`--` 终止选项,路径(虽是绝对路径、本就以 / 开头)不被当 flag —— 纵深防御。
+        process.arguments = (recursive ? ["-R"] : []) + ["--", String(format: "%o", mode)] + paths.map(\.path)
         process.standardOutput = FileHandle.nullDevice
         process.standardError = FileHandle.nullDevice
         do {
@@ -156,13 +157,15 @@ enum FilePermissionService {
         if let chmod, !chmod.urls.isEmpty {
             let paths = chmod.urls.map { shellQuote($0.path) }.joined(separator: " ")
             let flag = recursive ? "-R " : ""
-            commands.append("/bin/chmod \(flag)\(String(format: "%o", chmod.mode)) \(paths)")
+            // 安全:`--` 终止选项,路径不被当 flag(纵深防御;路径本就绝对)。
+            commands.append("/bin/chmod \(flag)-- \(String(format: "%o", chmod.mode)) \(paths)")
         }
         if let chown, !chown.owner.isEmpty, !chown.urls.isEmpty {
             let paths = chown.urls.map { shellQuote($0.path) }.joined(separator: " ")
             // -h：作用在符号链接本身而非其指向,避免误改链接目标的属主;递归再加 -R。
             let flags = recursive ? "-R -h " : "-h "
-            commands.append("/usr/sbin/chown \(flags)\(shellQuote(chown.owner)) \(paths)")
+            // 安全:owner 是 UI 输入,shellQuote 防 shell 注入、`--` 再防它被 chown 当成 option(如以 - 开头)。
+            commands.append("/usr/sbin/chown \(flags)-- \(shellQuote(chown.owner)) \(paths)")
         }
         guard !commands.isEmpty else { return }
         try runPrivileged(commands.joined(separator: " && "))
