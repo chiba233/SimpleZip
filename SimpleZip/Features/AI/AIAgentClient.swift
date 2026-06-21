@@ -63,6 +63,18 @@ enum AIAgentClient {
         }
     }
 
+    /// 同 BoolOnce,但承载 `(Bool, String)?`(给模型可用性查询 `fetchModelAvailability` 用:超时/回复/连接失败只结算一次)。
+    private nonisolated final class AvailabilityOnce: @unchecked Sendable {
+        private let lock = NSLock()
+        private var fired = false
+        private let body: ((Bool, String)?) -> Void
+        init(_ body: @escaping ((Bool, String)?) -> Void) { self.body = body }
+        func callAsFunction(_ value: (Bool, String)?) {
+            lock.lock(); let first = !fired; fired = true; lock.unlock()
+            if first { body(value) }
+        }
+    }
+
     /// 把 non-Sendable 的 `NSXPCConnection` 装进 @unchecked Sendable 盒 —— 让超时 / 回调闭包捕获它而不触发 Swift
     /// 并发警告。XPC 连接本就跨线程用(超时在 global queue、回复在 XPC queue),`invalidate` 幂等,封箱传递是安全的。
     private nonisolated final class ConnectionBox: @unchecked Sendable {
@@ -325,6 +337,28 @@ enum AIAgentClient {
             } as? SimpleZipAIAgentXPC
             guard let proxy else { box.connection.invalidate(); settle(false); return }
             proxy.ping { ok in box.connection.invalidate(); settle(ok) }
+        }
+    }
+
+    /// 经前台 XPC Service 查**端上模型可用性**(给 `AIReportAssistant.isReady` / `unavailableReason` 缓存用 —— 主二进制
+    /// 不再 import FoundationModels,可用性由引擎进程读 `SystemLanguageModel.availability` 回报)。回 `(available, reasonCode)`;
+    /// 连不上 / 超时回 `nil`(调用方据此**不动缓存**、沿用上次已知值,不误判不可用)。**不碰模型**(只读可用性,瞬回)。
+    nonisolated static func fetchModelAvailability(timeout: TimeInterval = 3.0) async -> (available: Bool, reasonCode: String)? {
+        await withCheckedContinuation { (cont: CheckedContinuation<(Bool, String)?, Never>) in
+            let settle = AvailabilityOnce { cont.resume(returning: $0) }
+            let box = ConnectionBox(NSXPCConnection(serviceName: SimpleZipAIAgentXPCNames.xpcServiceName))
+            box.connection.remoteObjectInterface = NSXPCInterface(with: SimpleZipAIAgentXPC.self)
+            box.connection.resume()
+            DispatchQueue.global().asyncAfter(deadline: .now() + timeout) {
+                box.connection.invalidate(); settle(nil)
+            }
+            let proxy = box.connection.remoteObjectProxyWithErrorHandler { _ in
+                box.connection.invalidate(); settle(nil)
+            } as? SimpleZipAIAgentXPC
+            guard let proxy else { box.connection.invalidate(); settle(nil); return }
+            proxy.modelAvailability { available, reasonCode in
+                box.connection.invalidate(); settle((available, reasonCode))
+            }
         }
     }
 

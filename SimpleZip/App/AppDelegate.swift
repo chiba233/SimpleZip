@@ -61,6 +61,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // 不必等第一条 pass 触发才冷启动。关了 AI → 只持久化红线状态(不必拉起 XPC,省电)。
         if AppPreferences.aiAssistantEnabled {
             AIAgentClient.publishConfiguration()
+            // 刷新端上模型可用性缓存(主二进制不再 import FoundationModels,可用性经 XPC 引擎查;isReady 读缓存)。
+            Task { await AIReportAssistant.refreshAvailability() }
         } else {
             AIAgentClient.persistConfiguration()
         }

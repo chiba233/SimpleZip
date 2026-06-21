@@ -24,6 +24,12 @@ import Foundation
     /// (2-34s、可能卡 guardrail),拿它做状态检测会「卡在检测中」;ping 只验「XPC 进程拉得起、连得上」,瞬回。
     nonisolated func ping(reply: @escaping (Bool) -> Void)
 
+    /// **端上模型可用性查询**(给主 app 的 `isReady` / `unavailableReason` 缓存用 —— 主二进制不再 import
+    /// FoundationModels,改由引擎进程读 `SystemLanguageModel.availability` 回报)。reply `(available, reasonCode)`:
+    /// reasonCode ∈ {`""` 可用, `"deviceNotEligible"`, `"notEnabled"`, `"modelNotReady"`, `"osTooOld"`},App 据 code
+    /// 映 L10n。**不碰生成、瞬回**(只读可用性,非推理)。
+    nonisolated func modelAvailability(reply: @escaping (Bool, String) -> Void)
+
     /// 在 agent 进程里试跑一次端上模型最小生成,回传人话结果(成功+样本 / 不可用原因 / OS 太老)。
     nonisolated func probeModel(reply: @escaping (String) -> Void)
 

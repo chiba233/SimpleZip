@@ -75,8 +75,14 @@ struct AISettingsPane: View {
         .controlSize(.small)
         .settingsScrollAnchors()
         // 配置同步是默认行为(不靠手动):进页先持久化一次,AI 主/子开关一变就推给 agent(持久化文件 + best-effort 推送)。
-        .onAppear { AIAgentClient.persistConfiguration() }
-        .onChange(of: aiAssistant) { _ in AIAgentClient.publishConfiguration() }
+        .onAppear {
+            AIAgentClient.persistConfiguration()
+            Task { await AIReportAssistant.refreshAvailability() }   // 进页刷新模型可用性缓存(isReady 读它)
+        }
+        .onChange(of: aiAssistant) { _ in
+            AIAgentClient.publishConfiguration()
+            Task { await AIReportAssistant.refreshAvailability() }   // 打开 AI 主开关后立即查可用性(自 gate AI 关时跳过)
+        }
         .onChange(of: aiSuggestion) { _ in AIAgentClient.publishConfiguration() }
     }
 

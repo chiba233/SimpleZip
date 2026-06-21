@@ -13,32 +13,44 @@
 //
 
 import Foundation
-import FoundationModels
 
 enum AIReportAssistant {
-    /// AI 入口是否该出现:用户主开关开 + macOS 26+ + 系统模型 available。
+    // **主二进制零 FoundationModels**:模型可用性不再在 App 内直接读 `SystemLanguageModel`(那要 import
+    // FoundationModels),改由引擎进程(agent/XPC)读、经 XPC 回报,App 只**缓存**结果(持久化进 UserDefaults,
+    // 跨启动稳定)。`isReady` / `unavailableReason` 保持**同步读缓存**(53 处调用点不变,语义从实时→缓存,见
+    // `refreshAvailability` 刷新时机)。模型可用性对一台机器基本是静态的,缓存够稳;只有首次启动首查返回前的短暂
+    // 窗口用默认值(available 缓存默认 false = 未确认前不露 AI,安全)。
+    private static let availableCacheKey = "SimpleZip.ai.modelAvailableCache"
+    private static let reasonCacheKey = "SimpleZip.ai.modelUnavailableReasonCache"
+
+    /// AI 入口是否该出现:用户主开关开 + macOS 26+ + (缓存的)系统模型 available。
     static var isReady: Bool {
         guard AppPreferences.aiAssistantEnabled else { return false }
         guard #available(macOS 26.0, *) else { return false }
-        return SystemLanguageModel.default.isAvailable
+        return UserDefaults.standard.bool(forKey: availableCacheKey)
     }
 
     /// macOS 26+ 但模型当前不可用的人话原因(给 disabled 按钮 / 设置说明)。可用时返回空串。
+    /// 读缓存的 reasonCode(引擎回报)→ 映 App 的 L10n(本地化留在 App,引擎只回 code)。
     static var unavailableReason: String {
         guard #available(macOS 26.0, *) else { return L10n.text("ai.unavailable.osTooOld") }
-        switch SystemLanguageModel.default.availability {
-        case .available:
-            return ""
-        case .unavailable(let reason):
-            switch reason {
-            case .deviceNotEligible:
-                return L10n.text("ai.unavailable.deviceNotEligible")
-            case .appleIntelligenceNotEnabled:
-                return L10n.text("ai.unavailable.notEnabled")
-            default:
-                return L10n.text("ai.unavailable.modelNotReady")
-            }
+        switch UserDefaults.standard.string(forKey: reasonCacheKey) ?? "" {
+        case "": return ""
+        case "deviceNotEligible": return L10n.text("ai.unavailable.deviceNotEligible")
+        case "notEnabled": return L10n.text("ai.unavailable.notEnabled")
+        case "osTooOld": return L10n.text("ai.unavailable.osTooOld")
+        default: return L10n.text("ai.unavailable.modelNotReady")
         }
+    }
+
+    /// 经前台 XPC Service 查端上模型可用性 → 写入缓存(供 `isReady` / `unavailableReason` 同步读)。
+    /// **刷新时机**:App 启动(开了 AI 时)+ AI 设置页出现 / 主开关打开时。查询失败(XPC 拉不起 / 超时)→ **不动缓存**
+    /// (沿用上次已知值,不误判成不可用)。仅 macOS 26+ 且 AI 主开关开时才查(否则 isReady 本就 false,无需查)。
+    @MainActor static func refreshAvailability() async {
+        guard AppPreferences.aiAssistantEnabled, #available(macOS 26.0, *) else { return }
+        guard let result = await AIAgentClient.fetchModelAvailability() else { return }
+        UserDefaults.standard.set(result.available, forKey: availableCacheKey)
+        UserDefaults.standard.set(result.reasonCode, forKey: reasonCacheKey)
     }
 
     /// 生成文本。仅 macOS 26+ 调用(调用点已用 `isReady` 守卫)。失败抛出,UI 显示错误文案、不崩。

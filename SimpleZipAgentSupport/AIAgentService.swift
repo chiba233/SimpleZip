@@ -62,6 +62,26 @@ final class AIAgentService: NSObject, SimpleZipAIAgentXPC {
         reply(true)
     }
 
+    /// 端上模型可用性(给主 app 缓存 isReady/unavailableReason —— 主二进制不再 import FoundationModels)。
+    /// 只读 `SystemLanguageModel.availability`(**非推理、瞬回**),回 `(available, reasonCode)`;App 据 code 映 L10n。
+    func modelAvailability(reply: @escaping (Bool, String) -> Void) {
+        guard #available(macOS 26.0, *) else { reply(false, "osTooOld"); return }
+        #if canImport(FoundationModels)
+        switch SystemLanguageModel.default.availability {
+        case .available:
+            reply(true, "")
+        case .unavailable(let reason):
+            switch reason {
+            case .deviceNotEligible: reply(false, "deviceNotEligible")
+            case .appleIntelligenceNotEnabled: reply(false, "notEnabled")
+            default: reply(false, "modelNotReady")
+            }
+        }
+        #else
+        reply(false, "modelNotReady")
+        #endif
+    }
+
     func probeModel(reply: @escaping (String) -> Void) {
         Task {
             let result = await AIAgentService.probeText()
