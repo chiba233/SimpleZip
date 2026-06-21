@@ -241,6 +241,12 @@ enum CLIRunner {
     /// 加密归档的口令流程(用户拍板:CLI 也弹小窗,不拉起主窗口、绝不走命令行参数/终端回显):
     /// 先空口令试,后端报「需要口令」→ 弹 NSAlert + SecureField,最多三次;取消 → CancellationError。
     private static func testWithPasswordPrompts(_ url: URL, observer: @escaping @Sendable (String) -> Void) async throws {
+        try await SignedContainerService.withToolAdaptedArchive(url) { target in
+            try await testArchiveWithPasswordPrompts(target, promptName: url.lastPathComponent, observer: observer)
+        }
+    }
+
+    private static func testArchiveWithPasswordPrompts(_ url: URL, promptName: String, observer: @escaping @Sendable (String) -> Void) async throws {
         do {
             try await ArchiveService.test(url, outputObserver: observer)
             return
@@ -248,7 +254,7 @@ enum CLIRunner {
             guard ArchiveService.errorSuggestsPasswordRequirement(error) else { throw error }
             var lastError = error
             for _ in 0..<3 {
-                guard let password = promptPassword(for: url.lastPathComponent) else {
+                guard let password = promptPassword(for: promptName) else {
                     throw CancellationError()
                 }
                 do {
@@ -285,6 +291,12 @@ enum CLIRunner {
     /// 只读 list 的口令流程(list / inspect 共用):先空口令,需要口令时先试 `SIMPLEZIP_PASSWORD`(脚本场景免弹窗),
     /// 再弹小窗(最多 3 次)。取消 → CancellationError。口令绝不走 argv / 不回显(同 `create` / `check`)。
     private static func listWithPasswordPrompts(_ url: URL, operationID: UUID? = nil) async throws -> [ArchiveItem] {
+        try await SignedContainerService.withToolAdaptedArchive(url) { target in
+            try await listArchiveWithPasswordPrompts(target, promptName: url.lastPathComponent, operationID: operationID)
+        }
+    }
+
+    private static func listArchiveWithPasswordPrompts(_ url: URL, promptName: String, operationID: UUID? = nil) async throws -> [ArchiveItem] {
         do {
             return try await ArchiveService.list(url, operationID: operationID)
         } catch {
@@ -295,7 +307,7 @@ enum CLIRunner {
                 catch { lastError = error; guard ArchiveService.errorSuggestsPasswordRequirement(error) else { throw error } }
             }
             for _ in 0..<3 {
-                guard let password = promptPassword(for: url.lastPathComponent) else { throw CancellationError() }
+                guard let password = promptPassword(for: promptName) else { throw CancellationError() }
                 do { return try await ArchiveService.list(url, password: password, operationID: operationID) }
                 catch { lastError = error; guard ArchiveService.errorSuggestsPasswordRequirement(error) else { throw error } }
             }
@@ -344,8 +356,12 @@ enum CLIRunner {
         let startedAt = Date()
         let title = "simplezip compare \(leftURL.lastPathComponent) \(rightURL.lastPathComponent)"
         do {
-            let leftItems = try await ArchiveService.list(leftURL)
-            let rightItems = try await ArchiveService.list(rightURL)
+            let leftItems = try await SignedContainerService.withToolAdaptedArchive(leftURL) { target in
+                try await ArchiveService.list(target)
+            }
+            let rightItems = try await SignedContainerService.withToolAdaptedArchive(rightURL) { target in
+                try await ArchiveService.list(target)
+            }
             let result = ArchiveDiff.compare(left: leftItems, right: rightItems)
             var lines: [String] = []
             for item in result.added { lines.append("+ \(item.name)") }
@@ -637,11 +653,12 @@ enum CLIRunner {
             do {
                 let report = try await HashService.calculate(for: [url], includeHiddenFiles: true, algorithms: algorithms)
                 var lines: [String] = []
-                for result in report.results {
+                for result in report.results where !isCurrentChecksumRedirectCandidate(result, sourceURL: url) {
                     // 算法按用户传入顺序输出(report.algorithms 即此顺序)。
                     for algorithm in report.algorithms {
                         guard let hex = result.hashes[algorithm] else { continue }
-                        lines.append("\(algorithm.rawValue) (\(result.url.path)) = \(hex)")
+                        let checksumName = checksumEntryName(for: result.url, sourceURL: url)
+                        lines.append("\(algorithm.rawValue) (\(checksumName)) = \(hex)")
                         resultObjects.append(["file": result.url.path, "algorithm": algorithm.rawValue, "hash": hex, "size": result.size])
                     }
                 }
@@ -663,6 +680,56 @@ enum CLIRunner {
             printJSON(["command": "hash", "results": resultObjects, "ok": failures == 0])
         }
         return failures == 0 ? 0 : 1
+    }
+
+    /// `simplezip hash . > SHA256SUMS` creates an empty checksum file before the
+    /// process starts; hashing that file makes the generated manifest fail itself.
+    private nonisolated static func isCurrentChecksumRedirectCandidate(_ result: FileHashResult, sourceURL: URL) -> Bool {
+        guard result.size == 0,
+              ChecksumFile.isChecksumFileName(result.url.lastPathComponent) else {
+            return false
+        }
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: sourceURL.path, isDirectory: &isDirectory),
+              isDirectory.boolValue else {
+            return false
+        }
+        let currentDirectory = URL(fileURLWithPath: FileManager.default.currentDirectoryPath).standardizedFileURL
+        return result.url.deletingLastPathComponent().standardizedFileURL.path == currentDirectory.path
+    }
+
+    /// `verify` intentionally rejects absolute paths and `..`; make `hash > SHA256SUMS`
+    /// produce entries that remain inside the checksum file's directory.
+    private nonisolated static func checksumEntryName(for resultURL: URL, sourceURL: URL) -> String {
+        let targetURL = resultURL.standardizedFileURL
+        let currentDirectoryURL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath).standardizedFileURL
+        if let relative = relativePath(from: currentDirectoryURL, to: targetURL),
+           isSafeChecksumEntryName(relative) {
+            return relative
+        }
+        let baseURL = sourceURL.deletingLastPathComponent().standardizedFileURL
+        if let relative = relativePath(from: baseURL, to: targetURL),
+           isSafeChecksumEntryName(relative) {
+            return relative
+        }
+        return resultURL.lastPathComponent
+    }
+
+    private nonisolated static func relativePath(from baseURL: URL, to targetURL: URL) -> String? {
+        let baseComponents = baseURL.pathComponents
+        let targetComponents = targetURL.pathComponents
+        guard targetComponents.count > baseComponents.count,
+              Array(targetComponents.prefix(baseComponents.count)) == baseComponents else {
+            return nil
+        }
+        let relative = targetComponents.dropFirst(baseComponents.count).joined(separator: "/")
+        return relative.isEmpty ? nil : relative
+    }
+
+    private nonisolated static func isSafeChecksumEntryName(_ name: String) -> Bool {
+        guard !name.hasPrefix("/") else { return false }
+        let separatorNormalized = name.replacingOccurrences(of: "\\", with: "/")
+        return !separatorNormalized.split(separator: "/").contains("..")
     }
 
     // MARK: - list(0.4.5)
@@ -974,24 +1041,34 @@ enum CLIRunner {
                 continue
             }
             // 批量场景不弹密码框:列不动/需口令的如实标注,不打断整批。
-            guard let items = try? await ArchiveService.list(url) else {
+            let probe: (items: [ArchiveItem], testResult: String, testFailed: Bool)?
+            do {
+                probe = try await SignedContainerService.withToolAdaptedArchive(url, perform: { target in
+                    let items = try await ArchiveService.list(target)
+                    var testResult = "passed"
+                    var testFailed = false
+                    do {
+                        try await ArchiveService.test(target, password: "")
+                    } catch {
+                        testFailed = true
+                        testResult = ArchiveService.errorSuggestsPasswordRequirement(error) ? "needs password" : "FAILED"
+                    }
+                    return (items, testResult, testFailed)
+                })
+            } catch {
+                probe = nil
+            }
+            guard let probe else {
                 lines.append("\(url.lastPathComponent): not listable (encrypted name or damaged)")
-                rowObjects.append(["archive": url.path, "listable": false])
+                failures += 1
+                rowObjects.append(["archive": url.path, "listable": false, "test": "not listable"])
                 continue
             }
+            let items = probe.items
             let facts = ArchiveCheckup.entryFacts(items: items)
             let stats = ReleaseInspection.stats(for: items)
-            var testResult = "passed"
-            do {
-                try await ArchiveService.test(url, password: "")
-            } catch {
-                if ArchiveService.errorSuggestsPasswordRequirement(error) {
-                    testResult = "needs password"
-                } else {
-                    testResult = "FAILED"
-                    failures += 1
-                }
-            }
+            let testResult = probe.testResult
+            if probe.testFailed { failures += 1 }
             let sizeText = ByteCountFormatter.string(fromByteCount: stats.totalBytes, countStyle: .file)
             lines.append("\(url.lastPathComponent): \(testResult) · \(stats.fileCount) files · \(sizeText) · suspicious \(facts.suspiciousPathCount) · junk \(facts.junkCount) · encrypted \(facts.encryptedCount)")
             rowObjects.append([
@@ -1315,8 +1392,8 @@ enum CLIRunner {
     }
 
     private nonisolated static func appDefaults(_ environment: Environment) -> UserDefaults {
-        // CLI 进程的 .standard 指向错误的域(无 bundle ID)—— 显式打开 app 的偏好域。
-        UserDefaults(suiteName: environment.appBundleID) ?? .standard
+        // direct `--cli` 用 .standard;经 PATH symlink 运行时显式打开 app 偏好域(A19)。
+        TaskCenter.defaultsForAppBundleID(environment.appBundleID) ?? .standard
     }
 
     /// 线程安全的输出收集器 —— outputObserver 从后台回调,主线程收尾时读。

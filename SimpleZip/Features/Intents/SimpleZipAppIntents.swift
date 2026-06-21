@@ -136,7 +136,9 @@ struct CreateArchiveIntent: AppIntent {
         "Compresses files into a new archive next to them, applying the same per-format defaults as SimpleZip's one-click Finder compression. All inputs must live in the same folder; an existing archive is never overwritten — the new one gets a numbered name instead."
     )
 
-    @Parameter(title: "Files")
+    // 默认 `[IntentFile]` 的内容类型把**文件夹**排除在外(用户报:创建归档只能选文件)。目标 macOS 13
+    // 只能用旧的 type identifier initializer;Core createArchive 本就支持文件夹打包。
+    @Parameter(title: "Files", supportedTypeIdentifiers: ["public.folder", "public.item"])
     var files: [IntentFile]
 
     @Parameter(title: "Format", default: .zip)
@@ -273,6 +275,13 @@ struct TestArchiveIntent: AppIntent {
     /// Shortcuts 是无人值守上下文,绝不弹密码窗。
     @MainActor
     private func testHonoringPresetPassword(_ url: URL, operationID: UUID) async throws {
+        try await SignedContainerService.withToolAdaptedArchive(url) { target in
+            try await testArchiveHonoringPresetPassword(target, operationID: operationID)
+        }
+    }
+
+    @MainActor
+    private func testArchiveHonoringPresetPassword(_ url: URL, operationID: UUID) async throws {
         do {
             try await ArchiveService.test(url, operationID: operationID)
         } catch {
@@ -443,7 +452,9 @@ struct AnalyzeArchiveSpaceIntent: AppIntent {
     func perform() async throws -> some IntentResult & ReturnsValue<String> {
         let url = try intentFileURL(archive)
         do {
-            let items = try await ArchiveService.list(url)
+            let items = try await SignedContainerService.withToolAdaptedArchive(url) { target in
+                try await ArchiveService.list(target)
+            }
             let a = ArchiveSpaceAnalysis.analyze(items)
             func bytes(_ value: Int64) -> String { ByteCountFormatter.string(fromByteCount: value, countStyle: .file) }
             var parts = ["\(a.fileCount) files", "original \(bytes(a.totalBytes))", "packed \(bytes(a.packedBytes))"]
@@ -505,7 +516,11 @@ struct CheckupArchivesIntent: AppIntent {
         var failures = 0
         for file in archives {
             let url = try intentFileURL(file)
-            do { try await ArchiveService.test(url, password: "") }
+            do {
+                try await SignedContainerService.withToolAdaptedArchive(url) { target in
+                    try await ArchiveService.test(target, password: "")
+                }
+            }
             catch { failures += 1 }
         }
         return .result(value: failures == 0)
@@ -667,8 +682,12 @@ struct CompareArchivesIntent: AppIntent {
             operationID: operationID
         )
         do {
-            let leftItems = try await ArchiveService.list(leftURL, operationID: operationID)
-            let rightItems = try await ArchiveService.list(rightURL, operationID: operationID)
+            let leftItems = try await SignedContainerService.withToolAdaptedArchive(leftURL) { target in
+                try await ArchiveService.list(target, operationID: operationID)
+            }
+            let rightItems = try await SignedContainerService.withToolAdaptedArchive(rightURL) { target in
+                try await ArchiveService.list(target, operationID: operationID)
+            }
             let result = ArchiveDiff.compare(left: leftItems, right: rightItems)
             TaskCenter.shared.finish(task, outcome: .succeeded(nil))
             if result.hasDifferences {
@@ -726,7 +745,9 @@ struct SearchArchiveContentsIntent: AppIntent {
         )
         do {
             // 仅按完整路径做大小写不敏感子串匹配。加密名归档本就 list 不出名字 → 自然不暴露(隐私红线)。
-            let items = try await ArchiveService.list(url, operationID: operationID)
+            let items = try await SignedContainerService.withToolAdaptedArchive(url) { target in
+                try await ArchiveService.list(target, operationID: operationID)
+            }
             let matches = ArchiveSearch.filter(items, with: ArchiveSearchQuery(text: trimmed, scope: .fullPath)).map(\.name)
             TaskCenter.shared.finish(task, outcome: .succeeded(nil))
             if matches.isEmpty {
@@ -776,7 +797,9 @@ struct InspectArchiveIntent: AppIntent {
             operationID: operationID
         )
         do {
-            let items = try await ArchiveService.list(url, operationID: operationID)
+            let items = try await SignedContainerService.withToolAdaptedArchive(url) { target in
+                try await ArchiveService.list(target, operationID: operationID)
+            }
             let stats = ReleaseInspection.stats(for: items)
             let findings = ArchiveSecurityReport.analyze(items)
             let flaggedPaths = findings.reduce(0) { $0 + $1.entryPaths.count }

@@ -69,6 +69,16 @@ final class TaskCenter: ObservableObject {
     /// 与直接改偏好 plist 同级,不构成新的攻击面。
     nonisolated static let cliTaskNotificationName = "SimpleZip.cli.taskRecord"
 
+    /// CLI companion 要读写 app 的偏好域。direct `--cli` 运行时当前进程就是 app bundle,
+    /// 此时用 `.standard` 才不会触发 “own bundle identifier as suite name” 警告；经 symlink
+    /// 运行时 `Bundle.main.bundleIdentifier` 为空/不可靠(A19),才显式打开 app bundle id 对应的域。
+    nonisolated static func defaultsForAppBundleID(_ appBundleID: String) -> UserDefaults? {
+        if Bundle.main.bundleIdentifier == appBundleID {
+            return .standard
+        }
+        return UserDefaults(suiteName: appBundleID)
+    }
+
     /// app 侧:收 CLI 进程的已完成任务记录 → 插历史 + 持久化。分布式通知投递在主运行循环。
     @objc private func receiveExternalCLITaskRecord(_ notification: Notification) {
         guard let json = notification.userInfo?["record"] as? String,
@@ -113,7 +123,9 @@ final class TaskCenter: ObservableObject {
             hashComparisons: nil,
             transferLog: nil
         )
-        let appIsRunning = !NSRunningApplication.runningApplications(withBundleIdentifier: appBundleID).isEmpty
+        let currentPID = ProcessInfo.processInfo.processIdentifier
+        let appIsRunning = NSRunningApplication.runningApplications(withBundleIdentifier: appBundleID)
+            .contains { $0.processIdentifier != currentPID }
         if appIsRunning {
             guard let payload = try? JSONEncoder().encode(record),
                   let json = String(data: payload, encoding: .utf8) else { return }
@@ -125,7 +137,7 @@ final class TaskCenter: ObservableObject {
             )
             return
         }
-        guard let defaults = UserDefaults(suiteName: appBundleID) else { return }
+        guard let defaults = defaultsForAppBundleID(appBundleID) else { return }
         var snapshots: [PersistedTask] = []
         if let data = defaults.data(forKey: AppPreferences.Key.activityHistory),
            let existing = try? JSONDecoder().decode([LossyTask].self, from: data) {
