@@ -73,14 +73,14 @@ enum AIAgentBackgroundIndex {
                         log: @escaping (String) -> Void = { _ in }) async -> RunSummary {
         func skip(_ note: String) -> RunSummary { log(note); return RunSummary(scopesScanned: 0, recordsWritten: 0, note: note) }
 
-        // 1. 配置门控(红线主开关 + 静默后台 opt-in + 后台索引开关 + 活跃度)。
+        // 1. 配置门控(红线主开关 + 静默后台 opt-in + 后台索引开关)。**不参考前台「本地 AI 活跃度 / 索引电源」**
+        //    (用户拍板:那是前台 XPC 的设置;后台 agent 只看系统低电 / 省电)。预算用固定档(balanced),不随活跃度变。
         guard let config = AIAgentConfiguration.loadPersisted() else { return skip("无配置(App 未同步)→ 不跑") }
         guard config.aiAssistantEnabled else { return skip("AI 主开关关(红线)→ 不跑") }
         guard config.silentBackgroundIndexEnabled else { return skip("静默后台索引未开(opt-in 默认关)→ 不跑") }
         guard config.indexingEnabled else { return skip("后台索引开关关 → 不跑") }
-        let level = AIBackgroundActivityLevel(rawValue: config.activityLevel) ?? .balanced
-        guard level != .off, let budget = AIArchivePrefetchBudget.forLevel(level) else { return skip("活跃度 off → 不跑") }
-        log("配置 OK · 活跃度 \(level.rawValue) · 语言 \(config.languageName)\(force ? " · --force(绕间隔/前台锁)" : "")")
+        guard let budget = AIArchivePrefetchBudget.forLevel(.balanced) else { return skip("无预算(不应发生)→ 不跑") }
+        log("配置 OK · 语言 \(config.languageName)\(force ? " · --force(绕间隔/前台锁)" : "")")
 
         // 1c. app/agent 互斥:App 在前台活跃(持有前台锁)→ 后台归 App,agent 让位(--force 跳过)。
         if !force, let lockURL = AIForegroundLock.lockURL(appBundleID: AIAgentConfiguration.appBundleID),
@@ -140,13 +140,17 @@ enum AIAgentBackgroundIndex {
                 updatedScopes[i] = markScanned(updatedScopes[i], at: now)
             }
         }
-        log("元数据 \(results.count) scope · \(written) 条 → 开始模型烘焙")
-
         // 7. **模型烘焙**:在本进程内直调端上模型预烘焙各 pass(到 deadline 即停,下轮续)。这才是后台 agent 的本职。
+        //    **电源门控(用户拍板:后台 agent 只看系统低电 / 省电,不看前台活跃度)**:省电模式 / 低电 → 只留元数据,跳过模型。
         var bakedSummaries = 0
         var bakedURLs = 0
         var bakeNote = "(未烘焙)"
-        if #available(macOS 26.0, *) {
+        if !AISystemPower.backgroundModelWorkAllowed() {
+            let saver = AISystemPower.powerSaverMode
+            bakeNote = saver ? "省电模式 → 只元数据,跳过模型烘焙" : "低电量 → 只元数据,跳过模型烘焙"
+            log("元数据 \(results.count) scope · \(written) 条 · \(bakeNote)")
+        } else if #available(macOS 26.0, *) {
+            log("元数据 \(results.count) scope · \(written) 条 → 开始模型烘焙")
             let baked = await AIAgentBaker.bake(index: index, config: config, budget: budget, deadline: deadline, derived: derived, log: log)
             index = baked.index
             bakedSummaries = baked.summary.fileSummaries

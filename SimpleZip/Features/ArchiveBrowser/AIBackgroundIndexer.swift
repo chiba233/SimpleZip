@@ -1288,21 +1288,8 @@ final class AIIndexerGate {
     /// 当前是否在充电(只读电源,不组装完整上下文)。pending 检查「只插电执行」用。
     func isChargingNow() -> Bool? { AIIndexerGate.powerState().isCharging }
 
-    /// 读电源状态(低电 < 20% / 是否充电)。无电池(台式机)→ 不低电、充电未知。off-main 安全(纯 IOKit 读)。
+    /// 读电源状态(低电 < 20% / 是否充电)。实现下沉 Core(AISystemPower)供 App + agent 共用,这里转发。
     private nonisolated static func powerState() -> (lowBattery: Bool, isCharging: Bool?) {
-        guard let blob = IOPSCopyPowerSourcesInfo()?.takeRetainedValue(),
-              let list = IOPSCopyPowerSourcesList(blob)?.takeRetainedValue() as? [CFTypeRef], !list.isEmpty else {
-            return (false, nil)
-        }
-        for source in list {
-            guard let desc = IOPSGetPowerSourceDescription(blob, source)?.takeUnretainedValue() as? [String: Any]
-            else { continue }
-            let capacity = desc[kIOPSCurrentCapacityKey as String] as? Int ?? 100
-            let maxCap = desc[kIOPSMaxCapacityKey as String] as? Int ?? 100
-            let pct = maxCap > 0 ? capacity * 100 / maxCap : 100
-            let charging = (desc[kIOPSPowerSourceStateKey as String] as? String) == (kIOPSACPowerValue as String)
-            return (pct < 20, charging)
-        }
-        return (false, nil)
+        AISystemPower.batteryState()
     }
 }

@@ -77,6 +77,7 @@ let package = Package(
                 "Core/AI/AIPresetRecommendation.swift",
                 "Core/AI/AIRanking.swift",
                 "Core/AI/AIReleaseChecklist.swift",
+                "Core/AI/AISystemPower.swift",
                 "Core/AI/AIToolbarRanking.swift",
                 "Core/AI/AISchemaMigration.swift",
                 "Core/AI/AISearchRewrite.swift",
