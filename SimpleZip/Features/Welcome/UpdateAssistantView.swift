@@ -104,7 +104,8 @@ struct UpdateAssistantView: View {
                 .padding(.horizontal, 20)
                 .padding(.vertical, 14)
         }
-        .frame(width: 640, height: 560)
+        // 与欢迎助手同宽高(780×700)—— 复用它专门适配好的尺寸,别自造一个更局促的。
+        .frame(width: 780, height: 700)
         .background(
             ZStack {
                 Color(nsColor: .windowBackgroundColor)

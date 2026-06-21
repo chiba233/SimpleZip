@@ -15,7 +15,8 @@ import Combine
 import SwiftUI
 
 struct DevToolsView: View {
-    let onClose: () -> Void
+    /// nil = 作为独立窗口内容(窗口自带关闭,不渲染底部关闭条);非 nil = 旧 sheet 形态保留兜底。
+    var onClose: (() -> Void)? = nil
     /// DevTools 调试开关:开 = 完全豁免交互门控(挂着 DevTools 观察后台 AI 真在跑);关 = 正常计交互(验证交互一动
     /// AI 就停)。关闭 DevTools 强制复位。@State 随 sheet 重建归 false,与 indexer 旗一致。
     @State private var aiInteractionExempt = false
@@ -68,7 +69,8 @@ struct DevToolsView: View {
                 subtitle: appVersionLine
             )
 
-            HeightCappedScrollView(maxHeight: 560) {
+            // 独立窗口形态:满高滚动(不再像 sheet 那样封顶 560)。
+            ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     DialogSection(L10n.text("devtools.section.environment")) {
                         infoRow("app", "SimpleZip", appVersionLine)
@@ -455,16 +457,18 @@ struct DevToolsView: View {
                 .padding(.bottom, 16)
             }
 
-            Divider()
-
-            PinnedBottomBar {
-                Spacer()
-                Button(L10n.text("button.close")) { onClose() }
-                    .buttonStyle(.borderedProminent)
-                    .keyboardShortcut(.defaultAction)
+            // 独立窗口自带关闭按钮 → 只有旧 sheet 形态(onClose 非 nil)才渲染底部关闭条。
+            if let onClose {
+                Divider()
+                PinnedBottomBar {
+                    Spacer()
+                    Button(L10n.text("button.close")) { onClose() }
+                        .buttonStyle(.borderedProminent)
+                        .keyboardShortcut(.defaultAction)
+                }
             }
         }
-        .frame(width: 620)
+        .frame(minWidth: 680, maxWidth: .infinity, maxHeight: .infinity)
         .onAppear {
             Task { @MainActor in
                 sevenZipVersion = await ArchiveService.sevenZipVersion()
