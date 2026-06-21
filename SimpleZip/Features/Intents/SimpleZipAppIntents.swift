@@ -426,6 +426,213 @@ struct ComputeFileHashIntent: AppIntent {
     }
 }
 
+// MARK: - 分析与发布工具(0.4.5:与 CLI space/rescue/checkup/duplicates/reproduce/audit/verify-group 对应)
+
+/// 空间分析:返回一段可读的体积占用摘要(只读;加密名归档列不出 → 报错,同 inspect/search 口径,不弹框)。
+struct AnalyzeArchiveSpaceIntent: AppIntent {
+    static let title: LocalizedStringResource = "Analyze Archive Space"
+    static let description = IntentDescription(
+        "Returns a disk-usage summary for an archive: original vs packed size, compression ratio, macOS junk and the largest file.")
+
+    @Parameter(title: "Archive")
+    var archive: IntentFile
+
+    static var parameterSummary: some ParameterSummary { Summary("Analyze the space used by \(\.$archive)") }
+
+    @MainActor
+    func perform() async throws -> some IntentResult & ReturnsValue<String> {
+        let url = try intentFileURL(archive)
+        do {
+            let items = try await ArchiveService.list(url)
+            let a = ArchiveSpaceAnalysis.analyze(items)
+            func bytes(_ value: Int64) -> String { ByteCountFormatter.string(fromByteCount: value, countStyle: .file) }
+            var parts = ["\(a.fileCount) files", "original \(bytes(a.totalBytes))", "packed \(bytes(a.packedBytes))"]
+            if let ratio = a.compressionRatio { parts.append(String(format: "ratio %.0f%%", ratio * 100)) }
+            if a.junkCount > 0 { parts.append("junk \(bytes(a.junkBytes))") }
+            if let largest = a.largestFiles.first { parts.append("largest \(largest.name) (\(bytes(largest.bytes)))") }
+            return .result(value: parts.joined(separator: ", "))
+        } catch {
+            throw SimpleZipIntentError(message: error.localizedDescription)
+        }
+    }
+}
+
+/// 数据救援:损坏归档尽力救援到「(rescued)」文件夹,返回该文件夹。写盘 → 记活动中心。
+struct RescueArchiveIntent: AppIntent {
+    static let title: LocalizedStringResource = "Rescue Damaged Archive"
+    static let description = IntentDescription(
+        "Best-effort recovery from a damaged archive into a new \"(rescued)\" folder next to it. Rescued files may be incomplete and the archive is not repaired. Returns the rescue folder.")
+
+    @Parameter(title: "Archive")
+    var archive: IntentFile
+
+    static var parameterSummary: some ParameterSummary { Summary("Rescue \(\.$archive)") }
+
+    @MainActor
+    func perform() async throws -> some IntentResult & ReturnsValue<IntentFile> {
+        let url = try intentFileURL(archive)
+        let operationID = UUID()
+        let task = TaskCenter.shared.begin(
+            category: .archive, kind: .extract, source: .intent,
+            title: L10n.format("intent.task.rescue", url.lastPathComponent), cancellable: false, operationID: operationID)
+        do {
+            let listed = try? await ArchiveService.list(url)
+            let outcome = try await ArchiveSalvage.run(
+                archive: url, listedItems: listed, password: "", operationID: operationID, outputObserver: nil)
+            TaskCenter.shared.finish(task, outcome: .succeeded(outcome.destination))
+            return .result(value: IntentFile(fileURL: outcome.destination))
+        } catch {
+            TaskCenter.shared.finish(task, outcome: .failed(error.localizedDescription))
+            throw SimpleZipIntentError(message: error.localizedDescription)
+        }
+    }
+}
+
+/// 批量体检:逐个归档做完整性测试,返回是否全部通过(加密名/损坏的算未通过)。
+struct CheckupArchivesIntent: AppIntent {
+    static let title: LocalizedStringResource = "Check Up Archives"
+    static let description = IntentDescription(
+        "Runs an integrity test across several archives and returns true only when every archive passes.")
+
+    @Parameter(title: "Archives")
+    var archives: [IntentFile]
+
+    static var parameterSummary: some ParameterSummary { Summary("Check up \(\.$archives)") }
+
+    @MainActor
+    func perform() async throws -> some IntentResult & ReturnsValue<Bool> {
+        guard !archives.isEmpty else { throw SimpleZipIntentError(message: L10n.text("intent.error.noInput")) }
+        var failures = 0
+        for file in archives {
+            let url = try intentFileURL(file)
+            do { try await ArchiveService.test(url, password: "") }
+            catch { failures += 1 }
+        }
+        return .result(value: failures == 0)
+    }
+}
+
+/// 查找疑似重复归档:按结构指纹聚类,返回每组一行(同组文件名逗号分隔)。
+struct FindDuplicateArchivesIntent: AppIntent {
+    static let title: LocalizedStringResource = "Find Duplicate Archives"
+    static let description = IntentDescription(
+        "Finds duplicate archives among the given archives by structural fingerprint. Returns one line per duplicate group.")
+
+    @Parameter(title: "Archives")
+    var archives: [IntentFile]
+
+    static var parameterSummary: some ParameterSummary { Summary("Find duplicates among \(\.$archives)") }
+
+    @MainActor
+    func perform() async throws -> some IntentResult & ReturnsValue<[String]> {
+        guard archives.count >= 2 else { throw SimpleZipIntentError(message: L10n.text("intent.error.noInput")) }
+        var sources: [ArchiveDuplicateScan.Source] = []
+        for file in archives {
+            let url = try intentFileURL(file)
+            guard let items = try? await SignedContainerService.withToolAdaptedArchive(url, perform: { target in
+                try await ArchiveService.list(target)
+            }) else { continue }
+            let files = items.filter { !$0.isDirectory }
+            sources.append(ArchiveDuplicateScan.Source(
+                url: url, fingerprint: ArchiveStructuralFingerprint.compute(for: items),
+                entryCount: files.count, totalBytes: files.reduce(0) { $0 + ($1.size ?? 0) }))
+        }
+        let groups = ArchiveDuplicateScan.groups(from: sources)
+        return .result(value: groups.map { $0.urls.map(\.lastPathComponent).joined(separator: ", ") })
+    }
+}
+
+/// 可复现报告:同一文件夹打包两次比 SHA-256,返回是否逐字节一致(仅 zip/7z)。临时产物写系统 temp,完事即清。
+struct CheckReproducibilityIntent: AppIntent {
+    static let title: LocalizedStringResource = "Check Reproducible Packing"
+    static let description = IntentDescription(
+        "Packs a folder twice with reproducible settings and returns true when the two archives are byte-for-byte identical. Only zip and 7z are supported.")
+
+    @Parameter(title: "Folder")
+    var folder: IntentFile
+
+    @Parameter(title: "Format", default: .zip)
+    var format: IntentArchiveFormat
+
+    static var parameterSummary: some ParameterSummary { Summary("Check \(\.$folder) packs reproducibly as \(\.$format)") }
+
+    @MainActor
+    func perform() async throws -> some IntentResult & ReturnsValue<Bool> {
+        let folderURL = try intentFileURL(folder)
+        let createFmt = format.createFormat
+        guard createFmt == .zip || createFmt == .sevenZip else {
+            throw SimpleZipIntentError(message: L10n.text("intent.reproduce.formatUnsupported"))
+        }
+        let temp = FileManager.default.temporaryDirectory
+            .appendingPathComponent("SimpleZip-Reproduce-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: temp, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: temp) }
+        var options = ArchiveCreationOptions()
+        options.format = createFmt
+        options.reproducibleArchive = true
+        let first = temp.appendingPathComponent("first.\(createFmt.pathExtension)")
+        let second = temp.appendingPathComponent("second.\(createFmt.pathExtension)")
+        do {
+            try await ArchiveService.createArchive(from: [folderURL], destination: first, options: options)
+            try await ArchiveService.createArchive(from: [folderURL], destination: second, options: options)
+            let firstHash = try HashService.sha256(for: first)
+            let secondHash = try HashService.sha256(for: second)
+            return .result(value: firstHash == secondHash)
+        } catch {
+            throw SimpleZipIntentError(message: error.localizedDescription)
+        }
+    }
+}
+
+/// 检查发布包目录:清点 + SHA256SUMS 覆盖 + VERIFY 失效引用 + 孤儿;返回「无产物缺校验」(可发布)。
+struct AuditReleaseDirectoryIntent: AppIntent {
+    static let title: LocalizedStringResource = "Audit Release Directory"
+    static let description = IntentDescription(
+        "Audits a release folder by name + checksum file (no hashing): checks SHA256SUMS coverage. Returns true when every artifact is covered by a checksum.")
+
+    @Parameter(title: "Folder")
+    var folder: IntentFile
+
+    static var parameterSummary: some ParameterSummary { Summary("Audit release directory \(\.$folder)") }
+
+    @MainActor
+    func perform() async throws -> some IntentResult & ReturnsValue<Bool> {
+        let dir = try intentFileURL(folder)
+        let names = ((try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)) ?? [])
+            .map(\.lastPathComponent)
+        let inventory = ReleaseDirectoryAudit.classify(names: names) { ArchiveService.isSupportedArchive(URL(fileURLWithPath: $0)) }
+        var checksumEntries: [String] = []
+        for checksumFile in inventory.checksumFiles {
+            if let text = try? String(contentsOf: dir.appendingPathComponent(checksumFile), encoding: .utf8) {
+                checksumEntries += ChecksumFile.parse(text, fileName: checksumFile).map(\.name)
+            }
+        }
+        let coverage = ReleaseDirectoryAudit.checksumCoverage(entryNames: checksumEntries, artifacts: inventory.artifacts)
+        return .result(value: coverage.uncovered.isEmpty)
+    }
+}
+
+/// 快速核对发布组:只按文件名判断该有的文件在不在,返回「下载者能否校验」。
+struct QuickVerifyReleaseGroupIntent: AppIntent {
+    static let title: LocalizedStringResource = "Quick Verify Release Group"
+    static let description = IntentDescription(
+        "A fast, name-only check of a release folder's composition. Returns true when a downloader could verify it (an artifact or container plus SHA256SUMS).")
+
+    @Parameter(title: "Folder")
+    var folder: IntentFile
+
+    static var parameterSummary: some ParameterSummary { Summary("Quick-verify the release group in \(\.$folder)") }
+
+    @MainActor
+    func perform() async throws -> some IntentResult & ReturnsValue<Bool> {
+        let dir = try intentFileURL(folder)
+        let names = ((try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)) ?? [])
+            .map(\.lastPathComponent)
+        let inventory = ReleaseDirectoryAudit.classify(names: names) { ArchiveService.isSupportedArchive(URL(fileURLWithPath: $0)) }
+        return .result(value: ReleaseDirectoryAudit.quickVerify(inventory).isVerifiable)
+    }
+}
+
 // MARK: - 归档比较(0.4.4 B)
 
 struct CompareArchivesIntent: AppIntent {

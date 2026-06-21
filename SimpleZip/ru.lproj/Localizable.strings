@@ -2180,6 +2180,7 @@
 "intent.error.noFileURL" = "У %@ нет файла на диске — передайте настоящие файлы, а не данные в памяти.";
 "intent.error.missingFile" = "Файл не найден: %@";
 "intent.error.noInput" = "Файлы не переданы.";
+"intent.reproduce.formatUnsupported" = "Проверка воспроизводимости поддерживает только архивы zip и 7z.";
 "intent.error.destinationNotFolder" = "Назначение для извлечения должно быть папкой.";
 "intent.error.mixedFolders" = "Все входные файлы должны находиться в одной папке.";
 "intent.error.itemFailed" = "%1$@: %2$@";
@@ -2215,6 +2216,7 @@
 "intent.task.search" = "Быстрая команда: поиск %@";
 "intent.task.inspect" = "Быстрая команда: проверка %@";
 "intent.task.hash" = "Быстрая команда: хеш %@";
+"intent.task.rescue" = "Быстрая команда: восстановление %@";
 "intent.task.extractFile" = "Извлечь %@ из архива";
 "intent.search.emptyQuery" = "Введите текст для поиска.";
 "intent.findArchive.none" = "Ни один из открытых вами архивов не содержит «%@».";

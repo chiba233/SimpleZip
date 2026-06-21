@@ -2647,6 +2647,7 @@
 "intent.error.noFileURL" = "%@ has no file on disk — pass real files, not in-memory data.";
 "intent.error.missingFile" = "No such file: %@";
 "intent.error.noInput" = "No files were provided.";
+"intent.reproduce.formatUnsupported" = "Reproducibility check supports only zip and 7z archives.";
 "intent.error.destinationNotFolder" = "The extraction destination must be a folder.";
 "intent.error.mixedFolders" = "All inputs must live in the same folder.";
 "intent.error.itemFailed" = "%1$@: %2$@";
@@ -2683,6 +2684,7 @@
 "intent.task.search" = "Shortcut: search %@";
 "intent.task.inspect" = "Shortcut: inspect %@";
 "intent.task.hash" = "Shortcut: hash %@";
+"intent.task.rescue" = "Shortcut: rescue %@";
 "intent.task.extractFile" = "Extract %@ from archive";
 "intent.search.emptyQuery" = "Enter something to search for.";
 "intent.findArchive.none" = "None of the archives you\'ve opened contain \"%@\".";

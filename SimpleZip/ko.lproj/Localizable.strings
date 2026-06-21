@@ -2181,6 +2181,7 @@
 "intent.error.noFileURL" = "%@은(는) 디스크의 파일이 아닙니다. 메모리 데이터가 아니라 실제 파일을 전달하세요.";
 "intent.error.missingFile" = "파일이 없습니다: %@";
 "intent.error.noInput" = "제공된 파일이 없습니다.";
+"intent.reproduce.formatUnsupported" = "재현성 검사는 zip 및 7z 아카이브만 지원합니다.";
 "intent.error.destinationNotFolder" = "추출 대상은 폴더여야 합니다.";
 "intent.error.mixedFolders" = "모든 입력은 같은 폴더에 있어야 합니다.";
 "intent.error.itemFailed" = "%1$@: %2$@";
@@ -2216,6 +2217,7 @@
 "intent.task.search" = "단축어: %@ 검색";
 "intent.task.inspect" = "단축어: %@ 검사";
 "intent.task.hash" = "단축어: %@ 해시 계산";
+"intent.task.rescue" = "단축어: %@ 복구";
 "intent.task.extractFile" = "아카이브에서 %@ 추출";
 "intent.search.emptyQuery" = "검색할 내용을 입력하세요.";
 "intent.findArchive.none" = "연 아카이브 중에 \"%@\"을(를) 포함한 것이 없습니다.";

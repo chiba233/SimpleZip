@@ -2181,6 +2181,7 @@
 "intent.error.noFileURL" = "%@ hat keine Datei auf der Festplatte - übergeben Sie echte Dateien, keine Daten im Speicher.";
 "intent.error.missingFile" = "Datei nicht gefunden: %@";
 "intent.error.noInput" = "Es wurden keine Dateien übergeben.";
+"intent.reproduce.formatUnsupported" = "Die Reproduzierbarkeitsprüfung unterstützt nur ZIP- und 7z-Archive.";
 "intent.error.destinationNotFolder" = "Das Entpackungsziel muss ein Ordner sein.";
 "intent.error.mixedFolders" = "Alle Eingaben müssen im selben Ordner liegen.";
 "intent.error.itemFailed" = "%1$@: %2$@";
@@ -2216,6 +2217,7 @@
 "intent.task.search" = "Kurzbefehl: %@ durchsuchen";
 "intent.task.inspect" = "Kurzbefehl: %@ prüfen";
 "intent.task.hash" = "Kurzbefehl: %@ hashen";
+"intent.task.rescue" = "Kurzbefehl: %@ retten";
 "intent.task.extractFile" = "%@ aus Archiv entpacken";
 "intent.search.emptyQuery" = "Bitte einen Suchbegriff eingeben.";
 "intent.findArchive.none" = "Keines der von dir geöffneten Archive enthält „%@“.";

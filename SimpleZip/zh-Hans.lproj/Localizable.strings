@@ -2647,6 +2647,7 @@
 "intent.error.noFileURL" = "%@ 没有磁盘文件——请传真实文件，而不是内存数据。";
 "intent.error.missingFile" = "文件不存在：%@";
 "intent.error.noInput" = "没有提供任何文件。";
+"intent.reproduce.formatUnsupported" = "可复现检查仅支持 zip 和 7z 归档。";
 "intent.error.destinationNotFolder" = "解压目标必须是一个文件夹。";
 "intent.error.mixedFolders" = "所有输入必须位于同一文件夹。";
 "intent.error.itemFailed" = "%1$@：%2$@";
@@ -2683,6 +2684,7 @@
 "intent.task.search" = "快捷指令：搜索 %@";
 "intent.task.inspect" = "快捷指令：检查 %@";
 "intent.task.hash" = "快捷指令：计算 %@ 的哈希";
+"intent.task.rescue" = "快捷指令：救援 %@";
 "intent.task.extractFile" = "从归档解压 %@";
 "intent.search.emptyQuery" = "请输入要搜索的内容。";
 "intent.findArchive.none" = "你打开过的归档里没有包含「%@」的。";

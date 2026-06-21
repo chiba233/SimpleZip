@@ -2182,6 +2182,7 @@
 "intent.error.noFileURL" = "%@ にはディスク上のファイルがありません。メモリ内データではなく実ファイルを渡してください。";
 "intent.error.missingFile" = "ファイルがありません: %@";
 "intent.error.noInput" = "ファイルが指定されていません。";
+"intent.reproduce.formatUnsupported" = "再現性チェックは zip と 7z のアーカイブのみ対応しています。";
 "intent.error.destinationNotFolder" = "展開先はフォルダである必要があります。";
 "intent.error.mixedFolders" = "すべての入力は同じフォルダ内にある必要があります。";
 "intent.error.itemFailed" = "%1$@: %2$@";
@@ -2217,6 +2218,7 @@
 "intent.task.search" = "ショートカット：%@ を検索";
 "intent.task.inspect" = "ショートカット：%@ を検査";
 "intent.task.hash" = "ショートカット：%@ をハッシュ計算";
+"intent.task.rescue" = "ショートカット：%@ を救出";
 "intent.task.extractFile" = "アーカイブから %@ を取り出す";
 "intent.search.emptyQuery" = "検索する内容を入力してください。";
 "intent.findArchive.none" = "開いたアーカイブの中に「%@」を含むものはありません。";

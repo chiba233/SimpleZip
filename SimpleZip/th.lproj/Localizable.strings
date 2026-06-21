@@ -2180,6 +2180,7 @@
 "intent.error.noFileURL" = "%@ ไม่มีไฟล์บนดิสก์ โปรดส่งไฟล์จริง ไม่ใช่ข้อมูลในหน่วยความจำ";
 "intent.error.missingFile" = "ไม่มีไฟล์นี้: %@";
 "intent.error.noInput" = "ไม่ได้ระบุไฟล์";
+"intent.reproduce.formatUnsupported" = "การตรวจสอบการทำซ้ำรองรับเฉพาะไฟล์ zip และ 7z เท่านั้น";
 "intent.error.destinationNotFolder" = "ปลายทางการแตกไฟล์ต้องเป็นโฟลเดอร์";
 "intent.error.mixedFolders" = "อินพุตทั้งหมดต้องอยู่ในโฟลเดอร์เดียวกัน";
 "intent.error.itemFailed" = "%1$@: %2$@";
@@ -2215,6 +2216,7 @@
 "intent.task.search" = "ทางลัด: ค้นหา %@";
 "intent.task.inspect" = "ทางลัด: ตรวจสอบ %@";
 "intent.task.hash" = "ทางลัด: แฮช %@";
+"intent.task.rescue" = "ทางลัด: กู้คืน %@";
 "intent.task.extractFile" = "แตก %@ จากไฟล์บีบอัด";
 "intent.search.emptyQuery" = "ป้อนสิ่งที่ต้องการค้นหา";
 "intent.findArchive.none" = "ไม่มีไฟล์บีบอัดที่คุณเปิดที่มี \"%@\"";

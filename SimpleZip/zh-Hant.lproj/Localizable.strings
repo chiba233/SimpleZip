@@ -2182,6 +2182,7 @@
 "intent.error.noFileURL" = "%@ 沒有磁碟檔案，請傳入真實檔案，而不是記憶體資料。";
 "intent.error.missingFile" = "檔案不存在：%@";
 "intent.error.noInput" = "沒有提供任何檔案。";
+"intent.reproduce.formatUnsupported" = "可重現檢查僅支援 zip 與 7z 歸檔。";
 "intent.error.destinationNotFolder" = "解壓縮目標必須是一個資料夾。";
 "intent.error.mixedFolders" = "所有輸入必須位於同一資料夾。";
 "intent.error.itemFailed" = "%1$@：%2$@";
@@ -2217,6 +2218,7 @@
 "intent.task.search" = "快捷指令：搜尋 %@";
 "intent.task.inspect" = "快捷指令：檢查 %@";
 "intent.task.hash" = "快捷指令：計算 %@ 的雜湊";
+"intent.task.rescue" = "快捷指令：救援 %@";
 "intent.task.extractFile" = "從封存檔解壓 %@";
 "intent.search.emptyQuery" = "請輸入要搜尋的內容。";
 "intent.findArchive.none" = "你開啟過的封存檔裡沒有包含「%@」的。";

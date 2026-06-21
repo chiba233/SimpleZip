@@ -2180,6 +2180,7 @@
 "intent.error.noFileURL" = "%@ no tiene archivo en el disco; pasa archivos reales, no datos en memoria.";
 "intent.error.missingFile" = "No existe el archivo: %@";
 "intent.error.noInput" = "No se proporcionaron archivos.";
+"intent.reproduce.formatUnsupported" = "La comprobación de reproducibilidad solo admite archivos zip y 7z.";
 "intent.error.destinationNotFolder" = "El destino de extracción debe ser una carpeta.";
 "intent.error.mixedFolders" = "Todas las entradas deben estar en la misma carpeta.";
 "intent.error.itemFailed" = "%1$@: %2$@";
@@ -2215,6 +2216,7 @@
 "intent.task.search" = "Atajo: buscar %@";
 "intent.task.inspect" = "Atajo: inspeccionar %@";
 "intent.task.hash" = "Atajo: calcular hash de %@";
+"intent.task.rescue" = "Atajo: rescatar %@";
 "intent.task.extractFile" = "Extraer %@ del archivo comprimido";
 "intent.search.emptyQuery" = "Introduce algo que buscar.";
 "intent.findArchive.none" = "Ninguno de los archivos comprimidos que has abierto contiene «%@».";
