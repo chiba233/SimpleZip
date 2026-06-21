@@ -111,7 +111,7 @@ extension ArchiveService {
             arguments.append("-mtm=off")
         }
         arguments.append(contentsOf: sevenZipExcludeArguments(from: options))
-        arguments.append(contentsOf: splitCommandLineArguments(from: options.rawParameters))
+        arguments.append(contentsOf: safeRawParameterArguments(from: options.rawParameters))
         // 安全（审计 P1）：destination / 源文件名前加 `--` —— 文件名以 `-` 开头时不被 7zz 当开关。
         arguments.append("--")
         arguments.append(destination.path)
@@ -141,7 +141,7 @@ extension ArchiveService {
             arguments.append("-mtm=off")
         }
         arguments.append(contentsOf: sevenZipExcludeArguments(from: options))
-        arguments.append(contentsOf: splitCommandLineArguments(from: options.rawParameters))
+        arguments.append(contentsOf: safeRawParameterArguments(from: options.rawParameters))
         // 安全（审计 P1）：destination / 源文件名前加 `--` —— 文件名以 `-` 开头时不被 7zz 当开关。
         arguments.append("--")
         arguments.append(destination.path)
@@ -164,7 +164,7 @@ extension ArchiveService {
             arguments.append(options.sevenZipEncryptFileNames ? "-hp" : "-p")
         }
         arguments.append(contentsOf: rarExcludeArguments(from: options))
-        arguments.append(contentsOf: splitCommandLineArguments(from: options.rawParameters))
+        arguments.append(contentsOf: safeRawParameterArguments(from: options.rawParameters))
         // Q3：`--` 停止 switch 扫描,与 7zz 创建 / 解压参数同款纵深防御 —— 归档名或文件名以 `-` 开头时
         // 不会被 rar 误当成开关(RARLAB rar 支持 `--`,与 7zz 一致)。
         arguments.append("--")
@@ -314,6 +314,21 @@ extension ArchiveService {
                 }
             }
             return files
+        }
+    }
+
+    /// 把用户自由文本的「原始参数」切分后**剔除危险开关**,其余压缩调优开关(`-m*` 方法 / `-rr*` 恢复记录 /
+    /// `-s` 固实 / `-md*` 字典 等)照常放行 —— rawParameters 是给高级压缩调优的,不该用白名单一刀切误伤合法旗标。
+    /// 但它是自由文本(用户或 AI 建议可注入),以下危险旗标一律丢弃:
+    /// - `-sdel`(7zz 压完删源)/ `-df`(rar 压完删源)= **数据丢失**;
+    /// - `-sfx`(造可执行自解压档);
+    /// - `-spf`(7zz 存全路径)/ `-ep2` / `-ep3`(rar 存全/含盘符路径)= 解压方**路径穿越**;
+    /// - `-si`(stdin)/ `-so`(stdout)= 改 I/O,破坏文件式产物。
+    /// (确需压缩后删源,请用专门的「删除源文件」选项,不走自由文本。)
+    static func safeRawParameterArguments(from text: String) -> [String] {
+        let dangerousPrefixes = ["-sdel", "-df", "-sfx", "-spf", "-ep2", "-ep3", "-si", "-so"]
+        return splitCommandLineArguments(from: text).filter { token in
+            !dangerousPrefixes.contains { token == $0 || token.hasPrefix($0) }
         }
     }
 
