@@ -572,11 +572,13 @@ extension ArchiveService {
         return calendar.date(from: components)
     }
 
+    /// ICU 正则编译代价不低，提为静态常量避免每次调用重新编译（pattern 是编译期字面量，try! 安全）。
+    private nonisolated static let integerRegex = try! NSRegularExpression(pattern: #"\d+"#)
+    private nonisolated static let timeValueRegex = try! NSRegularExpression(pattern: #"=\s*([0-9]+(?:\.[0-9]+)?)"#)
+
     private nonisolated static func integers(in line: String) -> [Int] {
-        let pattern = #"\d+"#
         let range = NSRange(line.startIndex..<line.endIndex, in: line)
-        guard let expression = try? NSRegularExpression(pattern: pattern) else { return [] }
-        return expression.matches(in: line, range: range).compactMap { match in
+        return integerRegex.matches(in: line, range: range).compactMap { match in
             guard let numberRange = Range(match.range, in: line) else { return nil }
             return Int(String(line[numberRange]))
         }
@@ -622,11 +624,9 @@ extension ArchiveService {
 
     private nonisolated static func timeValue(in lines: [String], prefix: String) -> Double? {
         guard let line = lines.first(where: { $0.hasPrefix(prefix) }) else { return nil }
-        let pattern = #"=\s*([0-9]+(?:\.[0-9]+)?)"#
         let range = NSRange(line.startIndex..<line.endIndex, in: line)
         guard
-            let expression = try? NSRegularExpression(pattern: pattern),
-            let match = expression.firstMatch(in: line, range: range),
+            let match = timeValueRegex.firstMatch(in: line, range: range),
             let valueRange = Range(match.range(at: 1), in: line)
         else {
             return nil

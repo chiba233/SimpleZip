@@ -38,6 +38,9 @@ struct FileItem: Identifiable, Hashable {
     let permissions: String
     /// 属主用户名（取不到时退回数字 uid 字符串）—— 可选「属主」列展示。
     let owner: String
+    /// 规范化路径（`standardizedFileURL.path`），列目录时在后台计算一次并缓存。
+    /// FileTable 的展开记忆、AI 组路径查表等热路径直接用此字段，避免每帧都触发 `stat()`。
+    let standardizedPath: String
 
     nonisolated init(
         url: URL,
@@ -75,6 +78,9 @@ struct FileItem: Identifiable, Hashable {
         self.applicationName = applicationName
         self.permissions = permissions
         self.owner = owner
+        // 规范化路径在这里（后台线程）计算一次，避免热路径（FileTable 展开记忆、AI 组路径查表、
+        // configSignature 等）在主线程反复调用 standardizedFileURL（每次都触发 stat + readlink）。
+        self.standardizedPath = url.standardizedFileURL.path
     }
 }
 

@@ -311,10 +311,11 @@ struct FileNSOutlineView: NSViewRepresentable {
 
         /// 当前位置的 key，用于 `.rememberPerFolder` 记忆。
         private var currentFolderKey: String {
+            // mode URL 来自 open panel / FSEvents / 书签解析,已是规范路径；直接用 .path 无需 stat。
             switch model.mode {
-            case .folder(let url): return url.standardizedFileURL.path
+            case .folder(let url): return url.path
             case .tag(let tag): return "tag:\(tag)"
-            case .archive(let url): return "archive:\(url.standardizedFileURL.path)"
+            case .archive(let url): return "archive:\(url.path)"
             case .aiWorkspace(let id): return "aiWorkspace:\(id.uuidString)" // FileTable 不渲染本模式,仅为穷尽性。
             }
         }
@@ -366,10 +367,11 @@ struct FileNSOutlineView: NSViewRepresentable {
             // 按规范化 path 比对，而非整 URL 相等：目录在列表里的 URL 带尾部斜杠（`…/NewFolder/`），
             // 而 `pendingInlineRenameURL` 经 appendingPathComponent 没有斜杠（`…/NewFolder`），
             // `standardizedFileURL` 又不抹平尾斜杠 —— 直接 `==` 会漏掉新建文件夹，导致它不触发重命名（新建文件无此问题）。
+            // 入参 url 来自事件，需在此处 standardize；FileItem 侧已在后台预计算 standardizedPath。
             let targetPath = url.standardizedFileURL.path
             func walk(_ nodes: [FileOutlineNode], ancestors: [FileOutlineNode]) -> (FileOutlineNode, [FileOutlineNode])? {
                 for node in nodes {
-                    if let item = node.fileItem, item.url.standardizedFileURL.path == targetPath {
+                    if let item = node.fileItem, item.standardizedPath == targetPath {
                         return (node, ancestors)
                     }
                     if node.isSection, let found = walk(node.children, ancestors: ancestors + [node]) {
@@ -881,19 +883,20 @@ struct FileNSOutlineView: NSViewRepresentable {
         private func appendAIGroupNodes(to nodes: inout [FileOutlineNode]) {
             guard AppPreferences.aiAssistantEnabled, AppPreferences.aiSuggestionEnabled,
                   case .folder(let folderURL) = model.mode else { return }
-            let folderPath = folderURL.standardizedFileURL.path
+            // mode URL 已是规范路径，直接用 .path；displayedFileItems.standardizedPath 是后台预计算值。
+            let folderPath = folderURL.path
             let store = AIBackgroundIndexStore.shared
             let groups = store.folderGroups(forPath: folderPath)
             guard !groups.isEmpty else { return }
 
             let itemsByPath = Dictionary(
-                model.displayedFileItems.map { ($0.url.standardizedFileURL.path, $0) },
+                model.displayedFileItems.map { ($0.standardizedPath, $0) },
                 uniquingKeysWith: { first, _ in first }
             )
             for group in groups {
                 let memberItems = group.memberPaths.compactMap { itemsByPath[URL(fileURLWithPath: $0).standardizedFileURL.path] }
                 guard memberItems.count >= 2 else { continue }
-                let memberPaths = memberItems.map { $0.url.standardizedFileURL.path }
+                let memberPaths = memberItems.map { $0.standardizedPath }
                 guard var action = AIWorkspaceNodeActions.folderGroupAction(
                     actionToken: group.actionToken, memberPaths: memberPaths, folderName: group.title) else { continue }
                 let dislikeKey = AIBackgroundIndexStore.folderGroupDislikeKey(
@@ -967,13 +970,13 @@ struct FileNSOutlineView: NSViewRepresentable {
                 }
                 guard let item = node.fileItem else { continue }
                 if node.volumeChildren != nil {
-                    if expandedVolumeSetPaths.contains(item.url.standardizedFileURL.path) {
+                    if expandedVolumeSetPaths.contains(item.standardizedPath) {
                         outlineView.expandItem(node)
                     }
                     continue
                 }
                 guard item.isDirectory,
-                      expandedFolderPaths.contains(item.url.standardizedFileURL.path) else { continue }
+                      expandedFolderPaths.contains(item.standardizedPath) else { continue }
                 outlineView.expandItem(node)
                 if let children = node.folderChildren { expandRememberedFolders(in: children) }
             }
@@ -1249,12 +1252,12 @@ struct FileNSOutlineView: NSViewRepresentable {
             if let node = notification.userInfo?["NSObject"] as? FileOutlineNode,
                node.volumeChildren != nil, let item = node.fileItem {
                 if AppPreferences.rememberVolumeSetExpansion {
-                    expandedVolumeSetPaths.insert(item.url.standardizedFileURL.path)
+                    expandedVolumeSetPaths.insert(item.standardizedPath)
                 }
                 return
             }
             if let item = expandedFolderNode(from: notification)?.fileItem, AppPreferences.rememberFolderExpansion {
-                expandedFolderPaths.insert(item.url.standardizedFileURL.path)
+                expandedFolderPaths.insert(item.standardizedPath)
                 // 模型注册表由数据源的 loadedFolderChildren → model.expandedChildren 在展开时已登记,这里不必重复。
             }
         }
@@ -1269,7 +1272,7 @@ struct FileNSOutlineView: NSViewRepresentable {
             // 成员不再可见,不应再被 Delete / 菜单悄悄作用。展开记忆同步遗忘。
             if let node = notification.userInfo?["NSObject"] as? FileOutlineNode,
                let firstVolume = node.fileItem, let volumes = node.volumeChildren {
-                expandedVolumeSetPaths.remove(firstVolume.url.standardizedFileURL.path)
+                expandedVolumeSetPaths.remove(firstVolume.standardizedPath)
                 let memberIDs = Set(volumes.compactMap { $0.fileItem?.id }).subtracting([firstVolume.id])
                 let hiddenSelected = model.selection.intersection(memberIDs)
                 if !hiddenSelected.isEmpty {
@@ -1281,7 +1284,7 @@ struct FileNSOutlineView: NSViewRepresentable {
                 return
             }
             guard let node = expandedFolderNode(from: notification), let item = node.fileItem else { return }
-            let path = item.url.standardizedFileURL.path
+            let path = item.standardizedPath
             // 连同其下层展开的子孙一起忘掉（折叠父层后子孙的展开状态作废,Finder 同款）。
             expandedFolderPaths.remove(path)
             expandedFolderPaths = expandedFolderPaths.filter { !$0.hasPrefix(path + "/") }
@@ -2258,7 +2261,7 @@ struct FileNSOutlineView: NSViewRepresentable {
             if ancestor.isSection {
                 setSectionExpanded(ancestor, true)
             } else if let item = ancestor.fileItem, item.isDirectory {
-                expandedFolderPaths.insert(item.url.standardizedFileURL.path)
+                expandedFolderPaths.insert(item.standardizedPath)
             }
         }
 

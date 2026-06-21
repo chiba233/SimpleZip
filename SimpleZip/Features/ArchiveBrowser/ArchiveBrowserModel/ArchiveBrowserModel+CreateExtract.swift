@@ -496,7 +496,9 @@ extension ArchiveBrowserModel {
         guard case .archive(let url) = mode else { return nil }
         if archiveDisplayOverride != nil { return .temporaryExtractedCopy }
         if !nestedArchiveReturnStack.isEmpty { return .nestedArchive }
-        guard fileManager.fileExists(atPath: url.path) else { return nil }
+        // ⚠️ A17: fileExists(stat) をここで呼ばない。
+        // ファイル消失は beginWatchingOpenArchive の FSEvents watcher が通知で拾う。
+        // 実際の書き込み口(拖入 / 注释编辑)がそれぞれ自身で検証するため、render hot path での stat は不要かつ有害。
         return ArchiveService.entryUpdateRestriction(forExtension: url.pathExtension)
     }
 

@@ -41,6 +41,7 @@
 **面向开发者**
 
 - **看似在后台的重活其实仍跑在主线程;取样定位到四处卡顿,现在都真正移出了主线程。** (1) 给 `async` 辅助函数标 `nonisolated` 在本工具链上**并不会**把它移出调用方 actor——`@MainActor` 调用方仍会在主线程跑完整个函数体,于是 `7zz` 列表解析卡在主线程(大归档实测 ~1.4s)。列表调用与 ZIP 中央目录加密探测现在用 `Task.detached` 包裹,这是唯一可靠 hop 到 cooperative pool 的手段。(2) 逐条目的 7-Zip / unzip 日期解析用 `DateFormatter`,首次解析会触发 ICU 加载 locale 符号表(冷启动数百毫秒)外加每次调用开销;现在按固定格式 `yyyy-MM-dd HH:mm:ss` 手动抽整数填进复用的 `Calendar`,彻底绕开 ICU。(3) 文件浏览器的 outline diff 用 `URL.standardizedFileURL` 建布局指纹,而它会对每个文件 `stat()`、且发生在**每次 SwiftUI reconcile**(实测 ~2.4s);现在改用纯路径字符串。(4) 菜单栏命令树会在**每次 FSEvents 触发(~120ms)**时重建,而其中一个启用状态 getter(`canDropIntoOpenArchive`)每次都 `fileManager.fileExists`——对打开的归档做一次 `stat()`,碰上慢速 / 断开的网络卷就挂死主线程(实测 ~2.5s);该 getter 不再碰文件系统(打开的归档已有 FSEvents watcher 盯着它是否消失)。ZIP 加密类型也改为打开归档时(off-main)检测一次、缓存进 session,解压 / 测试 / 打开条目 / 弹密码框都读缓存,不再各自重读整个中央目录(有的甚至读两遍)。解压对话框复用打开时已加载的清单、解压前安全检查复用这批预载条目、解压后暂存扫描跑在后台,Finder /右键自动解压与一键创建浮窗的逐文件进度也和主窗口走同一个 ~80ms 的 `ProgressCoalescer` 合帧。
+- **全面主线程审计消除了文件浏览器里所有剩余的逐帧 `stat()` 调用。** 第二轮分析(对所有热路径逐一审计,不只看取样命中的卡顿)发现了三处仍以 FSEvents 触发频率（~120ms/次）调用 `standardizedFileURL.path` 的位置,以及两处每次调用都现编译 ICU 正则的位置。`FileItem` 现在在后台构造时(在 `FileBrowserService` 中)一次性预计算并存储 `standardizedPath`,展开记忆查表、AI 组路径索引表、文件夹 key 计算等热路径全部改读纯 `String`,不再触发 `stat()`。文件夹模式 URL 的 `currentFolderKey` 改用 `.path`(来源于 open panel / FSEvents,已是规范路径)。基准测试解析器里整数匹配和时间值两个 `NSRegularExpression` 提升为 `nonisolated static let` 常量,ICU 只在进程生命期内编译一次模式串。`DiskImageBackend.extract` 的同步 `copyContents` 循环(目录列举 + 逐文件拷贝)改为 `Task.detached` 派发,防止从 `@MainActor` 上下文调用时阻塞主 actor。
 
 ### 改进 (improvements)
 

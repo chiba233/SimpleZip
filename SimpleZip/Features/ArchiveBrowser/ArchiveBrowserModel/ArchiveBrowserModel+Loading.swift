@@ -407,15 +407,22 @@ extension ArchiveBrowserModel {
                 entryCount: items.count,
                 promptedForPassword: passwordPrompted
             )
-            // ZIP 加密类型:打开时后台检测一次缓存进 session(见 ArchiveSession.detectedZipEncryption)。
-            // 之后解压 / 测试 / 打开条目 / 弹密码框都读缓存,消除多处主线程同步读 + 同包重复读中央目录。
-            // off-main(detectZipEncryption 同步读整个中央目录会卡主线程)+ 代际守卫:换档后不写脏缓存。
+            // ZIP 加密类型:打开时缓存进 session(见 ArchiveSession.detectedZipEncryption),供解压 / 测试 /
+            // 打开条目 / 弹密码框复用,消除多处主线程同步读。
+            // 优化(避免重复读中央目录):刚才的 `7zz l -slt` 已把每条目 isEncrypted 读进 items
+            //(`Encrypted=+`;ZIP 中央目录明文,无密码也能列)。无加密条目 → 直接 .none,不再为每个普通 ZIP
+            // 重读一遍中央目录;仅当确有加密条目时才 off-main 读一次拿**具体方法**(AES 变体 / zipCrypto,
+            // 供解压工具选择与方法提示)。detectZipEncryption 同步读整个中央目录、在主线程会卡,故必走 Task.detached。
             if url.pathExtension.lowercased() == "zip" {
-                let detected = await Task.detached(priority: .userInitiated) {
-                    ArchiveService.detectZipEncryption(in: url)
-                }.value
-                guard isCurrentLoad(generation, mode: .archive(url)) else { return }
-                session.setDetectedZipEncryption(detected)
+                if items.contains(where: { $0.isEncrypted }) {
+                    let detected = await Task.detached(priority: .userInitiated) {
+                        ArchiveService.detectZipEncryption(in: url)
+                    }.value
+                    guard isCurrentLoad(generation, mode: .archive(url)) else { return }
+                    session.setDetectedZipEncryption(detected)
+                } else {
+                    session.setDetectedZipEncryption(.none)
+                }
             }
             // 0.4.2 #7：路径安全分析（绝对路径 / `..` / 盘符 / 控制字符 / setuid / 外指 symlink / 大小写冲突）。
             // 纯 CPU 字符串检查，丢后台跑完再回主 actor；只告知，不改变解压时的既有拦截。

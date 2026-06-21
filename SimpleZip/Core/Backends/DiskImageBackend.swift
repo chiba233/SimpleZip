@@ -139,7 +139,10 @@ enum DiskImageBackend {
     ) async throws {
         let session = try await mountSession(archive)
         do {
-            try copyContents(from: session.mountPoint, to: destination, progress: progress)
+            // copyContents 是同步文件系统拷贝（contentsOfDirectory + copyItem 循环），
+            // 必须在后台线程执行——app target 默认 @MainActor，await 后继续停在主线程。
+            let mountPoint = session.mountPoint
+            try await Task.detached { try Self.copyContents(from: mountPoint, to: destination, progress: progress) }.value
             await detach(session)
         } catch {
             await detach(session)
@@ -208,7 +211,10 @@ enum DiskImageBackend {
     // MARK: - 私有实现
 
     /// 拷顶层目录条目到 destination；用 `Task.checkCancellation()` 让用户能取消大文件。
-    private static func copyContents(
+    // nonisolated:纯文件复制 + @Sendable 进度回调,无 MainActor 状态。extract 已把它丢进 Task.detached
+    // 真正在后台跑(app target 默认 @MainActor,不标 nonisolated 时从 detached 闭包调它会报「actor 隔离方法
+    // 不能在 actor 外调用」—— Swift 6 语言模式下是 error)。
+    private nonisolated static func copyContents(
         from mountPoint: URL,
         to destination: URL,
         progress: @escaping @Sendable (ArchiveProgressState) -> Void
