@@ -20,6 +20,13 @@ extension Notification.Name {
     static let devToolsTriggerUpdateAssistant = Notification.Name("devToolsTriggerUpdateAssistant")
 }
 
+/// 更新助手的弹出请求(带要展示的卡)。用 `.sheet(item:)` 而非 `isPresented:` —— 后者在 present 那一拍可能
+/// 读到尚未更新的 cards 数组(空 → 直接跳到搞定页,用户报的「点了只显示完成」),item 形态保证 cards 一并就绪。
+struct UpdateAssistantRequest: Identifiable {
+    let id = UUID()
+    let cards: [UpdateCard]
+}
+
 /// 参与「更新助手」的功能卡片。**新增卡片 = 在这里加一个 case + 在 `WelcomeAssistantView` 加对应页 +
 /// 在 `cardView(_:)` 加渲染**,老用户即自动收到(默认未看)。
 enum UpdateCard: String, CaseIterable, Identifiable {

@@ -39,9 +39,8 @@ struct ContentView: View {
     @State private var showsWelcomeAssistant = false
     @State private var didCheckWelcomeAssistant = false
 
-    /// 更新助手 sheet(老用户升级后只展示本次新增卡片 + 搞定页)。`pendingUpdateCards` = 本次该展示的未看卡。
-    @State private var showsUpdateAssistant = false
-    @State private var pendingUpdateCards: [UpdateCard] = []
+    /// 更新助手 sheet(老用户升级后只展示本次新增卡片 + 搞定页)。`.sheet(item:)` 形态:非 nil 即弹,cards 一并就绪。
+    @State private var updateAssistantRequest: UpdateAssistantRequest?
 
     /// `.siz` 签名验证状态：unwrap 完成 + 验签结果就绪后赋值，触发 SwiftUI sheet 显示签名信息对话框。
     /// 用 sheet 替代 NSAlert 是因为后者在 SwiftUI 视图 context（没 key window 锚定）下渲染成无 chrome
@@ -504,8 +503,7 @@ struct ContentView: View {
         // 「编译器无法在合理时间内类型检查」(SwiftUI 老问题),抽出来分担推断。
         .modifier(WelcomeUpdatePresenter(
             showsWelcome: $showsWelcomeAssistant,
-            showsUpdate: $showsUpdateAssistant,
-            pendingUpdateCards: $pendingUpdateCards))
+            updateRequest: $updateAssistantRequest))
         .alert(
             L10n.text("startup.missing.title"),
             isPresented: $showsStartupMissingAlert
@@ -834,9 +832,8 @@ struct ContentView: View {
                 UpdateAssistant.migrateForExistingUserIfNeeded()
                 let pending = UpdateAssistant.pendingCards()
                 if !pending.isEmpty {
-                    pendingUpdateCards = pending
                     DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(150)) {
-                        showsUpdateAssistant = true
+                        updateAssistantRequest = UpdateAssistantRequest(cards: pending)
                     }
                 }
             }
@@ -1579,8 +1576,7 @@ private struct ContextualToolbarButtons: View {
 /// 欢迎助手 + 更新助手的 sheet/触发整合 modifier(从 ContentView 极长 body 链里抽出,避免类型检查超时)。
 private struct WelcomeUpdatePresenter: ViewModifier {
     @Binding var showsWelcome: Bool
-    @Binding var showsUpdate: Bool
-    @Binding var pendingUpdateCards: [UpdateCard]
+    @Binding var updateRequest: UpdateAssistantRequest?
 
     func body(content: Content) -> some View {
         content
@@ -1591,8 +1587,8 @@ private struct WelcomeUpdatePresenter: ViewModifier {
                     UpdateAssistant.markSeen(UpdateCard.allCases)
                 }
             }
-            .sheet(isPresented: $showsUpdate) {
-                UpdateAssistantView(cards: pendingUpdateCards) { showsUpdate = false }
+            .sheet(item: $updateRequest) { req in
+                UpdateAssistantView(cards: req.cards) { updateRequest = nil }
             }
             .onReceive(NotificationCenter.default.publisher(for: .openWelcomeAssistant)) { _ in
                 // 用户从 SimpleZip 菜单触发 —— 不重置 completed bool(重新看仍算「已走过一遍」)。
@@ -1602,8 +1598,7 @@ private struct WelcomeUpdatePresenter: ViewModifier {
                 // DevTools 测试用:直接弹更新助手并展示指定的卡(不必真升级)。
                 let cards = ((note.userInfo?["cards"] as? [String]) ?? []).compactMap(UpdateCard.init(rawValue:))
                 guard !cards.isEmpty else { return }
-                pendingUpdateCards = cards
-                showsUpdate = true
+                updateRequest = UpdateAssistantRequest(cards: cards)
             }
     }
 }

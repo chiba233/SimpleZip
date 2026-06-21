@@ -420,18 +420,8 @@ struct DevToolsView: View {
                         ) {
                             copySpotlightData()
                         }
-                        // 更新助手测试(隐藏调试区):不必真升级,直接弹更新助手并指定要展示的卡。每张卡一行(将来加卡自动出现)。
-                        ForEach(UpdateCard.allCases) { card in
-                            actionRow(
-                                "sparkles.rectangle.stack",
-                                "触发更新助手 —「\(card.rawValue)」卡",
-                                "直接弹出更新助手,只展示这张卡 + 搞定页。走完会把该卡标记已看(再测用下面的重置)。"
-                            ) {
-                                NotificationCenter.default.post(
-                                    name: .devToolsTriggerUpdateAssistant, object: nil,
-                                    userInfo: ["cards": [card.rawValue]])
-                            }
-                        }
+                        // 更新助手测试(隐藏调试区):一个选单挑哪张卡(或全部)直接弹更新助手,不必真升级。
+                        updateAssistantTestRow()
                         actionRow(
                             "arrow.counterclockwise.circle",
                             "重置更新助手「已看」标记",
@@ -560,6 +550,40 @@ struct DevToolsView: View {
             }
             .controlSize(.small)
         }
+    }
+
+    /// 更新助手测试行:右侧一个**选单**挑「哪张卡」(或全部)直接弹更新助手——不必真升级。
+    @ViewBuilder
+    private func updateAssistantTestRow() -> some View {
+        HStack(spacing: 10) {
+            VStack(alignment: .leading, spacing: 1) {
+                Text("触发更新助手(选卡测试)")
+                    .font(.callout.weight(.medium))
+                Text("从右侧选单挑一张 / 全部新卡,直接弹更新助手 —— 不必真升级。走完会把所选卡标记已看(再测用下面的重置)。")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer()
+            Menu {
+                ForEach(UpdateCard.allCases) { card in
+                    Button("「\(card.rawValue)」卡") { triggerUpdateAssistant([card.rawValue]) }
+                }
+                if UpdateCard.allCases.count > 1 {
+                    Divider()
+                    Button("全部新卡") { triggerUpdateAssistant(UpdateCard.allCases.map(\.rawValue)) }
+                }
+            } label: {
+                Label("选择卡片", systemImage: "sparkles.rectangle.stack")
+            }
+            .controlSize(.small)
+            .fixedSize()
+        }
+    }
+
+    private func triggerUpdateAssistant(_ rawValues: [String]) {
+        NotificationCenter.default.post(
+            name: .devToolsTriggerUpdateAssistant, object: nil, userInfo: ["cards": rawValues])
     }
 
     /// UserDefaults 快照(备份白名单口径)。展示截断到 60 字符,复制是全量。
