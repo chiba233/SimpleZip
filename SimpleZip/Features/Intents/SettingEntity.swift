@@ -46,7 +46,24 @@ nonisolated enum SettingsCatalog {
         SettingsCatalogItem(
             id: "automation.ai", pane: .ai,
             titleKey: "settings.automation.ai.title",
-            keywords: ["ai", "assistant", "apple intelligence", "report"], isToggleable: true
+            keywords: ["ai", "assistant", "apple intelligence", "report", "suggestion", "recommend", "smart"],
+            isToggleable: true
+        ),
+        // AI 后台索引区(活跃度 / 文件夹预索引 / 内容预读 / 索引电源)。数据采集类 → 可搜可跳,但**不准** NL/Siri
+        // 直接翻开(开启=读更多用户数据,隐私红线,与删除确认 / 预设密码同档 `isToggleable:false`)。
+        SettingsCatalogItem(
+            id: "ai.background", pane: .ai,
+            titleKey: "settings.ai.background.section",
+            keywords: ["ai", "background", "index", "indexing", "activity level", "preindex",
+                       "content", "preread", "summary", "power", "battery"],
+            isToggleable: false
+        ),
+        // AI 静默后台索引(App 关闭时也按计划跑)。同样开启=后台运行 + 读数据 → 不准 NL/Siri 翻开。
+        SettingsCatalogItem(
+            id: "ai.background.silent", pane: .ai,
+            titleKey: "settings.ai.background.silent.section",
+            keywords: ["ai", "background", "silent", "scheduled", "offline", "automatic", "index", "interval"],
+            isToggleable: false
         ),
         SettingsCatalogItem(
             id: "automation.allowPresetPassword", pane: .automation,
