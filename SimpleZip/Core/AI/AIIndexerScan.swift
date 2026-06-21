@@ -155,10 +155,25 @@ enum AIIndexerScan {
         guard let handle = try? FileHandle(forReadingFrom: url) else { return nil }
         defer { try? handle.close() }
         let data = (try? handle.read(upToCount: maxContentReadBytes)) ?? Data()
-        guard !data.isEmpty, let raw = String(data: data, encoding: .utf8) else { return nil }
+        guard let raw = decodeTextHead(data) else { return nil }
         let redacted = AISensitiveRedactor.redact(raw)
         let trimmed = redacted.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? nil : trimmed
+    }
+
+    /// 把(可能截断在多字节字符中间的)头部字节解成文本:直接 UTF-8 失败时退最多 3 字节找合法边界
+    /// (一个 UTF-8 字符 ≤4 字节)—— 修 64KB 头部恰好切在 CJK 字符中间导致整篇解码失败 → 摘要素材为空的 bug。
+    /// 仍失败 = 非 UTF-8 文本(二进制等)→ nil。
+    nonisolated static func decodeTextHead(_ data: Data) -> String? {
+        guard !data.isEmpty else { return nil }
+        if let s = String(data: data, encoding: .utf8) { return s }
+        var d = data
+        for _ in 0..<3 {
+            d = d.dropLast()
+            if d.isEmpty { return nil }
+            if let s = String(data: d, encoding: .utf8) { return s }
+        }
+        return nil
     }
 
     /// 读一个文件头部 → 脱敏 → 内容摘要(标题 / 字段名 / 语言提示,已脱敏)。**挑哪些读、读多少由调用方
@@ -173,7 +188,7 @@ enum AIIndexerScan {
         defer { try? handle.close() }
         let data = (try? handle.read(upToCount: maxContentReadBytes)) ?? Data()
         let type = AIFileType.classify(fileName: fileName, isDirectory: false)
-        guard !data.isEmpty, let raw = String(data: data, encoding: .utf8) else {
+        guard let raw = decodeTextHead(data) else {
             return AIFileContentSummary(mode: "metadata-only")   // 空 / 二进制 / 非 UTF-8 → 只记元数据
         }
         // **脱敏后再抽信号 + 入索引**(白皮书:深度文本摘要由 App 侧先过 AISensitiveRedactor 再塞 contentSummary)。

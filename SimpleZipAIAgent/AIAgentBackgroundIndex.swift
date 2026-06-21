@@ -25,6 +25,8 @@ enum AIAgentBackgroundIndex {
     nonisolated struct RunSummary: Sendable {
         let scopesScanned: Int
         let recordsWritten: Int
+        var bakedSummaries: Int = 0
+        var bakedURLs: Int = 0
         let note: String
     }
 
@@ -36,38 +38,40 @@ enum AIAgentBackgroundIndex {
         return base.appendingPathComponent(AIAgentConfiguration.appBundleID, isDirectory: true)
     }
 
-    /// 读 App 写的 scope 白名单(偏好域 = App bundle id;A19 用 suiteName 读对域,不用 agent 自己的 .standard)。
+    /// 读 App 写的 scope 白名单(偏好域 = App bundle id;A19 + 实测:嵌入 helper 被拉起时 Bundle.main 解析到
+    /// app bundle → suiteName==自己 id 会失效读空,故统一走 appDomainDefaults()——该情况回退 .standard 才是对的域)。
     private static func loadScopes() -> [AIArchivePrefetchScope] {
-        guard let defaults = UserDefaults(suiteName: AIAgentConfiguration.appBundleID),
-              let data = defaults.data(forKey: AppPreferences.Key.aiBackgroundIndexScopes),
+        guard let data = AIAgentConfiguration.appDomainDefaults().data(forKey: AppPreferences.Key.aiBackgroundIndexScopes),
               let scopes = try? JSONDecoder().decode([AIArchivePrefetchScope].self, from: data) else { return [] }
         return scopes
     }
 
-    /// 写回 scope 白名单(只为更新 lastScannedAt → 下轮 leastRecentlyScanned 续扫)。互斥由 app/agent 让位保证(下一刀)。
+    /// 写回 scope 白名单(只为更新 lastScannedAt → 下轮 leastRecentlyScanned 续扫)。互斥由 app/agent 让位保证。
     private static func saveScopes(_ scopes: [AIArchivePrefetchScope]) {
-        guard let defaults = UserDefaults(suiteName: AIAgentConfiguration.appBundleID),
-              let data = try? JSONEncoder().encode(scopes) else { return }
-        defaults.set(data, forKey: AppPreferences.Key.aiBackgroundIndexScopes)
+        guard let data = try? JSONEncoder().encode(scopes) else { return }
+        AIAgentConfiguration.appDomainDefaults().set(data, forKey: AppPreferences.Key.aiBackgroundIndexScopes)
     }
 
     /// agent 上次成功跑完后台索引的时刻(epoch 秒)。用于**间隔自节流**:launchd 用固定 base 频率(最小档)周期拉起,
     /// 配置间隔 > base 时,中间几次唤醒据此廉价 no-op(偏好域 = App bundle id,App 也可读来显示「上次后台索引」)。
     private static let lastIndexRunKey = "SimpleZip.ai.agent.lastIndexRun.v1"
     private static func loadLastRun() -> Date? {
-        guard let defaults = UserDefaults(suiteName: AIAgentConfiguration.appBundleID) else { return nil }
-        let epoch = defaults.double(forKey: lastIndexRunKey)
+        let epoch = AIAgentConfiguration.appDomainDefaults().double(forKey: lastIndexRunKey)
         return epoch > 0 ? Date(timeIntervalSince1970: epoch) : nil
     }
     private static func saveLastRun(_ date: Date) {
-        UserDefaults(suiteName: AIAgentConfiguration.appBundleID)?
-            .set(date.timeIntervalSince1970, forKey: lastIndexRunKey)
+        AIAgentConfiguration.appDomainDefaults().set(date.timeIntervalSince1970, forKey: lastIndexRunKey)
     }
 
-    /// 跑一轮后台索引(同步;launchd 周期拉起 → 据配置间隔自节流 → 跑一轮、单次 timeout 即停 → 写回)。
-    /// `extraCancel` = 调用方附加的停止钩子(默认无);函数内部把配置的单次 timeout 也折进同一个停止钩子。
-    static func runOnce(extraCancel: @escaping () -> Bool = { false }) -> RunSummary {
-        func skip(_ note: String) -> RunSummary { RunSummary(scopesScanned: 0, recordsWritten: 0, note: note) }
+    /// 跑一轮后台索引 + **模型烘焙**(launchd 周期拉起 → 据配置间隔自节流 → 元数据扫描 → 在本进程内直调端上模型
+    /// 预烘焙各 pass → 写回)。async:模型生成是异步的(`AIAgentBaker` 直调引擎)。
+    /// - force: 跳过间隔自节流 + app/agent 前台锁让位(给 `--force` 命令行测试用;门控 / 红线仍生效)。
+    /// - extraCancel: 调用方附加停止钩子;函数内把单次 timeout 也折进同一个钩子。
+    /// - log: 滚动进度(扫描每个 scope、烘焙每个 pass);命令行打到 stderr,默认无。
+    static func runOnce(force: Bool = false,
+                        extraCancel: @escaping () -> Bool = { false },
+                        log: @escaping (String) -> Void = { _ in }) async -> RunSummary {
+        func skip(_ note: String) -> RunSummary { log(note); return RunSummary(scopesScanned: 0, recordsWritten: 0, note: note) }
 
         // 1. 配置门控(红线主开关 + 静默后台 opt-in + 后台索引开关 + 活跃度)。
         guard let config = AIAgentConfiguration.loadPersisted() else { return skip("无配置(App 未同步)→ 不跑") }
@@ -76,19 +80,18 @@ enum AIAgentBackgroundIndex {
         guard config.indexingEnabled else { return skip("后台索引开关关 → 不跑") }
         let level = AIBackgroundActivityLevel(rawValue: config.activityLevel) ?? .balanced
         guard level != .off, let budget = AIArchivePrefetchBudget.forLevel(level) else { return skip("活跃度 off → 不跑") }
+        log("配置 OK · 活跃度 \(level.rawValue) · 语言 \(config.languageName)\(force ? " · --force(绕间隔/前台锁)" : "")")
 
-        // 1c. app/agent 互斥:App 在前台活跃(持有前台锁)→ 后台索引归 App(走 App 自己的电源管理),agent **让位**、
-        //     跳过这轮 —— 避免 App 开着也在索引时,后台 agent 重复 / 竞争地写同一份共享派生索引。best-effort 让位:
-        //     App 写原子 + 本轮有界,极少见的「探完未占 → App 紧接着启动」的短暂重叠最坏只是一轮冗余、不损坏数据。
-        if let lockURL = AIForegroundLock.lockURL(appBundleID: AIAgentConfiguration.appBundleID),
+        // 1c. app/agent 互斥:App 在前台活跃(持有前台锁)→ 后台归 App,agent 让位(--force 跳过)。
+        if !force, let lockURL = AIForegroundLock.lockURL(appBundleID: AIAgentConfiguration.appBundleID),
            AIForegroundLock.isForegroundAppActive(at: lockURL) {
             return skip("App 在前台活跃(持有前台锁)→ 后台索引归 App,让位")
         }
 
-        // 1b. 间隔自节流:launchd 固定 base 频率拉起,距上次成功跑完不足配置间隔则廉价 no-op(超时下次续同理靠它续上)。
+        // 1b. 间隔自节流:距上次成功跑完不足配置间隔则廉价 no-op(--force 跳过)。
         let now = Date()
         let intervalSeconds = TimeInterval(max(1, config.backgroundIndexIntervalHours)) * 3_600
-        if let last = loadLastRun(), now.timeIntervalSince(last) < intervalSeconds {
+        if !force, let last = loadLastRun(), now.timeIntervalSince(last) < intervalSeconds {
             let mins = Int(now.timeIntervalSince(last) / 60)
             return skip("距上次后台索引仅 \(mins) 分 < 间隔 \(config.backgroundIndexIntervalHours)h → 跳过")
         }
@@ -96,6 +99,7 @@ enum AIAgentBackgroundIndex {
         // 2. scope 白名单(App 写、agent 读)。
         let scopes = loadScopes()
         guard !scopes.isEmpty else { return skip("白名单为空 → 不跑") }
+        log("白名单 \(scopes.count) 个目录")
 
         // 3. 派生索引 store(显式路径,A19)+ 载入已有索引(渐进覆盖:沿用旧摘要、续扫旧 lastScannedAt)。
         guard let base = appSupportBase() else { return skip("拿不到 App Support 路径") }
@@ -112,16 +116,21 @@ enum AIAgentBackgroundIndex {
             for rec in index.records where rec.contentSummary != nil { existingSummarized[rec.id] = rec }
         }
 
-        // 5. 扫描(与 App 共用 Core 编排)。**单次 timeout 折进停止钩子**:到 maxBackgroundRunSeconds 即停,
-        //    未扫的 scope 保持旧 lastScannedAt → 下次 launchd 拉起靠 leastRecentlyScanned 续上(超时下次继续)。
+        // 5. 元数据扫描(与 App 共用 Core 编排)。单次 timeout 折进停止钩子;到时即停,下次靠 leastRecentlyScanned 续。
         let deadline = now.addingTimeInterval(TimeInterval(max(1, config.maxBackgroundRunSeconds)))
         let isCancelled: () -> Bool = { extraCancel() || Date() >= deadline }
         let results = AIBackgroundIndexRun.scan(
             scopes: scopes, home: home, scopeBudget: scopeBudget, fileBudget: fileBudget,
-            allowContent: allowContent, existingSummarized: existingSummarized, isCancelled: isCancelled)
+            allowContent: allowContent, existingSummarized: existingSummarized, isCancelled: isCancelled,
+            progress: { event in
+                switch event {
+                case .willScanScope(let d, let t, let path): log("[\(d + 1)/\(t)] 正在索引 \(path) …")
+                case .didScanScope(let d, let t, let path, let n): log("[\(d)/\(t)] \(path) → \(n) 条")
+                }
+            })
         guard !results.isEmpty else { return skip("本轮未扫(取消/超时立即触发)") }
 
-        // 6. 写回索引(每 scope 先清后 upsert,与 store.ingest 同语义)+ 更新 lastScannedAt + 记录本轮跑完时刻(自节流)。
+        // 6. 合并扫描结果进索引(每 scope 先清后 upsert,与 store.ingest 同语义)+ 更新 lastScannedAt。
         var written = 0
         var updatedScopes = scopes
         for r in results {
@@ -131,12 +140,31 @@ enum AIAgentBackgroundIndex {
                 updatedScopes[i] = markScanned(updatedScopes[i], at: now)
             }
         }
+        log("元数据 \(results.count) scope · \(written) 条 → 开始模型烘焙")
+
+        // 7. **模型烘焙**:在本进程内直调端上模型预烘焙各 pass(到 deadline 即停,下轮续)。这才是后台 agent 的本职。
+        var bakedSummaries = 0
+        var bakedURLs = 0
+        var bakeNote = "(未烘焙)"
+        if #available(macOS 26.0, *) {
+            let baked = await AIAgentBaker.bake(index: index, config: config, budget: budget, deadline: deadline, log: log)
+            index = baked.index
+            bakedSummaries = baked.summary.fileSummaries
+            bakedURLs = baked.summary.urlSuggestions
+            bakeNote = baked.summary.note
+        } else {
+            bakeNote = "macOS < 26 → 跳过烘焙"
+        }
+
+        // 8. 写回索引 + scope lastScannedAt + 记录本轮跑完时刻(自节流)。
         if let data = try? JSONEncoder().encode(index) {
             derived.set(data, forKey: AppPreferences.Key.aiFileMemoryIndexData)
         }
         saveScopes(updatedScopes)
         saveLastRun(now)
-        return RunSummary(scopesScanned: results.count, recordsWritten: written, note: "OK")
+        return RunSummary(scopesScanned: results.count, recordsWritten: written,
+                          bakedSummaries: bakedSummaries, bakedURLs: bakedURLs,
+                          note: "OK · 烘焙 \(bakeNote)")
     }
 
     /// 载入已有派生索引(无 / 损坏 → 空索引,首轮从头建)。

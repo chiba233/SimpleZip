@@ -41,12 +41,21 @@ struct AIAgentMain {
         // 纯同步元数据扫描(不调模型)→ 跑完直接 exit,无需 run loop。门控不过(opt-in 默认关等)则廉价 no-op 退出。
         // 用法:.../Contents/MacOS/SimpleZipAIAgent --background-index
         if CommandLine.arguments.contains("--background-index") {
-            let summary = AIAgentBackgroundIndex.runOnce()
-            // 每次被 launchd 拉起都记一笔运行遥测(真扫 / 跳过都算),供 App·DevTools 确认后台 agent 真跑过。
-            AIAgentRunTelemetry.recordWake(outcome: summary.note, at: Date())
-            agentLog("BACKGROUND INDEX → scopes=\(summary.scopesScanned) records=\(summary.recordsWritten) · \(summary.note)")
-            print("scopes=\(summary.scopesScanned) records=\(summary.recordsWritten) note=\(summary.note)")
-            exit(0)
+            // --force:绕间隔自节流 + app/agent 前台锁让位(测试用;门控 / 红线仍生效)。
+            let force = CommandLine.arguments.contains("--force")
+            // async:烘焙要直调端上模型(异步)。A18:绝不阻塞主线程等,Task 跑完直接 exit,主线程跑 run loop 泵队列。
+            Task {
+                let summary = await AIAgentBackgroundIndex.runOnce(force: force, log: { line in
+                    agentLog(line)   // stderr 滚动(Console / 终端可见)
+                    print(line)      // stdout 滚动(命令行直接可见「正在 index / 烘焙 什么」)
+                })
+                // 每次被拉起都记一笔运行遥测(真扫 / 烘焙 / 跳过都算),供 App·DevTools 确认后台 agent 真跑过。
+                AIAgentRunTelemetry.recordWake(outcome: summary.note, at: Date())
+                agentLog("BACKGROUND INDEX → scopes=\(summary.scopesScanned) records=\(summary.recordsWritten) 烘焙=\(summary.bakedSummaries)+\(summary.bakedURLs) · \(summary.note)")
+                print("scopes=\(summary.scopesScanned) records=\(summary.recordsWritten) baked=\(summary.bakedSummaries)+\(summary.bakedURLs) note=\(summary.note)")
+                exit(0)
+            }
+            RunLoop.main.run()
         }
         // `--probe`:直接在本(独立)进程跑一次模型探针后退出 —— 绕开 SMAppService/launchd/XPC,
         // 单独回答地基问题「端上模型能否在非 App 的独立进程里跑」。便于命令行直接验证:

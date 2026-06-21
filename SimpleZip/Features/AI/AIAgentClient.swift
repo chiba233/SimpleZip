@@ -279,7 +279,8 @@ enum AIAgentClient {
             activityLevel: AppPreferences.aiBackgroundActivityLevel.rawValue,
             silentBackgroundIndexEnabled: AppPreferences.aiBackgroundSilentIndexEnabled,
             backgroundIndexIntervalHours: AppPreferences.aiBackgroundIndexInterval.hours,
-            maxBackgroundRunSeconds: AppPreferences.aiBackgroundMaxRunSeconds)
+            maxBackgroundRunSeconds: AppPreferences.aiBackgroundMaxRunSeconds,
+            languageName: AIReportAssistant.uiLanguageName)
     }
 
     /// 把当前配置**持久化到文件**(不碰 agent 进程)。让任何 agent 进程启动都能 loadPersisted 读到 —— App 启动 /

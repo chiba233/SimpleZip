@@ -71,21 +71,10 @@ enum AIVirtualFolderModelPlanner {
             discouragedTokens: discouragedTokens)
         let out = try await AIAgentClient.generatePass(
             kind: .fileSuggestion, input: input, as: AIPassFileSuggestionOutput.self)
-        var seen = Set<String>()
-        let tokens = out.actions.compactMap { raw -> String? in
-            let t = raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-            guard AIVirtualNodeActionDeriver.allowedSuggestionDescriptors
-                .contains(where: { $0.id == t && $0.appliesToKinds.contains(kind) }),
-                seen.insert(t).inserted else { return nil }
-            return t
-        }
-        var actions = tokens.map { AIFileSuggestedAction(token: $0) }
-        // 推荐打开方式(只推非默认 app):模型按序号挑;App 据 bundleId 安全合成动作。
-        let n = out.openWithAppNumber
-        if !apps.isEmpty, n >= 1, n <= apps.count {
-            let app = apps[n - 1]
-            actions.append(AIFileSuggestedAction(token: "openWith", payload: app.bundleID, label: app.name))
-        }
+        // 引擎输出 → 结构化动作的校验/转换与后台 agent 共用一份(AIFileSuggestionMapping)。
+        let actions = AIFileSuggestionMapping.actions(
+            actionTokens: out.actions, openWithAppNumber: out.openWithAppNumber, kind: kind,
+            candidateOpenApps: apps.map { (bundleID: $0.bundleID, name: $0.name) })
         return (out.summary, actions)
     }
 

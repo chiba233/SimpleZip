@@ -31,6 +31,12 @@ enum AIBackgroundIndexRun {
         let records: [AIFileMemoryRecord]
     }
 
+    /// 扫描进度事件(给 CLI / DevTools 滚动 log;App 后台默认不订阅)。
+    nonisolated enum ScanEvent: Sendable {
+        case willScanScope(done: Int, total: Int, directoryPath: String)
+        case didScanScope(done: Int, total: Int, directoryPath: String, records: Int)
+    }
+
     /// 跑一轮预索引扫描(纯编排,off-main 由调用方安排)。
     ///
     /// - Parameters:
@@ -51,17 +57,21 @@ enum AIBackgroundIndexRun {
                                  fileBudget: Int,
                                  allowContent: Bool,
                                  existingSummarized: [String: AIFileMemoryRecord] = [:],
-                                 isCancelled: () -> Bool = { false }) -> [ScopeResult] {
+                                 isCancelled: () -> Bool = { false },
+                                 progress: (ScanEvent) -> Void = { _ in }) -> [ScopeResult] {
         let picked = scopes
             .sorted(by: AIArchivePrefetchScope.leastRecentlyScanned)
             .prefix(max(1, scopeBudget))
+        let total = picked.count
         var results: [ScopeResult] = []
-        for scope in picked {
+        for (i, scope) in picked.enumerated() {
             if isCancelled() { break }
+            progress(.willScanScope(done: i, total: total, directoryPath: scope.directoryPath))
             let records = AIIndexerScan.scanScope(scope, home: home, fileBudget: fileBudget,
                                                   allowContent: allowContent,
                                                   existingSummarized: existingSummarized)
             results.append(ScopeResult(scopeID: scope.id, records: records))
+            progress(.didScanScope(done: i + 1, total: total, directoryPath: scope.directoryPath, records: records.count))
         }
         return results
     }

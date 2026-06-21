@@ -16,7 +16,8 @@ import Foundation
 
 public nonisolated struct AIAgentConfiguration: Codable, Sendable, Equatable {
     /// 当前 schema 版本。App 与 agent 同构建时天然对齐(本文件三 target 同编、值一致);跨版本时靠它协商。
-    public static let currentSchemaVersion = 3
+    /// v4:加 `languageName`(agent 后台烘焙按用户界面语言出摘要)。
+    public static let currentSchemaVersion = 4
 
     public var schemaVersion: Int
     /// AI 主开关。**红线:false = 整个 agent AI 能力禁用**(不生成、不索引、不预读)。
@@ -36,12 +37,16 @@ public nonisolated struct AIAgentConfiguration: Codable, Sendable, Equatable {
     public var backgroundIndexIntervalHours: Int
     /// agent 调度:单次后台运行最长 timeout(秒),超时停、下次继续。电源门控仍复用现有 AIBackgroundSchedulingRules。
     public var maxBackgroundRunSeconds: Int
+    /// 用户界面语言名(英文描述,如 "Simplified Chinese")—— agent 后台烘焙据此让模型用对的语言出摘要 / 解释。
+    /// App 用 `AIReportAssistant.uiLanguageName` 填;旧 payload 无此字段时解码回退 "English"。
+    public var languageName: String
 
     public init(schemaVersion: Int = AIAgentConfiguration.currentSchemaVersion,
                 aiAssistantEnabled: Bool, aiSuggestionEnabled: Bool,
                 indexingEnabled: Bool, contentPrereadEnabled: Bool, activityLevel: String,
                 silentBackgroundIndexEnabled: Bool,
-                backgroundIndexIntervalHours: Int, maxBackgroundRunSeconds: Int) {
+                backgroundIndexIntervalHours: Int, maxBackgroundRunSeconds: Int,
+                languageName: String = "English") {
         self.schemaVersion = schemaVersion
         self.aiAssistantEnabled = aiAssistantEnabled
         self.aiSuggestionEnabled = aiSuggestionEnabled
@@ -51,6 +56,28 @@ public nonisolated struct AIAgentConfiguration: Codable, Sendable, Equatable {
         self.silentBackgroundIndexEnabled = silentBackgroundIndexEnabled
         self.backgroundIndexIntervalHours = backgroundIndexIntervalHours
         self.maxBackgroundRunSeconds = maxBackgroundRunSeconds
+        self.languageName = languageName
+    }
+
+    // 向后兼容:旧 payload(schema ≤3)无 `languageName` → 解码回退 "English"(其余字段照常)。
+    enum CodingKeys: String, CodingKey {
+        case schemaVersion, aiAssistantEnabled, aiSuggestionEnabled, indexingEnabled
+        case contentPrereadEnabled, activityLevel, silentBackgroundIndexEnabled
+        case backgroundIndexIntervalHours, maxBackgroundRunSeconds, languageName
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        schemaVersion = try c.decode(Int.self, forKey: .schemaVersion)
+        aiAssistantEnabled = try c.decode(Bool.self, forKey: .aiAssistantEnabled)
+        aiSuggestionEnabled = try c.decode(Bool.self, forKey: .aiSuggestionEnabled)
+        indexingEnabled = try c.decode(Bool.self, forKey: .indexingEnabled)
+        contentPrereadEnabled = try c.decode(Bool.self, forKey: .contentPrereadEnabled)
+        activityLevel = try c.decode(String.self, forKey: .activityLevel)
+        silentBackgroundIndexEnabled = try c.decode(Bool.self, forKey: .silentBackgroundIndexEnabled)
+        backgroundIndexIntervalHours = try c.decode(Int.self, forKey: .backgroundIndexIntervalHours)
+        maxBackgroundRunSeconds = try c.decode(Int.self, forKey: .maxBackgroundRunSeconds)
+        languageName = (try c.decodeIfPresent(String.self, forKey: .languageName)) ?? "English"
     }
 
     /// 前台 AI 是否该响应(主 + 子开关都开)。agent 前台生成的红线门控。
@@ -72,6 +99,18 @@ public nonisolated struct AIAgentConfiguration: Codable, Sendable, Equatable {
     #else
     public static let appBundleID = "yumeka.SimpleZip-in-mac"
     #endif
+
+    /// 读 / 写 **App 偏好域**(`appBundleID`)的 UserDefaults —— 跨进程共享(scope 白名单 / 运行遥测等)统一走它。
+    /// 关键(A19 + 实测 bug):当**当前进程的 `Bundle.main.bundleIdentifier` 恰好等于 `appBundleID`** 时
+    /// —— App 自己,或 agent 被 launchd 当**嵌入 helper**(`SimpleZip.app/Contents/MacOS/SimpleZipAIAgent`)
+    /// 直接拉起、其 `Bundle.main` 解析到 app bundle —— `UserDefaults(suiteName: appBundleID)` 会被系统判为
+    /// 「拿自己的 bundle id 当 suite」而**失效**(返回读不到数据的实例 + 控制台告警),后台索引就会读到空白名单。
+    /// 这种情况下 `.standard` 正好就是该域;否则(agent 独立 / 经符号链接 → bundle id ≠ appBundleID 或为 nil)
+    /// 用 suiteName 跨进程读 App 域。两条路最终都落到同一个 appBundleID 域。
+    public static func appDomainDefaults() -> UserDefaults {
+        if Bundle.main.bundleIdentifier == appBundleID { return .standard }
+        return UserDefaults(suiteName: appBundleID) ?? .standard
+    }
 
     /// 持久化文件:`Application Support/<app bundle id>/AIAgentConfig.json`(dev/prod 各自隔离)。
     public static func persistedFileURL() -> URL? {
@@ -117,7 +156,7 @@ public enum AIAgentRunTelemetry {
 
     /// agent 侧:每次 `--background-index` 唤醒后记一笔(计数++、最近唤醒时刻、最近结果说明)。
     public static func recordWake(outcome: String, at date: Date) {
-        guard let defaults = UserDefaults(suiteName: AIAgentConfiguration.appBundleID) else { return }
+        let defaults = AIAgentConfiguration.appDomainDefaults()
         defaults.set(defaults.integer(forKey: runCountKey) + 1, forKey: runCountKey)
         defaults.set(date.timeIntervalSince1970, forKey: lastWakeKey)
         defaults.set(outcome, forKey: lastOutcomeKey)
@@ -125,7 +164,7 @@ public enum AIAgentRunTelemetry {
 
     /// App 侧:读运行遥测。
     public static func read() -> Snapshot {
-        let defaults = UserDefaults(suiteName: AIAgentConfiguration.appBundleID) ?? .standard
+        let defaults = AIAgentConfiguration.appDomainDefaults()
         let epoch = defaults.double(forKey: lastWakeKey)
         return Snapshot(
             runCount: defaults.integer(forKey: runCountKey),
