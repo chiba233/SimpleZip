@@ -1446,6 +1446,10 @@ enum AppPreferences {
         if let ledger = jsonDataExportValue(forKey: Key.releaseLedger) {
             values[Key.releaseLedger] = ledger
         }
+        // AI 后台索引白名单目录(JSON 数组 Data,同款处理)—— 用户配置、应可随备份迁移(A21:导出 / 恢复出厂都要覆盖)。
+        if let scopes = jsonDataExportValue(forKey: Key.aiBackgroundIndexScopes) {
+            values[Key.aiBackgroundIndexScopes] = scopes
+        }
         return PreferencesPayloadCodec.makePayload(values: values)
     }
 
@@ -1525,6 +1529,13 @@ enum AppPreferences {
            let data = try? JSONSerialization.data(withJSONObject: ledgerObject) {
             defaults.set(data, forKey: Key.releaseLedger)
         }
+        // AI 后台索引白名单目录(JSON 数组 → Data,同款还原)。
+        defaults.removeObject(forKey: Key.aiBackgroundIndexScopes)
+        if let scopesObject = values[Key.aiBackgroundIndexScopes],
+           JSONSerialization.isValidJSONObject(scopesObject),
+           let data = try? JSONSerialization.data(withJSONObject: scopesObject) {
+            defaults.set(data, forKey: Key.aiBackgroundIndexScopes)
+        }
     }
 
     /// 把所有可导出 key + 按文件夹记忆全部抹掉 + 顺手把 Keychain 里的预设密码也清掉。
@@ -1540,6 +1551,8 @@ enum AppPreferences {
         defaults.removeObject(forKey: Key.compressionFormatPresets)
         defaults.removeObject(forKey: Key.releaseWorkspacePresets)
         defaults.removeObject(forKey: Key.releaseLedger)
+        // AI 后台索引白名单目录(用户配置,恢复出厂应清掉 —— A21)。
+        defaults.removeObject(forKey: Key.aiBackgroundIndexScopes)
         // #34 归档清单缓存是派生数据(不在白名单),恢复出厂时一并清掉。
         defaults.removeObject(forKey: Key.archiveListingCache)
         defaults.removeObject(forKey: Key.finderFavoritesDirectoryBookmarkData)
