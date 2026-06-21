@@ -60,6 +60,13 @@ struct ExtractSelectionOptionsView: View {
             )
         } drawers: {}
         .frame(width: 560)
+        .task {
+            // ZIP 加密方法提示:后台异步读 central directory(别在主线程同步读整包卡死网络归档);非 zip 跳过。
+            guard request.detectedZipEncryption == .unknown,
+                  request.archiveURL.pathExtension.lowercased() == "zip" else { return }
+            let url = request.archiveURL
+            request.detectedZipEncryption = await Task.detached { ArchiveService.detectZipEncryption(in: url) }.value
+        }
     }
 }
 

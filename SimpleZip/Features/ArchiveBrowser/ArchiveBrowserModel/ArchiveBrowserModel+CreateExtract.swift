@@ -935,11 +935,15 @@ extension ArchiveBrowserModel {
         // 预设密码开启时 request 的初始密码就填好；ExtractOptionsForm 那一头会同时把
         // 「使用预设密码」复选框默认勾上 —— 用户不需要在偏好和对话框两处再点一遍。
         let preset = AppPreferences.hasUsablePresetPassword ? AppPreferences.presetPassword : ""
+        // 解压「当前已打开的归档」→ 复用 session 已 list 好的**完整**清单(`allItems`,非当前层 `archiveItems`),
+        // 对话框 preflight 不必再读一遍(网络归档别重下),统计也才完整。
+        // 加密**方法**检测(读 central directory 整包)交给对话框后台异步做,绝不在这里同步卡主线程(网络归档曾在此冻死)。
+        let preloaded: [ArchiveItem]? = { if case .archive = mode { return session.allItems.isEmpty ? nil : session.allItems } else { return nil } }()
         extractArchiveRequest = ExtractArchiveRequest(
             archiveURL: archiveURL,
             destinationURL: defaultExtractDestination(for: archiveURL),
             password: preset,
-            detectedZipEncryption: ArchiveService.detectZipEncryption(in: archiveURL)
+            preloadedItems: preloaded
         )
     }
 
@@ -1454,12 +1458,12 @@ extension ArchiveBrowserModel {
         }
 
         let preset = AppPreferences.hasUsablePresetPassword ? AppPreferences.presetPassword : ""
+        // 加密方法检测交给 ExtractSelectionOptionsView 后台异步做(别在主线程同步读整包卡死网络归档);留默认 .unknown。
         extractSelectionRequest = ExtractSelectionRequest(
             archiveURL: archiveURL,
             entries: entries,
             destinationURL: defaultExtractDestination(for: archiveURL),
-            password: preset,
-            detectedZipEncryption: ArchiveService.detectZipEncryption(in: archiveURL)
+            password: preset
         )
     }
 

@@ -8,7 +8,10 @@
 import Foundation
 
 extension ArchiveService {
-    static func detectZipEncryption(in archive: URL) -> ZipEncryptionDetection {
+    // nonisolated:纯字节解析(读文件 + 解析 ZIP central directory),无 MainActor 状态 → 可在后台线程跑。
+    // 关键:解压对话框 preflight 经 `Task.detached` 调它检测加密**方法**;若它是 MainActor 隔离,detached 会跳回
+    // 主线程跑、网络归档读整包时冻死 UI(用户报)。整条解析链(zipCentralDirectory / zipAESDetection / Data.zip*)同标。
+    nonisolated static func detectZipEncryption(in archive: URL) -> ZipEncryptionDetection {
         guard archive.pathExtension.lowercased() == "zip" else {
             return .unknown
         }
@@ -170,6 +173,8 @@ extension ArchiveService {
         // 头块信息(zstd 单流合成内层名要用):Type + 归档文件名。
         var headerType = ""
         var headerArchiveName = ""
+        // 整次 parse 复用一组日期格式器(见 makeSevenZipDateFormatters 注释:逐条目新建是大包冻死头号元凶)。
+        let dateFormatters = makeSevenZipDateFormatters()
 
         func flush() {
             guard let rawPath = values["Path"] else {
@@ -256,7 +261,7 @@ extension ArchiveService {
                     name: path,
                     isDirectory: isDirectory,
                     size: isDirectory ? nil : size,
-                    modified: parseSevenZipModified(modifiedText),
+                    modified: parseSevenZipModified(modifiedText, formatters: dateFormatters),
                     sizeText: isDirectory ? "" : ByteCountFormatter.string(fromByteCount: size, countStyle: .file),
                     modifiedText: modifiedText,
                     method: values["Method"] ?? "",
@@ -266,10 +271,10 @@ extension ArchiveService {
                         ? ""
                         : ByteCountFormatter.string(fromByteCount: packedSize ?? 0, countStyle: .file),
                     crc: values["CRC"] ?? "",
-                    created: parseSevenZipModified(createdText),
+                    created: parseSevenZipModified(createdText, formatters: dateFormatters),
                     createdText: createdText,
                     attributes: values["Attributes"] ?? "",
-                    accessed: parseSevenZipModified(accessedText),
+                    accessed: parseSevenZipModified(accessedText, formatters: dateFormatters),
                     accessedText: accessedText,
                     hostOS: values["Host OS"] ?? "",
                     characteristics: values["Characteristics"] ?? "",
@@ -457,7 +462,7 @@ extension ArchiveService {
         name.trimmingCharacters(in: CharacterSet(charactersIn: "/")) + (name.hasSuffix("/") ? "/" : "")
     }
 
-    private static func zipCentralDirectory(in data: Data) -> (offset: Int, size: Int)? {
+    private nonisolated static func zipCentralDirectory(in data: Data) -> (offset: Int, size: Int)? {
         guard data.count >= 22 else {
             return nil
         }
@@ -478,7 +483,7 @@ extension ArchiveService {
         return nil
     }
 
-    private static func zipAESDetection(in data: Data, offset: Int, length: Int) -> ZipEncryptionDetection? {
+    private nonisolated static func zipAESDetection(in data: Data, offset: Int, length: Int) -> ZipEncryptionDetection? {
         var cursor = offset
         let endOffset = offset + length
         while cursor + 4 <= endOffset {
@@ -515,22 +520,24 @@ extension ArchiveService {
         return formatter.date(from: text)
     }
 
-    private static func parseSevenZipModified(_ text: String) -> Date? {
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        let formats = [
-            "yyyy-MM-dd HH:mm:ss",
-            "yyyy-MM-dd HH:mm:ss.SSS",
-            "yyyy-MM-dd HH:mm:ss.SSSSSS",
-            "yyyy-MM-dd HH:mm:ss.SSSSSSS"
-        ]
-
-        for format in formats {
+    /// 7zz 日期格式器(4 个变体)。**整次 parse 建一组、跨所有条目复用** —— 原来逐条目、逐格式新建 DateFormatter
+    /// (每条目最多 12 次、上万条目十几万次,DateFormatter 创建极贵)是「打开大包主线程冻死」的头号元凶。
+    /// 不用 static 共享:DateFormatter 非线程安全,而 parse 现在可能并发(多归档各自 off-main)→ 每次 parse 建局部一组。
+    nonisolated static func makeSevenZipDateFormatters() -> [DateFormatter] {
+        ["yyyy-MM-dd HH:mm:ss", "yyyy-MM-dd HH:mm:ss.SSS",
+         "yyyy-MM-dd HH:mm:ss.SSSSSS", "yyyy-MM-dd HH:mm:ss.SSSSSSS"].map { format in
             let formatter = DateFormatter()
             formatter.locale = Locale(identifier: "en_US_POSIX")
             formatter.dateFormat = format
-            if let date = formatter.date(from: trimmed) {
-                return date
-            }
+            return formatter
+        }
+    }
+
+    private nonisolated static func parseSevenZipModified(_ text: String, formatters: [DateFormatter]) -> Date? {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }   // created/accessed 常为空 → 免 4 次注定失败的尝试
+        for formatter in formatters {
+            if let date = formatter.date(from: trimmed) { return date }
         }
         return nil
     }
@@ -646,14 +653,14 @@ enum ArchiveTestFailureKind: String, CaseIterable {
 }
 
 private extension Data {
-    func zipByte(at offset: Int) -> UInt8? {
+    nonisolated func zipByte(at offset: Int) -> UInt8? {
         guard offset >= 0, offset < count else {
             return nil
         }
         return self[startIndex + offset]
     }
 
-    func zipUInt16(at offset: Int) -> UInt16? {
+    nonisolated func zipUInt16(at offset: Int) -> UInt16? {
         guard let byte0 = zipByte(at: offset),
               let byte1 = zipByte(at: offset + 1) else {
             return nil
@@ -661,7 +668,7 @@ private extension Data {
         return UInt16(byte0) | (UInt16(byte1) << 8)
     }
 
-    func zipUInt32(at offset: Int) -> UInt32? {
+    nonisolated func zipUInt32(at offset: Int) -> UInt32? {
         guard let byte0 = zipByte(at: offset),
               let byte1 = zipByte(at: offset + 1),
               let byte2 = zipByte(at: offset + 2),

@@ -606,11 +606,12 @@ extension ArchiveBrowserModel {
             return
         }
         let preset = AppPreferences.hasUsablePresetPassword ? AppPreferences.presetPassword : ""
+        // detectedZipEncryption 只供对话框 UI 提示;此处是直接解压(无对话框),后端解压时自会重测加密 →
+        // 不在主线程同步读整包检测(网络归档会卡死),留默认 .unknown。
         let request = ExtractArchiveRequest(
             archiveURL: supportedURL,
             destinationURL: supportedURL.deletingLastPathComponent(),
-            password: preset,
-            detectedZipEncryption: ArchiveService.detectZipEncryption(in: supportedURL)
+            password: preset
         )
         performExtractArchive(request)
     }

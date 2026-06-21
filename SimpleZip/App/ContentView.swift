@@ -1232,11 +1232,11 @@ struct ContentView: View {
                 let (innerArchiveURL, _, summary) = try await unwrapAndVerifySIZ(at: url)
                 await MainActor.run {
                     let preset = AppPreferences.hasUsablePresetPassword ? AppPreferences.presetPassword : ""
+                    // 加密方法检测交给 ExtractArchiveOptionsView 后台异步做(别在主线程同步读整包);留默认 .unknown。
                     model.extractArchiveRequest = ExtractArchiveRequest(
                         archiveURL: innerArchiveURL,
                         destinationURL: url.deletingLastPathComponent(),
                         password: preset,
-                        detectedZipEncryption: ArchiveService.detectZipEncryption(in: innerArchiveURL),
                         sizSignature: summary
                     )
                 }

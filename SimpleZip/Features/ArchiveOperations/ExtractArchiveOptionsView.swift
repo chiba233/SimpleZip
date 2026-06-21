@@ -324,20 +324,38 @@ struct ExtractArchiveOptionsView: View {
     private func loadPreflight() {
         let url = request.archiveURL
         let password = request.password
+        let preloaded = request.preloadedItems
         Task { @MainActor in
-            do {
-                let items = try await ArchiveService.list(url, password: password)
-                preflight = ArchiveExtractPreflight.analyze(items)
-                preflightTopLevelNames = ArchiveExtractPreflight.topLevelNames(of: items)
-                // 预烘焙速览的条目样本:跳过加密条目名(敏感面),bounded;给前台按需 archiveKindGuess 用。
-                archiveEntrySample = items.lazy.filter { !$0.isEncrypted }.prefix(200)
-                    .map { ArchiveKindGuessInput.Entry(name: $0.name, isDirectory: $0.isDirectory) }
-                // #13:检测「单层包装壳」,有则显示去壳开关(默认关)。
-                request.detectedSingleRootFolder = ArchiveSingleRootFolder.detect(in: items)
-                recomputeOverwriteCount()
-            } catch {
-                // 读不到（header 加密没密码 / 损坏）→ 收起概要即可，对话框本职（选目录、给密码）不受影响。
-                preflightUnavailable = true
+            // ① 条目清单:**优先复用**打开归档时 model 已 list 好的完整清单(网络归档别再读一遍);没有才异步 list
+            //    (`ArchiveService.list` 是 nonisolated async,从主 actor await 会跳出主线程,不卡 UI)。
+            let items: [ArchiveItem]
+            if let preloaded, !preloaded.isEmpty {
+                items = preloaded
+            } else {
+                do {
+                    items = try await ArchiveService.list(url, password: password)
+                } catch {
+                    // 读不到（header 加密没密码 / 损坏）→ 收起概要即可，对话框本职（选目录、给密码）不受影响。
+                    preflightUnavailable = true
+                    return
+                }
+            }
+            preflight = ArchiveExtractPreflight.analyze(items)
+            preflightTopLevelNames = ArchiveExtractPreflight.topLevelNames(of: items)
+            // 预烘焙速览的条目样本:跳过加密条目名(敏感面),bounded;给前台按需 archiveKindGuess 用。
+            archiveEntrySample = items.lazy.filter { !$0.isEncrypted }.prefix(200)
+                .map { ArchiveKindGuessInput.Entry(name: $0.name, isDirectory: $0.isDirectory) }
+            // #13:检测「单层包装壳」,有则显示去壳开关(默认关)。
+            request.detectedSingleRootFolder = ArchiveSingleRootFolder.detect(in: items)
+            recomputeOverwriteCount()
+            // ② ZIP 加密**方法**提示(读 central directory 整包字节):仅当确有加密条目才读,且**后台跑**绝不卡主线程
+            //    (网络归档曾因这步同步读整包在主线程冻死);无加密条目 → .none 免 I/O。
+            if request.detectedZipEncryption == .unknown {
+                if items.contains(where: { $0.isEncrypted }) {
+                    request.detectedZipEncryption = await Task.detached { ArchiveService.detectZipEncryption(in: url) }.value
+                } else {
+                    request.detectedZipEncryption = .none
+                }
             }
         }
     }

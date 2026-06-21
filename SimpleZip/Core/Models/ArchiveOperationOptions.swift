@@ -380,6 +380,9 @@ struct ExtractArchiveRequest: Identifiable {
     var password = ""
     var zipDecryptionMethod: ArchiveDecryptionMethod = .automatic
     var detectedZipEncryption: ZipEncryptionDetection = .unknown
+    /// 解压对话框 preflight 复用:解压「当前已打开的归档」时直接带上 model 已 list 好的完整清单 —— 对话框就不必
+    /// 再 list 一遍(网络归档尤其重要)。nil = 没有现成清单(如解压文件夹里选中的归档),对话框自行异步 list。
+    var preloadedItems: [ArchiveItem]? = nil
     var showDetails = false
     /// 0.4.2：不解压 macOS 元数据垃圾（.DS_Store / __MACOSX / ._*…）—— 在 staging 上清掉再合并。
     var skipJunk = false
@@ -461,7 +464,9 @@ enum ArchiveDecryptionMethod: String, CaseIterable, Identifiable {
 }
 
 /// 从 ZIP 元数据检测到的加密算法。
-enum ZipEncryptionDetection: Hashable {
+// nonisolated:纯数据枚举,要在后台线程的 ZIP 加密检测(`detectZipEncryption`,见 ArchiveService+Parsing)里用,
+// 其 Hashable/Equatable 一致性不能是 MainActor 隔离。
+nonisolated enum ZipEncryptionDetection: Hashable {
     case unknown
     case none
     case zipCrypto
