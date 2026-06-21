@@ -191,6 +191,14 @@ enum DiskImageBackend {
             )
         }
 
+        // 安全:volumeName 是用户输入,作为 `-volname` 的**值**传(argv 数组,不经 shell,hdiutil 不会再拆它)——
+        // 以 - 开头也只是个怪名字、不是注入;但控制字符 / 换行会让 hdiutil 行为未定义,这里清掉控制字符。
+        // (hdiutil 的路径参数都来自 URL.path = 绝对路径、必以 / 开头,不可能被当 flag,故无需 `--`。)
+        let safeVolumeName: String = {
+            let cleaned = String(volumeName.unicodeScalars.filter { !CharacterSet.controlCharacters.contains($0) })
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            return cleaned.isEmpty ? "SimpleZip" : cleaned
+        }()
         progress(ArchiveProgressState(fraction: nil, currentFile: destination.lastPathComponent))
         _ = try await BackendProcessRunner.runAndCapture(
             "/usr/bin/hdiutil",
@@ -198,7 +206,7 @@ enum DiskImageBackend {
                 "create",
                 "-format", "UDZO",
                 "-ov",
-                "-volname", volumeName.isEmpty ? "SimpleZip" : volumeName,
+                "-volname", safeVolumeName,
                 "-srcfolder", stagingURL.path,
                 destination.path
             ],
@@ -220,7 +228,7 @@ enum DiskImageBackend {
         progress: @escaping @Sendable (ArchiveProgressState) -> Void
     ) throws {
         let fileManager = FileManager.default
-        let items = try fileManager.contentsOfDirectory(at: mountPoint, includingPropertiesForKeys: nil)
+        let items = try fileManager.contentsOfDirectory(at: mountPoint, includingPropertiesForKeys: [.isSymbolicLinkKey])
         let total = max(1, items.count)
         for (index, item) in items.enumerated() {
             try Task.checkCancellation()
@@ -233,10 +241,29 @@ enum DiskImageBackend {
                     totalUnitCount: total
                 )
             )
+            // 安全:DMG 是不可信输入。copyItem 会**原样保留**符号链接(实测:复制成指向同一目标的 link),
+            // 若 DMG 顶层有指向挂载点外的 symlink(典型如 `Applications`→/Applications,或恶意的 ../../etc/passwd),
+            // 复制进用户目录后用户一跟随就读到挂载点外的敏感文件 → 路径逃逸。解析后逃出挂载点的 symlink 一律跳过。
+            if Self.symlinkEscapesMount(item, mountPoint: mountPoint) { continue }
             let target = destination.appendingPathComponent(item.lastPathComponent)
             try fileManager.copyItem(at: item, to: target)
         }
         progress(ArchiveProgressState(fraction: 1, currentFile: nil, statusText: nil, completedUnitCount: total, totalUnitCount: total))
+    }
+
+    /// 顶层条目是否为「解析后逃出挂载点」的符号链接(逃逸=不安全,copyContents 跳过)。非 symlink 返回 false。
+    /// 逃逸判定走**词法** `.standardized`(收 `..`、不碰 fs、不再跟随更多 symlink),目标不存在也能判,与 ArchiveSafety 同口径。
+    private nonisolated static func symlinkEscapesMount(_ item: URL, mountPoint: URL) -> Bool {
+        let fm = FileManager.default
+        let isSymlink = (try? item.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink) == true
+        guard isSymlink else { return false }
+        guard let raw = try? fm.destinationOfSymbolicLink(atPath: item.path) else { return true }  // 读不到 → 当不安全跳过
+        let targetURL = raw.hasPrefix("/")
+            ? URL(fileURLWithPath: raw)
+            : URL(fileURLWithPath: raw, relativeTo: item.deletingLastPathComponent())
+        let target = targetURL.standardized.path
+        let mount = mountPoint.standardized.path
+        return !(target == mount || target.hasPrefix(mount + "/"))
     }
 
     /// 把挂载点下的顶层项目转成 ArchiveItem 数组，用户能在 UI 里浏览。
