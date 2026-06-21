@@ -57,9 +57,14 @@ struct ArchiveFileEntity: AppEntity {
     }
 
     static func parseID(_ id: String) -> (archivePath: String, entryPath: String)? {
-        let parts = id.components(separatedBy: separator)
-        guard parts.count == 2, !parts[0].isEmpty, !parts[1].isEmpty else { return nil }
-        return (parts[0], parts[1])
+        // 按**第一个**分隔符切:archivePath 是磁盘路径(不会含 \u{1}),entryPath 是不可信归档条目名 ——
+        // 可能含控制字符(含 \u{1} 自身)。整段切会让 parts 数错位、Spotlight 点击失效;只切第一处则 entryPath
+        // 原样保留(含其中的 \u{1}),仍能正确路由。
+        guard let range = id.range(of: separator) else { return nil }
+        let archivePath = String(id[..<range.lowerBound])
+        let entryPath = String(id[range.upperBound...])
+        guard !archivePath.isEmpty, !entryPath.isEmpty else { return nil }
+        return (archivePath, entryPath)
     }
 }
 

@@ -77,8 +77,10 @@ nonisolated enum SpotlightRoute {
             return .release(artifactPath: parts[1])
         case "archive" where parts.count == 2:
             return .archive(archivePath: parts[1])
-        case "file" where parts.count == 3:
-            return .archiveFile(archivePath: parts[1], entryPath: parts[2])
+        case "file" where parts.count >= 3:
+            // entryPath 是不可信归档条目名,可能含分隔符 \u{1};它是最后一段 → 取 parts[2...] 拼回原样,
+            // archivePath(parts[1])是磁盘路径不含分隔符。整段等 count==3 会让含控制字符的条目路由失败。
+            return .archiveFile(archivePath: parts[1], entryPath: parts[2...].joined(separator: sep))
         case "activity" where parts.count == 3:
             return .activity(paneRouteKey: parts[1], itemID: parts[2])
         default:
