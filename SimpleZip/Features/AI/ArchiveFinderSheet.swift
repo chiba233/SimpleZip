@@ -90,6 +90,8 @@ struct ArchiveFinderSheet: View {
                         VStack(alignment: .leading, spacing: 8) {
                             ForEach(groups) { group in resultRow(group) }
                         }
+                        // 给滚动条留出「水槽」—— 否则覆盖式滚动条压住结果行右缘的「打开」箭头(用户报)。
+                        .padding(.trailing, 14)
                     }
                 }
             } else {

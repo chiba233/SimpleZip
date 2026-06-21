@@ -47,13 +47,17 @@ struct WelcomeAssistantView: View {
     /// 0.4.3 #7:安全策略页随设置 → 压缩 → 安全 同步新增两个写入验证开关(同 key,默认值同设置页)。
     @AppStorage(AppPreferences.Key.verifyAfterArchiveRewrite) private var verifyAfterArchiveRewrite = true
     @AppStorage(AppPreferences.Key.verifyAfterArchiveCreate) private var verifyAfterArchiveCreate = false
+    /// 0.4.5 AI 页:端上智能主开关 + 建议子开关(同设置页 key)。后台索引/预读默认关(隐私优先),在此卡只引导主开关。
+    @AppStorage(AppPreferences.Key.aiAssistantEnabled) private var aiAssistantEnabled = true
+    @AppStorage(AppPreferences.Key.aiSuggestionEnabled) private var aiSuggestionEnabled = true
 
     @State private var currentStep: Int = 0
 
-    /// 总页数。0.3.3 用户拍板「压到 6 页」后 0.4.3 用户点名加回一页 Finder 右键集成 ——
+    /// 总页数。0.3.3 用户拍板「压到 6 页」后 0.4.3 加回 Finder 右键集成,0.4.5 加 AI 一页 ——
     /// 0 欢迎（hero + 版本检查 + 备份导入）/ 1 通用（语言 + 常规）/ 2 便利（预设密码 + 自动解压 + 文件关联）/
-    /// 3 Finder 右键集成 / 4 安全策略 / 5 引擎（后端 + GPG）/ 6 完成。每个设置仍直接绑 @AppStorage，改的瞬间落盘。
-    private let totalSteps = 7
+    /// 3 Finder 右键集成 / 4 安全策略 / 5 引擎（后端 + GPG）/ 6 AI（端上智能,默认隐私优先）/ 7 完成。
+    /// 每个设置仍直接绑 @AppStorage，改的瞬间落盘。AI 卡(`WelcomeAIStep`)被更新助手复用(只显示新增卡)。
+    private let totalSteps = 8
 
     /// 「取消」按钮的二次确认 alert flag。
     /// 不直接关 sheet：用户可能误点 ESC / 关闭，已经做出的选项可能想留也想看后面的步骤。
@@ -223,6 +227,9 @@ struct WelcomeAssistantView: View {
                 WelcomeBackendStep()
                 WelcomeGPGStep()
             }
+        case 6:
+            // 0.4.5 AI:端上智能(Apple Intelligence)—— 卡内直接配齐 AI 开关。也被更新助手复用(自包含 @AppStorage)。
+            WelcomeAIStep()
         default:
             WelcomeCompletionStep()
         }
@@ -1417,6 +1424,85 @@ private struct WelcomeGPGStep: View {
     private func refreshStatus() {
         gpgAvailable = GPGBackend.isAvailable()
         hasPinentryMac = GPGBackend.hasPinentryMac()
+    }
+}
+
+/// 0.4.5 AI 步骤:端上智能(Apple Intelligence)总览 + **在这张卡里直接配齐 AI 选项**(主开关 / 建议 /
+/// 静默后台索引 / 内容预读 / 文件夹预索引)。欢迎助手本就是让用户首启就把关键设置配好的地方 —— 直接绑
+/// `@AppStorage`(同设置页 key,改即落盘),**不推给「设置 → AI」**。
+/// **internal(非 private)—— 更新助手 `UpdateAssistantView` 复用同一张卡(用户:更新助手只显示本次新增卡)。**
+/// 细粒度档位(活跃度 / 电源 / 间隔)留在设置 → AI;这里覆盖首启该决定的全部开关。
+struct WelcomeAIStep: View {
+    @AppStorage(AppPreferences.Key.aiAssistantEnabled) private var aiAssistant = true
+    @AppStorage(AppPreferences.Key.aiSuggestionEnabled) private var aiSuggestion = true
+    @AppStorage(AppPreferences.Key.aiBackgroundSilentIndexEnabled) private var silentIndex = false
+    @AppStorage(AppPreferences.Key.aiAllowContentPreread) private var contentPreread = false
+    @AppStorage(AppPreferences.Key.aiAllowFolderPreindex) private var folderPreindex = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            // 卡 A:端上智能主开关 —— 主开关开了才显示「建议」子开关。设计系统行(图标瓦片+标题+说明+开关)。
+            WelcomeStepShell(
+                title: L10n.text("welcome.ai.title"),
+                systemImage: "sparkles",
+                tint: .indigo,
+                body1: L10n.text("welcome.ai.body")
+            ) {
+                VStack(alignment: .leading, spacing: 10) {
+                    SettingsToggleRow(
+                        title: L10n.text("settings.automation.ai.title"),
+                        description: L10n.text("settings.automation.ai.description"),
+                        systemImage: "sparkles", iconTint: .purple,
+                        isOn: $aiAssistant
+                    )
+                    if aiAssistant {
+                        SettingsToggleRow(
+                            title: L10n.text("settings.ai.suggestion.title"),
+                            description: L10n.text("settings.ai.suggestion.desc"),
+                            systemImage: "text.line.first.and.arrowtriangle.forward", iconTint: .purple,
+                            isOn: $aiSuggestion
+                        )
+                    }
+                    Text(L10n.text("welcome.ai.privacyNote"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
+            // 卡 B:开了主开关才**弹簧冒出来**(内容上提)—— 后台 AI 索引(可选,后台静默)。拆成独立卡,不挤进 A。
+            if aiAssistant {
+                WelcomeStepShell(
+                    title: L10n.text("settings.ai.background.section"),
+                    systemImage: "bolt.badge.clock",
+                    tint: .purple,
+                    body1: L10n.text("welcome.ai.background.body")
+                ) {
+                    VStack(alignment: .leading, spacing: 10) {
+                        SettingsToggleRow(
+                            title: L10n.text("settings.ai.background.silent.toggle"),
+                            description: L10n.text("settings.ai.background.silent.toggle.desc"),
+                            systemImage: "moon.zzz", iconTint: .purple,
+                            isOn: $silentIndex
+                        )
+                        SettingsToggleRow(
+                            title: L10n.text("settings.ai.background.contentPreread"),
+                            description: L10n.text("settings.ai.background.contentPreread.desc"),
+                            systemImage: "doc.text.magnifyingglass", iconTint: .purple,
+                            isOn: $contentPreread
+                        )
+                        SettingsToggleRow(
+                            title: L10n.text("settings.ai.background.folderPreindex"),
+                            description: L10n.text("settings.ai.background.folderPreindex.desc"),
+                            systemImage: "folder.badge.gearshape", iconTint: .purple,
+                            isOn: $folderPreindex
+                        )
+                    }
+                }
+                .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
+        .animation(.spring(response: 0.42, dampingFraction: 0.82), value: aiAssistant)
     }
 }
 

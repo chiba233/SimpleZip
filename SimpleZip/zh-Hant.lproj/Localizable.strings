@@ -2712,3 +2712,9 @@
 "tasks.aiWorkbench.automation" = "自動化建議";
 "tasks.aiWorkbench.automation.body" = "你近期已從 %@ 重複同類操作 %@ 次 — 用捷徑或命令列就能自動化。";
 "tasks.aiWorkbench.automation.open" = "打開捷徑";
+
+"welcome.ai.title" = "裝置端智慧";
+"welcome.ai.body" = "SimpleZip 可使用你 Mac 上的 Apple 智慧來解釋報告、分類壓縮檔、建議下一步 —— 全部在本機完成。它從不替你做決定,也絕不自行解鎖或修改任何東西。";
+"welcome.ai.privacyNote" = "全部在你的 Mac 上執行。SimpleZip 只解釋、分類、建議 —— 從不替你做決定,也絕不讀取加密壓縮檔的內容。";
+"dupArchives.needTwo" = "尋找重複壓縮檔需要本資料夾中至少有兩個壓縮檔。";
+"welcome.ai.background.body" = "讓 SimpleZip 在背景安靜地提前準備摘要與建議。全部可選。";

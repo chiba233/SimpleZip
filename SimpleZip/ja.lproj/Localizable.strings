@@ -2712,3 +2712,9 @@
 "tasks.aiWorkbench.automation" = "自動化の提案";
 "tasks.aiWorkbench.automation.body" = "最近 %@ から同様の操作を %@ 回 — ショートカットや CLI で自動化できます。";
 "tasks.aiWorkbench.automation.open" = "ショートカットを開く";
+
+"welcome.ai.title" = "オンデバイスの知能";
+"welcome.ai.body" = "SimpleZip は Mac 上の Apple Intelligence を使って、レポートの説明、アーカイブの分類、次の操作の提案ができます —— すべてオンデバイスで。あなたの代わりに判断したり、勝手にロック解除や変更をすることはありません。";
+"welcome.ai.privacyNote" = "すべて Mac 上で実行されます。SimpleZip は説明・分類・提案のみを行い、あなたの代わりに判断したり、暗号化されたアーカイブの内容を読み取ることはありません。";
+"dupArchives.needTwo" = "重複を探すには、このフォルダに少なくとも 2 つのアーカイブが必要です。";
+"welcome.ai.background.body" = "SimpleZip がバックグラウンドで静かに要約や提案を事前に準備します。すべて任意です。";

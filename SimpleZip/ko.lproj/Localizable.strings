@@ -2711,3 +2711,9 @@
 "tasks.aiWorkbench.automation" = "자동화 제안";
 "tasks.aiWorkbench.automation.body" = "최근 %@에서 비슷한 작업을 %@회 — 단축어나 CLI로 자동화할 수 있습니다。";
 "tasks.aiWorkbench.automation.open" = "단축어 열기";
+
+"welcome.ai.title" = "온디바이스 인텔리전스";
+"welcome.ai.body" = "SimpleZip은 Mac의 Apple Intelligence를 사용해 보고서 설명, 압축 파일 분류, 다음 단계 제안을 할 수 있습니다 —— 모두 기기 내에서. 대신 결정하지 않으며 스스로 잠금 해제하거나 변경하지 않습니다.";
+"welcome.ai.privacyNote" = "모든 작업은 Mac에서 실행됩니다. SimpleZip은 설명·분류·제안만 하며, 대신 결정하거나 암호화된 압축 파일의 내용을 읽지 않습니다.";
+"dupArchives.needTwo" = "중복을 찾으려면 이 폴더에 압축 파일이 2개 이상 있어야 합니다.";
+"welcome.ai.background.body" = "SimpleZip이 백그라운드에서 조용히 요약과 추천을 미리 준비합니다. 모두 선택 사항입니다.";

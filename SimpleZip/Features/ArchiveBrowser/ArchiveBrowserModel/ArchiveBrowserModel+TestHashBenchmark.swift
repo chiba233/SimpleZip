@@ -414,8 +414,13 @@ extension ArchiveBrowserModel {
                 .filter { !$0.isDirectory && SignedContainerService.isToolableArchive($0.url) }
                 .map(\.url)
         }
-        guard candidates.count >= 2, case .folder(let folderURL) = mode else {
-            errorMessage = L10n.text("error.openOrSelectArchive")
+        guard case .folder(let folderURL) = mode else {
+            errorMessage = L10n.text("error.selectOrOpenFolder")
+            return
+        }
+        // 准确文案:在文件夹里但归档不足 2 个 → 说「至少 2 个」,而不是误导的「请先选归档」。
+        guard candidates.count >= 2 else {
+            errorMessage = L10n.text("dupArchives.needTwo")
             return
         }
         runDuplicateArchiveScan(candidates: candidates, folderName: folderURL.lastPathComponent)

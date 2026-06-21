@@ -2789,3 +2789,9 @@
 "tasks.aiWorkbench.automation" = "Automation";
 "tasks.aiWorkbench.automation.body" = "You've done this from %@ %@ times recently — a Shortcut or CLI workflow could automate it.";
 "tasks.aiWorkbench.automation.open" = "Open Shortcuts";
+
+"welcome.ai.title" = "On-device intelligence";
+"welcome.ai.body" = "SimpleZip can use Apple Intelligence on your Mac to explain reports, classify archives, and suggest next steps — all on-device. It never decides for you and never unlocks or changes anything on its own.";
+"welcome.ai.privacyNote" = "Everything runs on your Mac. SimpleZip only explains, classifies, and suggests — it never decides for you, and never reads encrypted archive contents.";
+"dupArchives.needTwo" = "Need at least two archives in this folder to find duplicates.";
+"welcome.ai.background.body" = "Let SimpleZip prepare summaries and picks ahead of time, quietly in the background. All optional.";

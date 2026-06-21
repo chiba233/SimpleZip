@@ -2710,3 +2710,9 @@
 "tasks.aiWorkbench.automation" = "Automatisierung";
 "tasks.aiWorkbench.automation.body" = "Du hast dies kürzlich aus %@ %@-mal gemacht — ein Shortcut oder CLI-Workflow könnte es automatisieren.";
 "tasks.aiWorkbench.automation.open" = "Kurzbefehle öffnen";
+
+"welcome.ai.title" = "Intelligenz auf dem Gerät";
+"welcome.ai.body" = "SimpleZip kann Apple Intelligence auf deinem Mac nutzen, um Berichte zu erklären, Archive einzuordnen und nächste Schritte vorzuschlagen — alles auf dem Gerät. Es entscheidet nie für dich und entsperrt oder ändert nie etwas von selbst.";
+"welcome.ai.privacyNote" = "Alles läuft auf deinem Mac. SimpleZip erklärt, ordnet ein und schlägt vor — es entscheidet nie für dich und liest nie Inhalte verschlüsselter Archive.";
+"dupArchives.needTwo" = "Zum Finden von Duplikaten werden mindestens zwei Archive in diesem Ordner benötigt.";
+"welcome.ai.background.body" = "SimpleZip bereitet Zusammenfassungen und Vorschläge leise im Hintergrund vor. Alles optional.";

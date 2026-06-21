@@ -2789,3 +2789,9 @@
 "tasks.aiWorkbench.automation" = "自动化建议";
 "tasks.aiWorkbench.automation.body" = "你近期已从 %@ 重复同类操作 %@ 次 — 用快捷指令或命令行就能自动化。";
 "tasks.aiWorkbench.automation.open" = "打开快捷指令";
+
+"welcome.ai.title" = "端上智能";
+"welcome.ai.body" = "SimpleZip 可用你 Mac 上的 Apple 智能来解释报告、归类压缩包、建议下一步 —— 全部在本机完成。它从不替你做决定,也绝不自行解锁或修改任何东西。";
+"welcome.ai.privacyNote" = "全部在你的 Mac 上运行。SimpleZip 只解释、归类、建议 —— 从不替你做决定,也绝不读取加密压缩包的内容。";
+"dupArchives.needTwo" = "查找重复归档需要本文件夹里至少有两个归档。";
+"welcome.ai.background.body" = "让 SimpleZip 在后台安静地提前准备摘要与建议。全部可选。";
