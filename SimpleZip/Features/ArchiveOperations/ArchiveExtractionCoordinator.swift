@@ -420,12 +420,19 @@ final class ArchiveExtractionCoordinator {
         try validateResolvedContainedMovableItem(sourceURL, in: stagingRootURL)
         try validateContainedURL(targetURL, in: destinationRootURL)
 
-        let sourceValues = try sourceURL.resourceValues(forKeys: [.isDirectoryKey])
-        let sourceIsDirectory = sourceValues.isDirectory == true
-        var targetIsDirectory = ObjCBool(false)
-        let targetExists = fileManager.fileExists(atPath: targetURL.path, isDirectory: &targetIsDirectory)
+        // 逐项的只读 fs 查询(source.resourceValues + target.fileExists)一次性放后台取齐:深合并进既有目录树时
+        // 这是每项都跑、且 target 可能在网络/慢盘上的 stat,在 @MainActor 上逐条会卡主线程。冲突解决的 NSPanel
+        // 仍在主 actor(见 resolveDestination)。source/target 都是 URL(Sendable),闭包内安全捕获。
+        let probe = try await Task.detached(priority: .userInitiated) { () -> (sourceIsDirectory: Bool, targetExists: Bool, targetIsDirectory: Bool) in
+            let sourceValues = try sourceURL.resourceValues(forKeys: [.isDirectoryKey])
+            var targetIsDir = ObjCBool(false)
+            let targetExists = FileManager.default.fileExists(atPath: targetURL.path, isDirectory: &targetIsDir)
+            return (sourceValues.isDirectory == true, targetExists, targetIsDir.boolValue)
+        }.value
+        let sourceIsDirectory = probe.sourceIsDirectory
+        let targetExists = probe.targetExists
 
-        if sourceIsDirectory, targetExists, targetIsDirectory.boolValue {
+        if sourceIsDirectory, targetExists, probe.targetIsDirectory {
             let childURLs = try await Task.detached(priority: .userInitiated) {
                 try FileManager.default.contentsOfDirectory(
                     at: sourceURL,
