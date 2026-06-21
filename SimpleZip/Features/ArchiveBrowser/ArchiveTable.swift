@@ -226,13 +226,16 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
 
         func syncContent() {
             let groupBy = AppPreferences.effectiveArchiveGroupBy
+            // `displayedArchiveItems` 是 computed(搜索 / 过滤时每次访问都重跑 ArchiveSearch.filter)——
+            // 一次 sync 里指纹和建节点各取一次会过滤两遍。算一次复用。
+            let displayed = model.displayedArchiveItems
             // 内容指纹 = 分组维度 + 行密度 + 可见列 + 当前 archiveItems 实例。**不含选区**。
             // 选区变化不改 archiveItems → 指纹不变 → 跳过 reloadData，避免橡皮筋复选闪烁 / 抽搐。
             var hasher = Hasher()
             hasher.combine(groupBy.rawValue)
             hasher.combine(AppPreferences.rowDensity.rawValue)
             hasher.combine(outlineView?.tableColumns.map { $0.identifier.rawValue }.joined(separator: ",") ?? "")
-            for item in model.displayedArchiveItems { hasher.combine(item.id) }
+            for item in displayed { hasher.combine(item.id) }
             let contentSignature = hasher.finalize()
             guard contentSignature != lastContentSignature else { return }
             lastContentSignature = contentSignature
@@ -241,7 +244,7 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
                 lastGroupBy = groupBy
                 userCollapsedSectionKeys = []
             }
-            rebuildTopLevel(groupBy: groupBy)
+            rebuildTopLevel(groupBy: groupBy, items: displayed)
             outlineView?.reloadData()
             enforceExpansion()
             performPendingInlineRenameIfNeeded()
@@ -262,10 +265,10 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
             }
         }
 
-        private func rebuildTopLevel(groupBy: BrowserGrouping.GroupBy) {
+        private func rebuildTopLevel(groupBy: BrowserGrouping.GroupBy, items: [ArchiveItem]) {
             var reused: [String: ArchiveOutlineNode] = [:]
             if groupBy.isGrouping {
-                topLevelNodes = BrowserGrouping.group(model.displayedArchiveItems, by: groupBy, now: Date()).map { section in
+                topLevelNodes = BrowserGrouping.group(items, by: groupBy, now: Date()).map { section in
                     let key = "g:\(section.title)"
                     let node = sectionNodesByKey[key] ?? ArchiveOutlineNode.section(key: key)
                     node.title = "\(section.title) (\(section.items.count))"
@@ -274,7 +277,7 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
                     return node
                 }
             } else {
-                topLevelNodes = model.displayedArchiveItems.map { ArchiveOutlineNode.item($0) }
+                topLevelNodes = items.map { ArchiveOutlineNode.item($0) }
             }
             sectionNodesByKey = reused
         }

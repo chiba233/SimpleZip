@@ -33,10 +33,16 @@ final class ArchiveSession {
     /// 不变,这里缓存一次供所有点复用。
     private(set) var detectedZipEncryption: ZipEncryptionDetection = .unknown
 
+    /// `itemsWithSyntheticDirectories()` 的缓存:只依赖 `allItems`,但导航(切目录)只改 `archivePath` 不改 items ——
+    /// 旧实现每次 `currentChildren()` / `lastExistingPath()` 都重建一遍合成目录(逐条 split + 建字典,大包上很贵),
+    /// 同一归档里逐层下钻就重复重建 N 次。缓存一次,`setItems` / `clearArchive` 时失效。
+    private var syntheticItemsCache: [ArchiveItem]?
+
     // MARK: - 状态变更
 
     func setItems(_ items: [ArchiveItem]) {
         allItems = items
+        syntheticItemsCache = nil
     }
 
     func setArchivePath(_ path: String) {
@@ -54,6 +60,7 @@ final class ArchiveSession {
         allItems = []
         archivePath = ""
         detectedZipEncryption = .unknown
+        syntheticItemsCache = nil
     }
 
     // MARK: - 派生视图
@@ -62,7 +69,7 @@ final class ArchiveSession {
     ///
     /// 调用方（model）拿到结果后赋给自己的 @Published archiveItems，UI 自动刷新。
     func currentChildren() -> [ArchiveItem] {
-        immediateChildren(from: itemsWithSyntheticDirectories(), in: archivePath)
+        immediateChildren(from: syntheticItems(), in: archivePath)
     }
 
     /// 把一条选中项展开成「具体落地的条目集合」：
@@ -112,7 +119,7 @@ final class ArchiveSession {
 
         var candidate = ""
         let directories = Set(
-            itemsWithSyntheticDirectories()
+            syntheticItems()
                 .filter(\.isDirectory)
                 .map { Self.normalizedDirectoryPrefix($0.name) }
         )
@@ -128,6 +135,14 @@ final class ArchiveSession {
     }
 
     // MARK: - 私有：合成目录 + 直接子项
+
+    /// `itemsWithSyntheticDirectories()` 的带缓存入口(见 `syntheticItemsCache`)。同一归档内导航复用,不重建。
+    private func syntheticItems() -> [ArchiveItem] {
+        if let cached = syntheticItemsCache { return cached }
+        let built = itemsWithSyntheticDirectories()
+        syntheticItemsCache = built
+        return built
+    }
 
     /// 把 `allItems` 合并上推断出来的中间目录占位项。
     ///
