@@ -91,7 +91,9 @@ extension ArchiveService {
     }
 
     nonisolated static func parseUnzipList(_ output: String) -> [ArchiveItem] {
-        output
+        // 整次 parse 复用一个 Calendar(手动解析日期,绕开逐条目新建 DateFormatter 的 ICU 冷启动)。
+        let calendar = archiveDateCalendar()
+        return output
             .split(separator: "\n")
             .compactMap { line -> ArchiveItem? in
                 let text = String(line)
@@ -110,7 +112,7 @@ extension ArchiveService {
                     name: name,
                     isDirectory: isDirectory,
                     size: isDirectory ? nil : size,
-                    modified: parseUnzipModified(modifiedText),
+                    modified: parseUnzipModified(modifiedText, calendar: calendar),
                     sizeText: isDirectory ? "" : ByteCountFormatter.string(fromByteCount: size, countStyle: .file),
                     modifiedText: modifiedText,
                     method: isDirectory ? "" : "Deflate"
@@ -173,8 +175,8 @@ extension ArchiveService {
         // 头块信息(zstd 单流合成内层名要用):Type + 归档文件名。
         var headerType = ""
         var headerArchiveName = ""
-        // 整次 parse 复用一组日期格式器(见 makeSevenZipDateFormatters 注释:逐条目新建是大包冻死头号元凶)。
-        let dateFormatters = makeSevenZipDateFormatters()
+        // 整次 parse 复用一个 Calendar(见 archiveDateCalendar:手动解析绕开 DateFormatter 的 ICU 冷启动)。
+        let calendar = archiveDateCalendar()
 
         func flush() {
             guard let rawPath = values["Path"] else {
@@ -261,7 +263,7 @@ extension ArchiveService {
                     name: path,
                     isDirectory: isDirectory,
                     size: isDirectory ? nil : size,
-                    modified: parseSevenZipModified(modifiedText, formatters: dateFormatters),
+                    modified: parseSevenZipModified(modifiedText, calendar: calendar),
                     sizeText: isDirectory ? "" : ByteCountFormatter.string(fromByteCount: size, countStyle: .file),
                     modifiedText: modifiedText,
                     method: values["Method"] ?? "",
@@ -271,10 +273,10 @@ extension ArchiveService {
                         ? ""
                         : ByteCountFormatter.string(fromByteCount: packedSize ?? 0, countStyle: .file),
                     crc: values["CRC"] ?? "",
-                    created: parseSevenZipModified(createdText, formatters: dateFormatters),
+                    created: parseSevenZipModified(createdText, calendar: calendar),
                     createdText: createdText,
                     attributes: values["Attributes"] ?? "",
-                    accessed: parseSevenZipModified(accessedText, formatters: dateFormatters),
+                    accessed: parseSevenZipModified(accessedText, calendar: calendar),
                     accessedText: accessedText,
                     hostOS: values["Host OS"] ?? "",
                     characteristics: values["Characteristics"] ?? "",
@@ -302,9 +304,11 @@ extension ArchiveService {
         return rows
     }
 
-    nonisolated static func archiveItemsSuggestPasswordRequirement(_ items: [ArchiveItem], in archive: URL) -> Bool {
+    /// `zipEncryption` 非 nil 时(调用方已在打开时缓存了检测结果,见 ArchiveSession.detectedZipEncryption)直接用,
+    /// **不再同步读 ZIP 中央目录**;为 nil 才回退到现场检测(保留旧行为给没有缓存的调用方,如测试 / Core 内部)。
+    nonisolated static func archiveItemsSuggestPasswordRequirement(_ items: [ArchiveItem], in archive: URL, zipEncryption: ZipEncryptionDetection? = nil) -> Bool {
         if archive.pathExtension.lowercased() == "zip" {
-            let detection = detectZipEncryption(in: archive)
+            let detection = zipEncryption ?? detectZipEncryption(in: archive)
             return detection != .none && detection != .unknown
         }
         return items.contains { $0.isEncrypted || archiveMethodSuggestsEncryption($0.method) }
@@ -513,33 +517,59 @@ extension ArchiveService {
         return nil
     }
 
-    private nonisolated static func parseUnzipModified(_ text: String) -> Date? {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.dateFormat = "MM-dd-yyyy HH:mm"
-        return formatter.date(from: text)
-    }
-
-    /// 7zz 日期格式器(4 个变体)。**整次 parse 建一组、跨所有条目复用** —— 原来逐条目、逐格式新建 DateFormatter
-    /// (每条目最多 12 次、上万条目十几万次,DateFormatter 创建极贵)是「打开大包主线程冻死」的头号元凶。
-    /// 不用 static 共享:DateFormatter 非线程安全,而 parse 现在可能并发(多归档各自 off-main)→ 每次 parse 建局部一组。
-    nonisolated static func makeSevenZipDateFormatters() -> [DateFormatter] {
-        ["yyyy-MM-dd HH:mm:ss", "yyyy-MM-dd HH:mm:ss.SSS",
-         "yyyy-MM-dd HH:mm:ss.SSSSSS", "yyyy-MM-dd HH:mm:ss.SSSSSSS"].map { format in
-            let formatter = DateFormatter()
-            formatter.locale = Locale(identifier: "en_US_POSIX")
-            formatter.dateFormat = format
-            return formatter
-        }
-    }
-
-    private nonisolated static func parseSevenZipModified(_ text: String, formatters: [DateFormatter]) -> Date? {
+    /// unzip `-l` 日期固定格式 "MM-dd-yyyy HH:mm"。手动抽整数 + 复用传入 Calendar,绕开 DateFormatter:
+    /// 旧实现**每条目新建** DateFormatter,且首次 `date(from:)` 触发 ICU 加载 locale 符号表(冷启动极贵)。
+    private nonisolated static func parseUnzipModified(_ text: String, calendar: Calendar) -> Date? {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return nil }   // created/accessed 常为空 → 免 4 次注定失败的尝试
-        for formatter in formatters {
-            if let date = formatter.date(from: trimmed) { return date }
-        }
-        return nil
+        let parts = trimmed.split(separator: " ", omittingEmptySubsequences: true)
+        guard parts.count >= 2 else { return nil }
+        let dateParts = parts[0].split(separator: "-")
+        let timeParts = parts[1].split(separator: ":")
+        guard dateParts.count == 3, timeParts.count >= 2,
+              let month = Int(dateParts[0]), let day = Int(dateParts[1]), let year = Int(dateParts[2]),
+              let hour = Int(timeParts[0]), let minute = Int(timeParts[1]) else { return nil }
+        var components = DateComponents()
+        components.year = year
+        components.month = month
+        components.day = day
+        components.hour = hour
+        components.minute = minute
+        return calendar.date(from: components)
+    }
+
+    /// 归档日期解析用的 Calendar:格里高利历 + 系统当前时区(等价旧 DateFormatter 不设 timeZone 的默认行为)。
+    /// **整次 parse 建一个、跨所有条目复用**。改用 `Calendar.date(from: 数值 DateComponents)` 而非 DateFormatter
+    /// 字符串解析,从根上绕开 ICU 的 `DateFormatSymbols::loadArraysFromResources`(只有按「月/星期名」做文本
+    /// 解析才需要它,纯数值组件不需要)—— 取样实证:大包打开里 DateFormatter 首次冷启动 ~294ms、逐条目累积
+    /// 到 ~740ms,是「打开慢」的元凶。Calendar 是值类型,off-main 并发 parse 也安全。
+    nonisolated static func archiveDateCalendar() -> Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .current
+        return calendar
+    }
+
+    /// 7zz `l -slt` 日期固定格式 "yyyy-MM-dd HH:mm:ss"(可带 ".小数秒",显示用不到→忽略整数秒之后的部分)。
+    /// 手动抽整数 + 复用 Calendar(见 archiveDateCalendar),绕开 DateFormatter 的 ICU 冷启动。
+    private nonisolated static func parseSevenZipModified(_ text: String, calendar: Calendar) -> Date? {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }   // created/accessed 常为空 → 免做无谓解析
+        let parts = trimmed.split(separator: " ", omittingEmptySubsequences: true)
+        guard parts.count >= 2 else { return nil }
+        let dateParts = parts[0].split(separator: "-")
+        let timeParts = parts[1].split(separator: ":")
+        guard dateParts.count == 3, timeParts.count >= 3,
+              let year = Int(dateParts[0]), let month = Int(dateParts[1]), let day = Int(dateParts[2]),
+              let hour = Int(timeParts[0]), let minute = Int(timeParts[1]) else { return nil }
+        // 秒可能带小数(".SSS…") → 只取前导整数部分。
+        guard let second = Int(timeParts[2].prefix(while: { $0.isNumber })) else { return nil }
+        var components = DateComponents()
+        components.year = year
+        components.month = month
+        components.day = day
+        components.hour = hour
+        components.minute = minute
+        components.second = second
+        return calendar.date(from: components)
     }
 
     private nonisolated static func integers(in line: String) -> [Int] {

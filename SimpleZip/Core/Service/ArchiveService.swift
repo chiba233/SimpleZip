@@ -434,16 +434,22 @@ enum ArchiveService {
         try await SevenZipBackend.benchmark(options: options, operationID: operationID, update: update)
     }
 
-    /// nonisolated:整条 list = 子进程 `7zz l -slt` + 纯字符串解析,无 MainActor 状态。
-    /// app target 默认 MainActor 隔离,不标 nonisolated 时即便底层子进程在后台跑,解析与
-    /// 收尾仍回主线程 → 海量条目大归档解析冻死 UI(本次修的根因)。标 nonisolated 后
-    /// `@MainActor` 调用方 `await` 它会整体 hop 到后台,主线程全程空闲。
+    /// 整条 list = 子进程 `7zz l -slt` + 纯字符串解析(parseSevenZipList,大包上万条目纯 CPU 密集)。
+    ///
+    /// 取样实证(Swift 6 / macOS 26):光标 `nonisolated` **并不会**让函数真正 hop 到 cooperative pool ——
+    /// `@MainActor` 调用方 `await` 一个 `nonisolated async` 函数时,runtime 直接在主线程跑其函数体,
+    /// 子进程虽借 runAndCapture 的 continuation 在后台,但 await 返回后的解析仍回主线程,大包冻死 UI
+    /// (实测 1437ms 全卡在 parseSevenZipList → DateFormatter)。**只有 `Task.detached` 才确定性保证
+    /// 整段(子进程 + 解析)在后台执行**;backend metatype 与 url/password 都 Sendable,可安全捕获。
     nonisolated static func list(_ archive: URL, password: String = "", operationID: UUID? = nil, force: Bool = false) async throws -> [ArchiveItem] {
         let signpost = PerfSignpost.begin("archive.list")
         defer { PerfSignpost.end("archive.list", signpost) }
         let resolved = try resolvedInput(for: archive, force: force)
-        return try await backendType(for: resolved.backend)
-            .list(resolved.url, password: password, operationID: operationID)
+        let backend = backendType(for: resolved.backend)
+        let url = resolved.url
+        return try await Task.detached(priority: .userInitiated) {
+            try await backend.list(url, password: password, operationID: operationID)
+        }.value
     }
 
     // MARK: - 归档级注释（0.4.1 #114，只读旁路）
