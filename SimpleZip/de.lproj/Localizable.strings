@@ -1206,6 +1206,11 @@
 "archive.usageRecommendation.title" = "Deine üblichen Einstellungen verwenden";
 "archive.usageRecommendation.apply" = "Anwenden";
 "archive.usageRecommendation.help" = "Füllt die Komprimierungsoptionen aus, die du für dieses Format am häufigsten wählst.";
+"archive.aiRecommendation.title" = "Empfohlene Einstellungen verwenden";
+"archive.aiRecommendation.apply" = "Anwenden";
+"archive.aiRecommendation.help" = "Schlägt sichere Komprimierungsoptionen basierend auf dem zu packenden Inhalt vor.";
+"extract.aiRecommendation.apply" = "Empfohlene verwenden";
+"extract.aiRecommendation.help" = "Schlägt sichere Entpack-Schalter basierend auf dem Inhalt dieses Archivs vor.";
 "archive.writeBack.confirmButton" = "Zurückschreiben";
 "archive.writeBack.message" = "Die Änderungen zurück in „%@“ speichern? Schlägt das Speichern fehl, bleibt das Originalarchiv unangetastet.";
 "archive.writeBack.taskTitle" = "„%@“ wird ins Archiv zurückgeschrieben";

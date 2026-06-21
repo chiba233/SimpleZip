@@ -1416,6 +1416,11 @@
 "archive.usageRecommendation.title" = "Применить ваши обычные настройки";
 "archive.usageRecommendation.apply" = "Применить";
 "archive.usageRecommendation.help" = "Заполняет параметры сжатия, которые вы чаще всего выбираете для этого формата.";
+"archive.aiRecommendation.title" = "Рекомендуемые настройки";
+"archive.aiRecommendation.apply" = "Применить";
+"archive.aiRecommendation.help" = "Предлагает безопасные параметры сжатия на основе того, что вы упаковываете.";
+"extract.aiRecommendation.apply" = "Рекомендуемые";
+"extract.aiRecommendation.help" = "Предлагает безопасные параметры извлечения на основе содержимого этого архива.";
 "settings.presets.edit" = "Изменить";
 "settings.formatMatrix.title" = "Возможности форматов";
 "settings.formatMatrix.description" = "Что поддерживает каждый формат контейнера в SimpleZip.";

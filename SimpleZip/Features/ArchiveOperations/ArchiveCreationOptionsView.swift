@@ -139,6 +139,32 @@ struct ArchiveCreationOptionsView: View {
         return probe != request.options
     }
 
+    /// Todo B:AI 开时的「套用推荐设置」—— 习惯打底 + 据当前输入内容画像(`AIPresetRecommender` 确定性)叠加**安全** hint。
+    /// 与「套用常用设置」按 AI 开关**互斥**(AI 开只出推荐、AI 关只出常用)。**红线**:只动安全字段(格式 / 级别 / 去垃圾 /
+    /// 可复现),密码 / 加密强度 / GPG / 目标路径绝不被预填(`AIPresetRecommender.hintableOptions` 白名单 + 这里只 case 安全字段)。
+    /// 返回 nil = AI 不可用;返回的 options 与当前相同 = 无变化(按钮不出现)。
+    private func aiRecommendedOptions() -> ArchiveCreationOptions? {
+        guard AIReportAssistant.isReady else { return nil }
+        var probe = request.options
+        if let preset = usageRecommendation { preset.apply(to: &probe) }   // 习惯打底
+        let exts = request.sourceURLs.map { $0.pathExtension.lowercased() }.filter { !$0.isEmpty }
+        let mediaCount = exts.filter { AIPresetRecommender.mediaExtensions.contains($0) }.count
+        let mediaHeavy = !exts.isEmpty && Double(mediaCount) / Double(exts.count) >= 0.6
+        let rec = AIPresetRecommender.recommend(
+            role: nil, extensions: exts,
+            markerFiles: request.sourceURLs.map { $0.lastPathComponent },
+            hasMediaHeavyContent: mediaHeavy)
+        for hint in rec.optionHints {   // 只套现有安全字段;无对应字段的 hint(testAfterCreate)忽略
+            switch (hint.option, hint.value) {
+            case ("compressionLevel", .string("store")): probe.compressionLevel = .store
+            case ("reproducible", .bool(let on)): probe.reproducibleArchive = on
+            case ("excludeJunk", .bool(let on)): probe.skipDSStore = on
+            default: break
+            }
+        }
+        return probe
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             DialogHero(
@@ -352,19 +378,34 @@ struct ArchiveCreationOptionsView: View {
                 }
             }
 
-            // #33:没有保存默认值时,给「你最常用的设置」一键应用入口(应用后这条自动消失,因为不再有变化)。
-            if formatDefaultsPreset == nil, usageRecommendation != nil, usageRecommendationWouldChange {
-                LabeledContent {
-                    Button(L10n.text("archive.usageRecommendation.apply")) {
-                        if let preset = usageRecommendation {
-                            preset.apply(to: &request.options)
-                            recomputeCompressionEstimate()
+            // Todo B:没保存默认值时给一键应用入口(应用后自动消失,因不再有变化)。按 AI 开关**互斥**:
+            // AI 开 → 「套用推荐设置」(习惯 + 当前内容画像);AI 关 → 「套用常用设置」(你的众数习惯)。
+            if formatDefaultsPreset == nil {
+                if AIReportAssistant.isReady {
+                    if let aiRec = aiRecommendedOptions(), aiRec != request.options {
+                        LabeledContent {
+                            Button(L10n.text("archive.aiRecommendation.apply")) {
+                                request.options = aiRec
+                                recomputeCompressionEstimate()
+                            }
+                        } label: {
+                            DialogRowLabel(L10n.text("archive.aiRecommendation.title"), systemImage: "wand.and.stars", tint: .purple)
                         }
+                        .help(L10n.text("archive.aiRecommendation.help"))
                     }
-                } label: {
-                    DialogRowLabel(L10n.text("archive.usageRecommendation.title"), systemImage: "wand.and.stars", tint: .purple)
+                } else if usageRecommendation != nil, usageRecommendationWouldChange {
+                    LabeledContent {
+                        Button(L10n.text("archive.usageRecommendation.apply")) {
+                            if let preset = usageRecommendation {
+                                preset.apply(to: &request.options)
+                                recomputeCompressionEstimate()
+                            }
+                        }
+                    } label: {
+                        DialogRowLabel(L10n.text("archive.usageRecommendation.title"), systemImage: "wand.and.stars", tint: .purple)
+                    }
+                    .help(L10n.text("archive.usageRecommendation.help"))
                 }
-                .help(L10n.text("archive.usageRecommendation.help"))
             }
 
             if request.options.format == .rar, !ArchiveService.canCreateRAR() {

@@ -2138,6 +2138,11 @@
 "archive.usageRecommendation.title" = "Use your usual settings";
 "archive.usageRecommendation.apply" = "Apply";
 "archive.usageRecommendation.help" = "Fills in the compression options you choose most often for this format.";
+"archive.aiRecommendation.title" = "Use recommended settings";
+"archive.aiRecommendation.apply" = "Apply";
+"archive.aiRecommendation.help" = "Suggests safe compression options based on what you're packing.";
+"extract.aiRecommendation.apply" = "Use Recommended";
+"extract.aiRecommendation.help" = "Suggests safe extraction switches based on this archive's contents.";
 "settings.presets.edit" = "Edit";
 // Format capability matrix (Settings → Archive)
 "settings.formatMatrix.title" = "Format Capabilities";

@@ -1207,6 +1207,11 @@
 "archive.usageRecommendation.title" = "套用你常用的設定";
 "archive.usageRecommendation.apply" = "套用";
 "archive.usageRecommendation.help" = "一鍵填入你為這種格式最常選的壓縮選項。";
+"archive.aiRecommendation.title" = "套用推薦的設定";
+"archive.aiRecommendation.apply" = "套用";
+"archive.aiRecommendation.help" = "依你要打包的內容建議安全的壓縮選項。";
+"extract.aiRecommendation.apply" = "用推薦的";
+"extract.aiRecommendation.help" = "依這個壓縮檔的內容建議安全的解壓縮開關。";
 "archive.writeBack.confirmButton" = "寫回";
 "archive.writeBack.message" = "要把更動儲存回「%@」嗎？即使儲存失敗，原壓縮檔也不會受影響。";
 "archive.writeBack.taskTitle" = "正在把「%@」寫回壓縮檔";

@@ -2118,6 +2118,11 @@
 "archive.usageRecommendation.title" = "套用你常用的设置";
 "archive.usageRecommendation.apply" = "应用";
 "archive.usageRecommendation.help" = "一键填入你为这种格式最常选的压缩选项。";
+"archive.aiRecommendation.title" = "套用推荐的设置";
+"archive.aiRecommendation.apply" = "应用";
+"archive.aiRecommendation.help" = "据你要打包的内容建议安全的压缩选项。";
+"extract.aiRecommendation.apply" = "用推荐的";
+"extract.aiRecommendation.help" = "据这个归档的内容建议安全的解压开关。";
 "settings.presets.edit" = "编辑";
 // 格式能力矩阵（设置 → 压缩）
 "settings.formatMatrix.title" = "格式能力";

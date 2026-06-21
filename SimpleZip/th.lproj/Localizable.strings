@@ -1416,6 +1416,11 @@
 "archive.usageRecommendation.title" = "ใช้การตั้งค่าที่คุณใช้ประจำ";
 "archive.usageRecommendation.apply" = "ใช้";
 "archive.usageRecommendation.help" = "เติมตัวเลือกการบีบอัดที่คุณเลือกบ่อยที่สุดสำหรับรูปแบบนี้";
+"archive.aiRecommendation.title" = "ใช้การตั้งค่าที่แนะนำ";
+"archive.aiRecommendation.apply" = "ใช้";
+"archive.aiRecommendation.help" = "แนะนำตัวเลือกการบีบอัดที่ปลอดภัยตามสิ่งที่คุณกำลังบีบอัด";
+"extract.aiRecommendation.apply" = "ใช้ที่แนะนำ";
+"extract.aiRecommendation.help" = "แนะนำตัวเลือกการแตกไฟล์ที่ปลอดภัยตามเนื้อหาของไฟล์เก็บถาวรนี้";
 "settings.presets.edit" = "แก้ไข";
 "settings.formatMatrix.title" = "ความสามารถของรูปแบบ";
 "settings.formatMatrix.description" = "ความสามารถที่แต่ละรูปแบบคอนเทนเนอร์รองรับใน SimpleZip";

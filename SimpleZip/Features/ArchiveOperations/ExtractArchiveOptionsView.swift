@@ -115,8 +115,17 @@ struct ExtractArchiveOptionsView: View {
                 Label(L10n.text("extract.preset.menu"), systemImage: "wand.and.stars")
             }
             .fixedSize()
-            // #71:学到了你常用的开关组合且与当前不同 → 一键应用(应用后自动消失,因为不再有差异)。
-            if let recommendation = usageRecommendation, recommendation.wouldChange(request) {
+            // Todo B:按 AI 开关**互斥** —— AI 开「套用推荐设置」(习惯 + 当前归档 preflight 内容感知);
+            // AI 关「套用常用设置」(你常用的开关组合)。都仅在与当前不同时出现,应用后自动消失。
+            if AIReportAssistant.isReady {
+                if let aiRec = aiRecommendedExtract(), aiExtractWouldChange(aiRec) {
+                    Button { request = aiRec } label: {
+                        Label(L10n.text("extract.aiRecommendation.apply"), systemImage: "wand.and.stars")
+                    }
+                    .fixedSize()
+                    .help(L10n.text("extract.aiRecommendation.help"))
+                }
+            } else if let recommendation = usageRecommendation, recommendation.wouldChange(request) {
                 Button {
                     recommendation.apply(to: &request)
                 } label: {
@@ -136,6 +145,35 @@ struct ExtractArchiveOptionsView: View {
             return
         }
         usageRecommendation = ExtractionUsageStore().mostUsed()
+    }
+
+    /// Todo B:AI 开时的「套用推荐设置」—— 习惯打底 + 据当前归档 preflight 内容感知地建议**安全**行为开关。
+    /// 与「套用常用设置」按 AI 开关**互斥**。**红线**:只动安全行为开关(跳符号链接 / 冲突自动改名 / 解到子文件夹 /
+    /// 去单层壳),目标路径 / 口令 / GPG / 移废纸篓绝不被内容推断预填(移废纸篓只可能来自用户自己的习惯,同「套用常用设置」)。
+    private func aiRecommendedExtract() -> ExtractArchiveRequest? {
+        guard AIReportAssistant.isReady else { return nil }
+        var probe = request
+        if let rec = usageRecommendation { rec.apply(to: &probe) }   // 习惯打底
+        if let pf = preflight, pf.symlinkCount > 0 || pf.suspiciousEntryCount > 0 {
+            probe.skipSymlinks = true                                // 有符号链接 / 可疑路径 → 跳过(安全)
+        }
+        if overwriteCount > 0 { probe.autoRenameConflicts = true }   // 会覆盖现有文件 → 自动改名避免覆盖
+        if let root = request.detectedSingleRootFolder, !root.isEmpty {
+            probe.stripSingleRootFolder = true                       // 单层包装壳 → 去壳
+        } else if preflightTopLevelNames.count > 1 {
+            probe.extractIntoSubfolder = true                        // 顶层散乱多项 → 解到子文件夹避免散落到目标
+        }
+        return probe
+    }
+
+    /// 推荐是否与当前不同(只比 7 个安全行为开关;不同才出按钮,应用后自动消失)。
+    private func aiExtractWouldChange(_ p: ExtractArchiveRequest) -> Bool {
+        p.skipJunk != request.skipJunk || p.skipSymlinks != request.skipSymlinks
+            || p.extractIntoSubfolder != request.extractIntoSubfolder
+            || p.autoRenameConflicts != request.autoRenameConflicts
+            || p.stripSingleRootFolder != request.stripSingleRootFolder
+            || p.revealWhenDone != request.revealWhenDone
+            || p.trashOriginalWhenDone != request.trashOriginalWhenDone
     }
 
     private func apply(_ preset: ExtractionPreset) {

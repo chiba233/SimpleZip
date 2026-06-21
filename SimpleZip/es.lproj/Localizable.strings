@@ -1416,6 +1416,11 @@
 "archive.usageRecommendation.title" = "Usar tus ajustes habituales";
 "archive.usageRecommendation.apply" = "Aplicar";
 "archive.usageRecommendation.help" = "Rellena las opciones de compresión que eliges con más frecuencia para este formato.";
+"archive.aiRecommendation.title" = "Usar ajustes recomendados";
+"archive.aiRecommendation.apply" = "Aplicar";
+"archive.aiRecommendation.help" = "Sugiere opciones de compresión seguras según lo que vas a empaquetar.";
+"extract.aiRecommendation.apply" = "Usar recomendados";
+"extract.aiRecommendation.help" = "Sugiere opciones de extracción seguras según el contenido de este archivo.";
 "settings.presets.edit" = "Editar";
 "settings.formatMatrix.title" = "Capacidades de formatos";
 "settings.formatMatrix.description" = "Lo que admite cada formato contenedor en SimpleZip.";
