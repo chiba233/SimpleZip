@@ -145,8 +145,10 @@ nonisolated enum AIPrefetchExclusions {
     static func shouldExclude(directoryPath: String, home: String = NSHomeDirectory()) -> Bool {
         let trimmed = directoryPath.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty else { return true }
-        let path = URL(fileURLWithPath: (trimmed as NSString).expandingTildeInPath).standardizedFileURL.path
-        let homePath = URL(fileURLWithPath: (home as NSString).expandingTildeInPath).standardizedFileURL.path
+        // URL(fileURLWithPath:) → lstat; standardizedFileURL → faccessat; 两者在网络卷上各阻塞一次
+        // (dev10 取样实证:AI 索引后台线程逐目录卡在这里)。改用 inferFromPath + standardized —— 纯字符串归一化。
+        let path = URL(filePath: (trimmed as NSString).expandingTildeInPath, directoryHint: .inferFromPath).standardized.path
+        let homePath = URL(filePath: (home as NSString).expandingTildeInPath, directoryHint: .inferFromPath).standardized.path
 
         for prefix in absoluteExcludedPrefixes(home: homePath) {
             if path == prefix || path.hasPrefix(prefix + "/") { return true }
