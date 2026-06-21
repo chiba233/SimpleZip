@@ -19,6 +19,7 @@
 //  口令 / 密钥 / 加密内容从不进 prompt(脱敏 + 红线门控在 `AIIndexerScan` / 引擎里)。
 //
 
+import CryptoKit
 import Foundation
 #if canImport(FoundationModels)
 import FoundationModels
@@ -31,14 +32,15 @@ enum AIAgentBaker {
         var diskImages = 0
         var archiveEntries = 0
         var archiveKinds = 0
+        var inlineChecks = 0
         var note = ""
-        var produced: Int { fileSummaries + urlSuggestions + diskImages + archiveEntries + archiveKinds }
+        var produced: Int { fileSummaries + urlSuggestions + diskImages + archiveEntries + archiveKinds + inlineChecks }
     }
 
     /// 每 pass 的最小时间片下限(秒)——避免 pass 数多时每片太短连一次生成都跑不完。
     private static let minPassSeconds: TimeInterval = 20
     /// 当前烘焙的 pass 数(切时间片用;加 pass 时同步 +1)。
-    private static let plannedPassCount = 5
+    private static let plannedPassCount = 6
 
     /// 跑一轮后台模型烘焙。返回更新后的索引 + 摘要。门控:AI 建议子开关 + 内容预读 + 端上模型可用。
     @available(macOS 26.0, *)
@@ -51,19 +53,25 @@ enum AIAgentBaker {
         var summary = Summary()
 
         guard config.aiSuggestionEnabled else { summary.note = "AI 建议子开关关 → 不烘焙"; log(summary.note); return (index, summary) }
-        #if canImport(FoundationModels)
-        guard case .available = SystemLanguageModel.default.availability else {
-            summary.note = "端上模型不可用 → 不烘焙"; log(summary.note); return (index, summary)
-        }
-        #else
-        summary.note = "本进程无 FoundationModels → 不烘焙"; log(summary.note); return (index, summary)
-        #endif
 
         let lang = config.languageName
         // 把整段时间预算切成每 pass 一片(提前做完的片,时间自然顺延给下一 pass —— 下一 pass 的片从当下算)。
         let window = max(1, deadline.timeIntervalSince(Date()))
         let perPass = max(minPassSeconds, window / Double(plannedPassCount))
         func slice() -> Date { min(deadline, Date().addingTimeInterval(perPass)) }
+
+        // pending 只读自动检查(hash / test)是**确定性**的(不调模型)→ 先跑,模型不可用也照做。
+        let rc = await bakePendingChecks(index, passDeadline: slice(), log: log)
+        index = rc.index; summary.inlineChecks = rc.count
+
+        // 模型可用性门控:只挡下面的**模型** pass(确定性检查已在上面跑过)。
+        #if canImport(FoundationModels)
+        guard case .available = SystemLanguageModel.default.availability else {
+            summary.note = "端上模型不可用 → 只跑确定性检查(\(summary.inlineChecks))"; log(summary.note); return (index, summary)
+        }
+        #else
+        summary.note = "本进程无 FoundationModels → 只跑确定性检查(\(summary.inlineChecks))"; log(summary.note); return (index, summary)
+        #endif
 
         if config.contentPrereadEnabled {
             let r1 = await bakeFileSuggestions(index, lang: lang, passDeadline: slice(), log: log)
@@ -88,7 +96,7 @@ enum AIAgentBaker {
             index = r4.index; summary.archiveKinds = r4.count
         }
 
-        summary.note = "OK · 摘要 \(summary.fileSummaries) · 网页 \(summary.urlSuggestions) · 装App \(summary.diskImages) · 包内 \(summary.archiveEntries) · 包定性 \(summary.archiveKinds)"
+        summary.note = "OK · 摘要 \(summary.fileSummaries) · 网页 \(summary.urlSuggestions) · 装App \(summary.diskImages) · 包内 \(summary.archiveEntries) · 包定性 \(summary.archiveKinds) · 检查 \(summary.inlineChecks)"
         return (index, summary)
     }
 
@@ -254,6 +262,65 @@ enum AIAgentBaker {
             log("  包定性 ✓ \(rec.fileName):\(guess.summary)")
         }
         return (index, count)
+    }
+
+    // MARK: - Pass ⑥:pending 只读自动检查(hash / test;确定性,不调模型)
+
+    /// 执行 App 排好的 pending 队列里的 hash / test(security / inspect 留给前台 / 后续)。读共享队列、逐个执行
+    /// (sha256 用 CryptoKit 流式;test 用 ArchiveService.test 空口令)、写内联结果到索引、mark done/failed、回存队列。
+    private static func bakePendingChecks(_ index: AIFileMemoryIndex, passDeadline: Date,
+                                          log: (String) -> Void) async -> (index: AIFileMemoryIndex, count: Int) {
+        var index = index
+        var count = 0
+        let defaults = AIAgentConfiguration.appDomainDefaults()
+        guard let data = defaults.data(forKey: AppPreferences.Key.aiPendingChecksData),
+              var queue = try? JSONDecoder().decode(AIPendingCheckQueue.self, from: data) else {
+            return (index, 0)
+        }
+        let pending = queue.checks
+            .filter { $0.status == .pending && ($0.behavior == .hash || $0.behavior == .test) }
+            .sorted { $0.queuedAt < $1.queuedAt }
+        guard !pending.isEmpty else { return (index, 0) }
+        log("烘焙 pendingChecks(hash/test):待执行 \(pending.count)")
+        for check in pending {
+            if Date() >= passDeadline { break }
+            guard FileManager.default.fileExists(atPath: check.path),
+                  let rec = index.records.first(where: { $0.path == check.path }) else {
+                queue.mark(id: check.id, status: .failed, executedAt: Date()); continue
+            }
+            let url = URL(fileURLWithPath: check.path)
+            do {
+                let text: String
+                switch check.behavior {
+                case .hash: text = try sha256(for: url)
+                case .test: try await ArchiveService.test(url, password: ""); text = L10n.text("aiWorkspace.inlineTest.passed")
+                default: continue
+                }
+                let base = rec.contentSummary ?? AIFileContentSummary(mode: "inline-result")
+                if base.inlineResults[check.behavior.rawValue] != text {
+                    index = index.updatingRecord(id: rec.id) { $0.withContentSummary(base.withInlineResult(token: check.behavior.rawValue, text: text)) }
+                }
+                queue.mark(id: check.id, status: .done, executedAt: Date())
+                count += 1
+                log("  检查 ✓ \(check.behavior.rawValue) · \(rec.fileName)")
+            } catch {
+                // 加密 / 损坏 / 需口令 → 记失败(同指纹不再重排,文件改了才重试),不写假结果。
+                queue.mark(id: check.id, status: .failed, executedAt: Date())
+            }
+        }
+        if let out = try? JSONEncoder().encode(queue) { defaults.set(out, forKey: AppPreferences.Key.aiPendingChecksData) }
+        return (index, count)
+    }
+
+    /// 文件 SHA-256(CryptoKit 流式,与 App HashService.sha256 输出一致:小写 hex)。agent 内复刻避免依赖 App target 的 HashService。
+    private static func sha256(for url: URL) throws -> String {
+        let handle = try FileHandle(forReadingFrom: url)
+        defer { try? handle.close() }
+        var hasher = SHA256()
+        while let chunk = try handle.read(upToCount: 1024 * 1024), !chunk.isEmpty {
+            hasher.update(data: chunk)
+        }
+        return hasher.finalize().map { String(format: "%02x", $0) }.joined()
     }
 
     // MARK: - 缓存写(与 AIBackgroundIndexStore 的 apply* 同语义,纯 Core 值类型 op)
