@@ -8,29 +8,32 @@
 import Foundation
 
 extension ArchiveService {
-    // nonisolated:纯字节解析(读文件 + 解析 ZIP central directory),无 MainActor 状态 → 可在后台线程跑。
+    // nonisolated:纯字节解析(读 ZIP 尾部 + 解析 central directory),无 MainActor 状态 → 可在后台线程跑。
     // 关键:解压对话框 preflight 经 `Task.detached` 调它检测加密**方法**;若它是 MainActor 隔离,detached 会跳回
-    // 主线程跑、网络归档读整包时冻死 UI(用户报)。整条解析链(zipCentralDirectory / zipAESDetection / Data.zip*)同标。
+    // 主线程跑冻死 UI(用户报)。整条解析链(readZipCentralDirectory / zipAESDetection / Data.zip*)同标。
+    // 只读尾部(EOCD + 中央目录),不读整个文件 —— 否则网络卷上会把整包全拖一遍(见 readZipCentralDirectory)。
     nonisolated static func detectZipEncryption(in archive: URL) -> ZipEncryptionDetection {
         guard archive.pathExtension.lowercased() == "zip" else {
             return .unknown
         }
 
         do {
-            let data = try Data(contentsOf: archive, options: .mappedIfSafe)
-            guard let centralDirectory = zipCentralDirectory(in: data) else {
+            // 只读尾部拿中央目录,**绝不读整个文件**:网络卷上 `Data(contentsOf:.mappedIfSafe)` 会退化成把整包
+            // (可能几 GB)全读一遍,只为探测加密。改为 FileHandle 读末尾找 EOCD → seek 到中央目录只读那一段,
+            // 读量 = 中央目录大小(∝ 条目数),与文件大小无关。offset 相对该 chunk(从 0 起)。
+            guard let directory = try readZipCentralDirectory(at: archive) else {
                 return .unknown
             }
 
             var detectedMethods: Set<ZipEncryptionDetection> = []
-            var offset = centralDirectory.offset
-            let endOffset = min(centralDirectory.offset + centralDirectory.size, data.count)
+            var offset = 0
+            let endOffset = directory.count
 
-            while offset + 46 <= endOffset, data.zipUInt32(at: offset) == 0x02014b50 {
-                let flags = data.zipUInt16(at: offset + 8) ?? 0
-                let fileNameLength = Int(data.zipUInt16(at: offset + 28) ?? 0)
-                let extraLength = Int(data.zipUInt16(at: offset + 30) ?? 0)
-                let commentLength = Int(data.zipUInt16(at: offset + 32) ?? 0)
+            while offset + 46 <= endOffset, directory.zipUInt32(at: offset) == 0x02014b50 {
+                let flags = directory.zipUInt16(at: offset + 8) ?? 0
+                let fileNameLength = Int(directory.zipUInt16(at: offset + 28) ?? 0)
+                let extraLength = Int(directory.zipUInt16(at: offset + 30) ?? 0)
+                let commentLength = Int(directory.zipUInt16(at: offset + 32) ?? 0)
                 let extraOffset = offset + 46 + fileNameLength
                 let nextOffset = extraOffset + extraLength + commentLength
                 guard nextOffset <= endOffset else {
@@ -39,7 +42,7 @@ extension ArchiveService {
 
                 if flags & 0x0001 == 0 {
                     detectedMethods.insert(.none)
-                } else if let aesMethod = zipAESDetection(in: data, offset: extraOffset, length: extraLength) {
+                } else if let aesMethod = zipAESDetection(in: directory, offset: extraOffset, length: extraLength) {
                     detectedMethods.insert(aesMethod)
                 } else {
                     detectedMethods.insert(.zipCrypto)
@@ -505,23 +508,34 @@ extension ArchiveService {
         name.trimmingCharacters(in: CharacterSet(charactersIn: "/")) + (name.hasSuffix("/") ? "/" : "")
     }
 
-    private nonisolated static func zipCentralDirectory(in data: Data) -> (offset: Int, size: Int)? {
-        guard data.count >= 22 else {
-            return nil
-        }
+    /// 只读 ZIP 尾部拿到**中央目录字节**:先读末尾(22 ~ 22+65535 字节,EOCD 所在范围)找 EOCD 签名,
+    /// 从中拿到中央目录的绝对 offset + size,再 seek 过去只读那一段返回。**绝不读整个文件** —— 网络卷上
+    /// `Data(contentsOf:.mappedIfSafe)` 会把整包(可能几 GB)全读一遍,只为探测加密。读量 = 中央目录大小
+    /// (∝ 条目数)。ZIP64(offset/size 用 0xFFFFFFFF 标记、真值在 ZIP64 EOCD)按旧行为不支持 → 校验失败返回 nil。
+    private nonisolated static func readZipCentralDirectory(at archive: URL) throws -> Data? {
+        let handle = try FileHandle(forReadingFrom: archive)
+        defer { try? handle.close() }
+        let fileSize = try handle.seekToEnd()
+        guard fileSize >= 22 else { return nil }
 
-        let searchStart = max(0, data.count - 65_557)
-        var offset = data.count - 22
-        while offset >= searchStart {
-            if data.zipUInt32(at: offset) == 0x06054b50 {
-                let size = Int(data.zipUInt32(at: offset + 12) ?? 0)
-                let directoryOffset = Int(data.zipUInt32(at: offset + 16) ?? 0)
-                guard directoryOffset >= 0, size >= 0, directoryOffset + size <= data.count else {
+        // EOCD 在末尾 22 字节(无注释)~ 22 + 65535(最大注释)范围内;读这段尾巴从后往前找签名。
+        let tailLength = Int(min(fileSize, UInt64(22 + 65_535)))
+        try handle.seek(toOffset: fileSize - UInt64(tailLength))
+        guard let tail = try handle.read(upToCount: tailLength), tail.count >= 22 else { return nil }
+
+        var eocd = tail.count - 22
+        while eocd >= 0 {
+            if tail.zipUInt32(at: eocd) == 0x06054b50 {
+                let size = Int(tail.zipUInt32(at: eocd + 12) ?? 0)
+                let directoryOffset = Int(tail.zipUInt32(at: eocd + 16) ?? 0)
+                guard size >= 0, directoryOffset >= 0,
+                      UInt64(directoryOffset) + UInt64(size) <= fileSize else {
                     return nil
                 }
-                return (directoryOffset, size)
+                try handle.seek(toOffset: UInt64(directoryOffset))
+                return try handle.read(upToCount: size)
             }
-            offset -= 1
+            eocd -= 1
         }
         return nil
     }
