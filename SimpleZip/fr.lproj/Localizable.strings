@@ -2071,6 +2071,8 @@
 "extract.preset.cautious" = "Prudent (pas de liens symboliques, renommage des conflits, sans indésirables)";
 "extract.preset.tidyFinish" = "Extraire et ranger (sous-dossier, afficher, archive à la corbeille)";
 "extract.intoSubfolder" = "Extraire dans un dossier nommé d’après l’archive";
+"extract.streamingZip" = "Extraction en flux plus rapide";
+"extract.streamingZip.detail" = "Lit l’archive dans l’ordre — plus rapide sur le réseau ou pour de très grandes archives. Uniquement sans mot de passe ; bascule automatiquement sur l’extraction normale si nécessaire.";
 "extract.intoSubfolder.on" = "Le contenu arrive dans %@ (nouveau dossier, renommé automatiquement si pris)";
 "extract.intoSubfolder.off" = "Le contenu arrive directement dans %@";
 "extract.autoRename" = "Renommer automatiquement les fichiers en conflit";

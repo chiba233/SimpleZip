@@ -401,6 +401,10 @@ struct ExtractArchiveRequest: Identifiable {
     var revealWhenDone = false
     /// #12:完成后把原压缩包移到废纸篓(可恢复;仅完整成功才执行)。默认关。
     var trashOriginalWhenDone = false
+    /// ZIP「流式快速解压」(opt-in):用 bsdtar(libarchive)顺序读 local file header + 数据,**不 seek 中央目录**,
+    /// 网络 / 慢盘是顺序 I/O 而非随机 seek,大包更快。仅整包 + 无密码(bsdtar 不支持加密 ZIP / 不可选条目);
+    /// 失败(数据顺序异常 / libarchive 不支持的特性)自动回退到标准 7zz/unzip。默认关 —— 仅非加密 ZIP 的对话框露出。
+    var useStreamingZipExtraction = false
     /// `.siz` 走解压 / 浏览路径时附带的签名摘要 —— 解压对话框里多出「签名 / 签名时间」两行展示。
     /// nil = 不是 .siz / 用户关了 GPG 集成。
     /// 跟签名 sheet 共用同一份 model，UI 状态全部从 `verify`（GPG 原始枚举）派生。

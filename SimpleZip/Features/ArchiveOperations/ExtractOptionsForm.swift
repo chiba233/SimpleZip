@@ -16,6 +16,9 @@ struct ExtractOptionsForm<ExtraControls: View, Drawers: View>: View {
     @Binding var zipDecryptionMethod: ArchiveDecryptionMethod
     @Binding var showDetails: Bool
     let showsZipDecryptionMethod: Bool
+    /// 是否显示密码行(含「使用预设密码」开关)。整包对话框开了「流式快速解压」时传 false 隐藏 ——
+    /// bsdtar 流式不支持加密 ZIP,密码行是它「不支持的选项」。默认 true(选择性解压等其它调用方不变)。
+    var showsPassword: Bool = true
     let zipEncryptionDetectionText: String?
     let confirm: () -> Void
     let cancel: () -> Void
@@ -54,31 +57,33 @@ struct ExtractOptionsForm<ExtraControls: View, Drawers: View>: View {
                     DialogSection {
                         extraControls()
                         destinationRow
-                        if hasUsablePreset {
-                            DialogToggleRow(
-                                title: L10n.text("button.usePresetPassword"),
-                                systemImage: "key.fill",
-                                tint: .orange,
-                                pinsToTrailing: true,
-                                isOn: $usePresetPassword
-                            )
-                            .help(L10n.text("button.usePresetPassword.help"))
-                            .onChange(of: usePresetPassword) { newValue in
-                                // 勾上：把预设值灌进 password binding；
-                                // 取消：清空让用户重新输入（保留旧值会让人迷惑「这是哪个密码」）。
-                                password = newValue ? presetPassword : ""
+                        if showsPassword {
+                            if hasUsablePreset {
+                                DialogToggleRow(
+                                    title: L10n.text("button.usePresetPassword"),
+                                    systemImage: "key.fill",
+                                    tint: .orange,
+                                    pinsToTrailing: true,
+                                    isOn: $usePresetPassword
+                                )
+                                .help(L10n.text("button.usePresetPassword.help"))
+                                .onChange(of: usePresetPassword) { newValue in
+                                    // 勾上：把预设值灌进 password binding；
+                                    // 取消：清空让用户重新输入（保留旧值会让人迷惑「这是哪个密码」）。
+                                    password = newValue ? presetPassword : ""
+                                }
                             }
-                        }
-                        if !(hasUsablePreset && usePresetPassword) {
-                            LabeledContent {
-                                // 值列靠右对齐(用户拍板:「路径和密码靠右对齐,不要左对齐」)。
-                                SecureField(L10n.text("extract.password.placeholder"), text: $password)
-                                    .textFieldStyle(.roundedBorder)
-                                    .dialogFieldEmphasis()
-                                    .frame(maxWidth: 260)
-                                    .frame(maxWidth: .infinity, alignment: .trailing)
-                            } label: {
-                                alignedRowLabel("archive.password", systemImage: "key.fill", tint: .orange)
+                            if !(hasUsablePreset && usePresetPassword) {
+                                LabeledContent {
+                                    // 值列靠右对齐(用户拍板:「路径和密码靠右对齐,不要左对齐」)。
+                                    SecureField(L10n.text("extract.password.placeholder"), text: $password)
+                                        .textFieldStyle(.roundedBorder)
+                                        .dialogFieldEmphasis()
+                                        .frame(maxWidth: 260)
+                                        .frame(maxWidth: .infinity, alignment: .trailing)
+                                } label: {
+                                    alignedRowLabel("archive.password", systemImage: "key.fill", tint: .orange)
+                                }
                             }
                         }
                         if showsZipDecryptionMethod {

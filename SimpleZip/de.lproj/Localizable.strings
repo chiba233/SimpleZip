@@ -2072,6 +2072,8 @@
 "extract.preset.cautious" = "Vorsichtig (keine Symlinks, Konflikte automatisch umbenennen, kein Müll)";
 "extract.preset.tidyFinish" = "Entpacken & aufräumen (Unterordner, anzeigen, Archiv in Papierkorb)";
 "extract.intoSubfolder" = "In einen nach dem Archiv benannten Ordner entpacken";
+"extract.streamingZip" = "Schnelleres Streaming-Entpacken";
+"extract.streamingZip.detail" = "Liest das Archiv der Reihe nach – schneller über Netzwerk oder bei sehr großen Archiven. Nur ohne Passwort; bei Bedarf automatischer Rückfall auf das normale Entpacken.";
 "extract.intoSubfolder.on" = "Inhalte landen in %@ (neuer Ordner, bei Belegung automatisch umbenannt)";
 "extract.intoSubfolder.off" = "Inhalte landen direkt in %@";
 "extract.autoRename" = "Konfliktdateien automatisch umbenennen";

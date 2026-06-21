@@ -2073,6 +2073,8 @@
 "extract.preset.cautious" = "慎重（シンボリックリンクなし、競合は自動リネーム、ジャンクなし）";
 "extract.preset.tidyFinish" = "展開して整理（サブフォルダ、表示、アーカイブをゴミ箱へ）";
 "extract.intoSubfolder" = "アーカイブ名のフォルダに展開";
+"extract.streamingZip" = "ストリーミング高速展開";
+"extract.streamingZip.detail" = "アーカイブを順番に読み込み、ネットワーク経由や巨大なアーカイブで高速。パスワードなしのみ対応し、必要時は自動で通常の展開に切り替えます。";
 "extract.intoSubfolder.on" = "内容は %@ に入ります（新規フォルダ、重複時は自動リネーム）";
 "extract.intoSubfolder.off" = "内容は %@ に直接入ります";
 "extract.autoRename" = "競合ファイルを自動リネーム";

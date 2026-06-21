@@ -39,7 +39,9 @@ struct ExtractArchiveOptionsView: View {
             password: $request.password,
             zipDecryptionMethod: $request.zipDecryptionMethod,
             showDetails: $request.showDetails,
-            showsZipDecryptionMethod: request.archiveURL.pathExtension.lowercased() == "zip",
+            // 开了流式快速解压 → 隐藏密码行 + ZIP 解密方式(bsdtar 不支持加密,是它「不支持的选项」)。
+            showsZipDecryptionMethod: request.archiveURL.pathExtension.lowercased() == "zip" && !request.useStreamingZipExtraction,
+            showsPassword: !request.useStreamingZipExtraction,
             zipEncryptionDetectionText: request.detectedZipEncryption.autoDetectionText,
             confirm: { extract(request) },
             cancel: cancel
@@ -54,6 +56,10 @@ struct ExtractArchiveOptionsView: View {
             }
             // #12:解到同名文件夹 —— 与去壳一起决定最终落点,留一级(UI 必须写清最终路径的硬要求)。
             intoSubfolderToggle
+            // ZIP 流式快速解压(bsdtar 顺序读、不 seek 中央目录):仅非加密 ZIP 露出,网络 / 大包更快。
+            if isStreamingZipEligible {
+                streamingZipToggle
+            }
             // `.siz` 直接解压时多三行：签名状态 / 签名时间 / 签名指纹。普通归档时为 nil，extraControls 为空。
             if let signature = request.sizSignature {
                 SIZSignatureRows(signature: signature)
@@ -200,6 +206,29 @@ struct ExtractArchiveOptionsView: View {
             tint: .blue,
             pinsToTrailing: true,
             isOn: $request.extractIntoSubfolder
+        )
+    }
+
+    /// 「流式快速解压」是否可用:zip + tar 家族(见 ArchiveService.streamingExtractionSuffixes)、无密码、
+    /// 非加密。bsdtar 不支持加密 ZIP / 不可选条目;`.siz` 走专有签名 / 解密路径,不掺流式。
+    /// 检测中(.unknown)也先露出 —— 真是加密会回退,有密码时后端自动跳过。tar 家族无加密概念,detectedZipEncryption 恒 .unknown。
+    private var isStreamingZipEligible: Bool {
+        request.sizSignature == nil
+            && ArchiveService.isStreamingExtractionSupported(request.archiveURL)
+            && request.password.isEmpty
+            && (request.detectedZipEncryption == .none || request.detectedZipEncryption == .unknown)
+    }
+
+    /// 流式快速解压开关 —— bsdtar 顺序读、不 seek 中央目录,网络 / 大包更快(见 ExtractArchiveRequest 注释)。
+    @ViewBuilder
+    private var streamingZipToggle: some View {
+        DialogToggleRow(
+            title: L10n.text("extract.streamingZip"),
+            subtitle: L10n.text("extract.streamingZip.detail"),
+            systemImage: "bolt.horizontal.fill",
+            tint: .yellow,
+            pinsToTrailing: true,
+            isOn: $request.useStreamingZipExtraction
         )
     }
 

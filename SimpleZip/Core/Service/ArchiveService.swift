@@ -238,7 +238,8 @@ enum ArchiveService {
         operationID: UUID? = nil,
         progress: @escaping @Sendable (ArchiveProgressState) -> Void = { _ in },
         outputObserver: (@Sendable (String) -> Void)? = nil,
-        force: Bool = false
+        force: Bool = false,
+        preferStreaming: Bool = false
     ) async throws {
         let resolved = try resolvedInput(for: archive, force: force)
         // 进度需要「总文件数」。若调用方（已在解压前做过安全检查 = 已 list 过）传了 `knownFileCount`，
@@ -255,6 +256,25 @@ enum ArchiveService {
             totalFiles = max(1, listedItems.filter { !$0.isDirectory }.count)
         }
         let parser = ProgressOutputParser(totalFiles: totalFiles, progress: progress)
+        // 流式快速解压(opt-in,见 ExtractArchiveRequest.useStreamingZipExtraction):用 bsdtar 顺序读 zip/tar 家族
+        // (不 seek 中央目录,网络/慢盘顺序 I/O)。仅整包 + 无密码 + 支持的格式才走;失败(数据顺序异常 /
+        // libarchive 不支持的特性)清空目标后**回退到下面的标准 backend**,用户不会卡在失败上。安全校验照旧。
+        if preferStreaming, password.isEmpty, isStreamingExtractionSupported(resolved.url) {
+            do {
+                try await NativeZipBackend.extractStreaming(
+                    resolved.url, to: destination, overwriteBehavior: overwriteBehavior,
+                    progressParser: parser, outputObserver: outputObserver, operationID: operationID)
+                if safetyPolicy == .validate {
+                    try ArchiveSafety.validateExtractedTree(at: destination)
+                }
+                return
+            } catch is CancellationError {
+                throw CancellationError()
+            } catch {
+                outputObserver?("\nSimpleZip: streaming (bsdtar) extraction failed; falling back to standard extraction.\n")
+                try? NativeZipBackend.clearDirectoryContents(destination)
+            }
+        }
         switch resolved.backend {
         case .zipNative:
             try await NativeZipBackend.extract(
@@ -489,6 +509,18 @@ enum ArchiveService {
             throw ArchiveError.singleFileCompressionRequiresSingleFile
         }
         return sourceURL
+    }
+
+    /// 「流式快速解压」(bsdtar 顺序读)支持的格式后缀:zip + tar 家族(bsdtar 自动识别压缩)。
+    /// 单一来源 —— 解压对话框据此决定是否露出流式开关,`extract` 据此决定是否走 bsdtar。
+    nonisolated static let streamingExtractionSuffixes = [
+        ".zip", ".tar", ".tar.gz", ".tgz", ".tar.bz2", ".tbz2", ".tar.xz", ".txz", ".tar.zst"
+    ]
+
+    /// 该归档是否支持「流式快速解压」(按文件名后缀,见 `streamingExtractionSuffixes`)。
+    nonisolated static func isStreamingExtractionSupported(_ url: URL) -> Bool {
+        let name = url.lastPathComponent.lowercased()
+        return streamingExtractionSuffixes.contains { name.hasSuffix($0) }
     }
 
     /// 给上层入口统一选 backend。

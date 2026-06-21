@@ -324,6 +324,42 @@ enum NativeZipBackend {
         }
     }
 
+    /// bsdtar(`/usr/bin/tar` = libarchive)**流式**解压整个归档:顺序读每条目的 local header + 数据,
+    /// **不先 seek 到文件末尾读中央目录**(ZIP),tar 本就是顺序格式 —— 所以网络 / 慢盘是顺序 I/O 而非随机 seek。
+    /// 支持 zip + tar 家族(.tar/.tar.gz/.tgz/.tar.bz2/.tbz2/.tar.xz/.txz/.tar.zst,bsdtar 自动识别压缩);
+    /// 仅整包 + 无密码(bsdtar 不支持加密 ZIP / 不可选条目)。失败由调用方 `ArchiveService.extract` 回退到标准 backend。
+    /// `-k` = keep existing(跳过已存在,对应 skipExisting);默认覆盖。输出只留尾部供失败诊断(同 unzip 路径)。
+    nonisolated static func extractStreaming(
+        _ archive: URL,
+        to destination: URL,
+        overwriteBehavior: OverwriteBehavior,
+        progressParser: ProgressOutputParser?,
+        outputObserver: (@Sendable (String) -> Void)?,
+        operationID: UUID?
+    ) async throws {
+        var arguments = ["-xvf", archive.path, "-C", destination.path]
+        if overwriteBehavior == .skipExisting {
+            arguments.insert("-k", at: 0)
+        }
+        _ = try await BackendProcessRunner.runAndCapture(
+            "/usr/bin/tar",
+            arguments: arguments,
+            progressParser: progressParser,
+            outputObserver: outputObserver,
+            operationID: operationID,
+            outputRetentionLimit: BackendProcessRunner.diagnosticsOutputRetentionLimit
+        )
+    }
+
+    /// 流式解压失败回退前,清掉 staging 目标里可能的半解压产物(只清内容、保留目录本身),
+    /// 避免与回退工具(7zz/unzip)的产物混淆。destination 是调用方建的 staging,清空安全。
+    nonisolated static func clearDirectoryContents(_ directory: URL) throws {
+        let fm = FileManager.default
+        for item in try fm.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil) {
+            try fm.removeItem(at: item)
+        }
+    }
+
     /// 根据「用户选的解密方式」+「实际检出的加密类型」决定 backend 顺序。
     /// 这条策略表本来在 ArchiveService 里，搬来后是 NativeZipBackend 的内部决策。
     private nonisolated static func zipExtractionTools(

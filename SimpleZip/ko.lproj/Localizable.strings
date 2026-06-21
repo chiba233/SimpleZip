@@ -2072,6 +2072,8 @@
 "extract.preset.cautious" = "신중하게(심볼릭 링크 없음, 충돌 자동 이름 변경, 불필요 항목 없음)";
 "extract.preset.tidyFinish" = "추출 및 정리(하위 폴더, 표시, 아카이브 휴지통으로)";
 "extract.intoSubfolder" = "아카이브 이름의 폴더로 추출";
+"extract.streamingZip" = "스트리밍 고속 추출";
+"extract.streamingZip.detail" = "아카이브를 순서대로 읽어 네트워크나 대용량 아카이브에서 더 빠릅니다. 비밀번호 없는 경우만 지원하며 필요 시 일반 추출로 자동 전환됩니다.";
 "extract.intoSubfolder.on" = "내용이 %@에 들어갑니다(새 폴더, 이름이 있으면 자동 변경)";
 "extract.intoSubfolder.off" = "내용이 %@에 바로 들어갑니다";
 "extract.autoRename" = "충돌 파일 자동 이름 변경";

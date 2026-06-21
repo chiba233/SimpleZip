@@ -2073,6 +2073,8 @@
 "extract.preset.cautious" = "保守安全（不解符號連結 + 衝突自動改名 + 不解垃圾）";
 "extract.preset.tidyFinish" = "解完整理（同名資料夾 + 完成後顯示 + 原包進垃圾桶）";
 "extract.intoSubfolder" = "解到與壓縮包同名的資料夾";
+"extract.streamingZip" = "串流快速解壓";
+"extract.streamingZip.detail" = "依序讀取壓縮包,網路或超大包更快。僅無密碼壓縮包可用,必要時自動回退到一般解壓。";
 "extract.intoSubfolder.on" = "內容將位於 %@（新建資料夾，重名自動改名）";
 "extract.intoSubfolder.off" = "內容直接落在 %@";
 "extract.autoRename" = "衝突檔案自動重新命名";

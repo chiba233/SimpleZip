@@ -2071,6 +2071,8 @@
 "extract.preset.cautious" = "Cauteloso (sin enlaces simbólicos, conflictos con cambio de nombre, sin basura)";
 "extract.preset.tidyFinish" = "Extraer y ordenar (subcarpeta, revelar, archivo a Papelera)";
 "extract.intoSubfolder" = "Extraer en una carpeta con el nombre del archivo";
+"extract.streamingZip" = "Extracción en streaming más rápida";
+"extract.streamingZip.detail" = "Lee el archivo en orden: más rápido en red o con archivos muy grandes. Solo sin contraseña; recurre automáticamente a la extracción normal si es necesario.";
 "extract.intoSubfolder.on" = "El contenido queda en %@ (carpeta nueva, se renombra si ya existe)";
 "extract.intoSubfolder.off" = "El contenido queda directamente en %@";
 "extract.autoRename" = "Renombrar automáticamente archivos en conflicto";

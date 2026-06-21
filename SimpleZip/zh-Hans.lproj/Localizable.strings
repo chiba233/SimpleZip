@@ -1760,6 +1760,8 @@
 "extract.preset.cautious" = "保守安全（不解符号链接 + 冲突自动改名 + 不解垃圾）";
 "extract.preset.tidyFinish" = "解完整理（同名文件夹 + 完成后显示 + 原包进废纸篓）";
 "extract.intoSubfolder" = "解到与压缩包同名的文件夹";
+"extract.streamingZip" = "流式快速解压";
+"extract.streamingZip.detail" = "顺序读取归档,网络或超大包更快。仅无密码归档可用,必要时自动回退到常规解压。";
 "extract.intoSubfolder.on" = "内容将位于 %@（新建文件夹，重名自动改名）";
 "extract.intoSubfolder.off" = "内容直接落在 %@";
 "extract.autoRename" = "冲突文件自动重命名";

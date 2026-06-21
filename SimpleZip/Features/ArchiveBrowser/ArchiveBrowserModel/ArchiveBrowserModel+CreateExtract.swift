@@ -1120,7 +1120,9 @@ extension ArchiveBrowserModel {
                         operationID: operationID,
                         progress: progress,
                         outputObserver: outputObserver,
-                        force: force
+                        force: force,
+                        // bsdtar 流式快速解压(zip + tar 家族;仅整包 + 无密码生效,有密码时 password 非空 → 自动跳过流式)。
+                        preferStreaming: request.useStreamingZipExtraction && password.isEmpty
                     )
                     break
                 } catch {
