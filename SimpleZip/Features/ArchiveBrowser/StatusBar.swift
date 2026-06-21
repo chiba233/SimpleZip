@@ -13,6 +13,16 @@ struct StatusBar: View {
     @ObservedObject var model: ArchiveBrowserModel
     @ObservedObject private var taskCenter = TaskCenter.shared
 
+    // contextSummary 需要的文件系统属性，用 .task(id:) 后台异步填充，避免同步 getattrlist 在网络卷阻塞主线程
+    // (dev11 取样实证：archiveURL.resourceValues(forKeys:.fileSizeKey) 在 body.getter 里同步阻塞 2427ms)。
+    @State private var cachedPackedSize: Int? = nil
+    @State private var cachedPackedSizeURL: URL? = nil
+    @State private var cachedFreeSpace: Int64? = nil
+    @State private var cachedFreeSpaceURL: URL? = nil
+
+    private var currentArchiveURL: URL? { if case .archive(let u) = model.mode { return u }; return nil }
+    private var currentFolderURL: URL? { if case .folder(let u) = model.mode { return u }; return nil }
+
     var body: some View {
         HStack(spacing: 8) {
             // 左侧：运行中显示进度条 + 当前文件（长度多变）；空闲显示状态文字。
@@ -90,6 +100,29 @@ struct StatusBar: View {
         .padding(.vertical, 7)
         // 跟地址栏同一 .bar 材质 —— 上下两条工具条一个质感（0.3.3 UI 现代化）。
         .background(.bar)
+        // 归档包体大小：后台异步读，避免 getattrlist 在网络卷阻塞主线程（dev11 取样）。
+        .task(id: currentArchiveURL) {
+            guard let url = currentArchiveURL else {
+                cachedPackedSizeURL = nil; cachedPackedSize = nil; return
+            }
+            let bytes = await Task.detached(priority: .utility) {
+                try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize
+            }.value
+            cachedPackedSizeURL = url
+            cachedPackedSize = bytes
+        }
+        // 卷可用空间：后台异步读，理由同上。
+        .task(id: currentFolderURL) {
+            guard let url = currentFolderURL else {
+                cachedFreeSpaceURL = nil; cachedFreeSpace = nil; return
+            }
+            let bytes = await Task.detached(priority: .utility) {
+                try? url.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey])
+                    .volumeAvailableCapacityForImportantUsage
+            }.value
+            cachedFreeSpaceURL = url
+            cachedFreeSpace = bytes
+        }
     }
 
     /// 右下角的上下文摘要。选中条目按已知大小求和(目录 / 未知大小条目自然跳过);
@@ -103,8 +136,10 @@ struct StatusBar: View {
                 return Self.selectionSummary(count: selected.count, bytes: selected.compactMap(\.size).reduce(0, +))
             }
             let unpacked = model.archiveItems.compactMap(\.size).reduce(0, +)
+            // 包体大小由 .task(id:) 后台填入缓存，URL 不匹配时视为「还没拿到」→ 返回 nil 不显示占位
             guard unpacked > 0,
-                  let packed = try? archiveURL.resourceValues(forKeys: [.fileSizeKey]).fileSize else { return nil }
+                  cachedPackedSizeURL == archiveURL,
+                  let packed = cachedPackedSize else { return nil }
             return L10n.format(
                 "status.archiveSummary",
                 ByteCountFormatter.string(fromByteCount: unpacked, countStyle: .file),
@@ -115,9 +150,8 @@ struct StatusBar: View {
             if !selected.isEmpty {
                 return Self.selectionSummary(count: selected.count, bytes: selected.compactMap(\.size).reduce(0, +))
             }
-            guard let free = try? folderURL.resourceValues(
-                forKeys: [.volumeAvailableCapacityForImportantUsageKey]
-            ).volumeAvailableCapacityForImportantUsage else { return nil }
+            // 卷可用空间由 .task(id:) 后台填入缓存
+            guard cachedFreeSpaceURL == folderURL, let free = cachedFreeSpace else { return nil }
             return L10n.format("status.freeSpace", ByteCountFormatter.string(fromByteCount: free, countStyle: .file))
         case .tag:
             let selected = model.fileItems.filter { model.selection.contains($0.id) }
