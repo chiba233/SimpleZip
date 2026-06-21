@@ -324,13 +324,15 @@ enum NativeZipBackend {
         }
     }
 
-    /// bsdtar(`/usr/bin/tar` = libarchive)**流式**解压整个归档:顺序读每条目的 local header + 数据,
-    /// **不先 seek 到文件末尾读中央目录**(ZIP),tar 本就是顺序格式 —— 所以网络 / 慢盘是顺序 I/O 而非随机 seek。
-    /// 支持 zip + tar 家族(.tar/.tar.gz/.tgz/.tar.bz2/.tbz2/.tar.xz/.txz/.tar.zst,bsdtar 自动识别压缩);
-    /// 仅整包 + 无密码(bsdtar 不支持加密 ZIP / 不可选条目)。失败由调用方 `ArchiveService.extract` 回退到标准 backend。
+    /// bsdtar(`/usr/bin/tar` = libarchive)**流式**解压:顺序读每条目的 local header + 数据,**不先 seek 到文件
+    /// 末尾读中央目录**(ZIP),tar 本就是顺序格式 —— 所以网络 / 慢盘是顺序 I/O 而非随机 seek。支持 zip + tar 家族
+    /// (.tar/.tar.gz/.tgz/.tar.bz2/.tbz2/.tar.xz/.txz/.tar.zst,bsdtar 自动识别压缩)。`entries` 为空=整包;非空=
+    /// **按条目名选择性**解压(bsdtar 顺序匹配名字,同样顺序 I/O —— 选条目也能流式)。仅无密码(bsdtar 不支持加密 ZIP)。
+    /// flatten 由调用方解压后后处理(flattenExtractedItems),故 preserve/flatten 都可走流式。失败由调用方回退标准 backend。
     /// `-k` = keep existing(跳过已存在,对应 skipExisting);默认覆盖。输出只留尾部供失败诊断(同 unzip 路径)。
     nonisolated static func extractStreaming(
         _ archive: URL,
+        entries: [String] = [],
         to destination: URL,
         overwriteBehavior: OverwriteBehavior,
         progressParser: ProgressOutputParser?,
@@ -341,6 +343,7 @@ enum NativeZipBackend {
         if overwriteBehavior == .skipExisting {
             arguments.insert("-k", at: 0)
         }
+        arguments.append(contentsOf: entries)   // 空=整包;非空=按条目名选择性解压
         _ = try await BackendProcessRunner.runAndCapture(
             "/usr/bin/tar",
             arguments: arguments,

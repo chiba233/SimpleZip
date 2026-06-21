@@ -535,6 +535,9 @@ struct ExtractSelectionRequest: Identifiable {
     var skipJunk = false
     /// 0.4.3 #15：不解压符号链接 —— 与整包解压同语义（staging 上删光再合并）。
     var skipSymlinks = false
+    /// 「流式快速解压」(opt-in,见 ExtractArchiveRequest.useStreamingZipExtraction):bsdtar 按条目名顺序解压
+    /// (网络/慢盘顺序 I/O)。仅无密码 + 支持格式;失败自动回退标准 backend。默认关 —— 仅符合条件的对话框露出。
+    var useStreamingExtraction = false
 }
 
 /// 压缩/解压过程中的进度信息。

@@ -352,7 +352,8 @@ enum ArchiveService {
         operationID: UUID? = nil,
         progress: @escaping @Sendable (ArchiveProgressState) -> Void = { _ in },
         outputObserver: (@Sendable (String) -> Void)? = nil,
-        force: Bool = false
+        force: Bool = false,
+        preferStreaming: Bool = false
     ) async throws {
         let resolved = try resolvedInput(for: archive, force: force)
         if safetyPolicy == .validate {
@@ -361,6 +362,29 @@ enum ArchiveService {
         let entryNames = expandedEntryNames(for: entries)
         guard !entryNames.isEmpty else { return }
         let parser = ProgressOutputParser(totalFiles: max(1, entryNames.count), progress: progress)
+
+        // 选条目流式快速解压(opt-in):bsdtar 按条目名顺序匹配解压(同样顺序 I/O,网络/慢盘受益)。仅无密码 +
+        // 支持格式。flatten 由解压后 flattenExtractedItems 后处理(故 preserve/flatten 都可走)。失败清空目标后
+        // 回退到下面的标准 backend。安全校验照旧。
+        if preferStreaming, password.isEmpty, isStreamingExtractionSupported(resolved.url) {
+            do {
+                try await NativeZipBackend.extractStreaming(
+                    resolved.url, entries: entryNames, to: destination, overwriteBehavior: overwriteBehavior,
+                    progressParser: parser, outputObserver: outputObserver, operationID: operationID)
+                if pathMode == .flatten {
+                    try flattenExtractedItems(entryNames: entryNames, in: destination)
+                }
+                if safetyPolicy == .validate {
+                    try ArchiveSafety.validateExtractedTree(at: destination)
+                }
+                return
+            } catch is CancellationError {
+                throw CancellationError()
+            } catch {
+                outputObserver?("\nSimpleZip: streaming (bsdtar) extraction failed; falling back to standard extraction.\n")
+                try? NativeZipBackend.clearDirectoryContents(destination)
+            }
+        }
 
         switch resolved.backend {
         case .zipNative:

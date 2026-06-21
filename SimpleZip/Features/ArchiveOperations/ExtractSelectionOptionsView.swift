@@ -22,7 +22,9 @@ struct ExtractSelectionOptionsView: View {
             password: $request.password,
             zipDecryptionMethod: $request.zipDecryptionMethod,
             showDetails: $request.showDetails,
-            showsZipDecryptionMethod: request.archiveURL.pathExtension.lowercased() == "zip",
+            // 开了流式快速解压 → 隐藏密码行 + ZIP 解密方式(bsdtar 不支持加密,是它「不支持的选项」)。
+            showsZipDecryptionMethod: request.archiveURL.pathExtension.lowercased() == "zip" && !request.useStreamingExtraction,
+            showsPassword: !request.useStreamingExtraction,
             zipEncryptionDetectionText: request.detectedZipEncryption.autoDetectionText,
             confirm: { extract(request) },
             cancel: cancel
@@ -58,6 +60,17 @@ struct ExtractSelectionOptionsView: View {
                 pinsToTrailing: true,
                 isOn: $request.skipSymlinks
             )
+            // 流式快速解压(bsdtar 按条目名顺序解压,选条目也能流式):仅支持格式 + 无密码 + 非加密时露出。
+            if isStreamingEligible {
+                DialogToggleRow(
+                    title: L10n.text("extract.streamingZip"),
+                    subtitle: L10n.text("extract.streamingZip.detail"),
+                    systemImage: "bolt.horizontal.fill",
+                    tint: .yellow,
+                    pinsToTrailing: true,
+                    isOn: $request.useStreamingExtraction
+                )
+            }
         } drawers: {}
         .frame(width: 560)
         .task {
@@ -67,6 +80,14 @@ struct ExtractSelectionOptionsView: View {
             let url = request.archiveURL
             request.detectedZipEncryption = await Task.detached { ArchiveService.detectZipEncryption(in: url) }.value
         }
+    }
+
+    /// 流式快速解压是否可用:zip + tar 家族、无密码、非加密。bsdtar 不支持加密 ZIP;检测中(.unknown)也先露出
+    /// —— 真加密会回退,有密码时后端自动跳过。tar 家族无加密概念,detectedZipEncryption 恒 .unknown。
+    private var isStreamingEligible: Bool {
+        ArchiveService.isStreamingExtractionSupported(request.archiveURL)
+            && request.password.isEmpty
+            && (request.detectedZipEncryption == .none || request.detectedZipEncryption == .unknown)
     }
 }
 

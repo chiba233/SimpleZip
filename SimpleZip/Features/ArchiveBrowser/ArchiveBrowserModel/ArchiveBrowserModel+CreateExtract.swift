@@ -1529,7 +1529,9 @@ extension ArchiveBrowserModel {
                         operationID: operationID,
                         progress: progress,
                         outputObserver: outputObserver,
-                        force: force
+                        force: force,
+                        // bsdtar 选条目流式(无密码生效;有密码 password 非空 → 自动跳过流式)。
+                        preferStreaming: request.useStreamingExtraction && password.isEmpty
                     )
                     break
                 } catch {
