@@ -215,6 +215,16 @@ struct ArchiveEntryUpdateTests {
         #expect(try ArchiveService.normalizedEntryRelativePath("x//y/z.txt") == "x/y/z.txt")
     }
 
+    /// 归档条目名前后空格是**有意义**的,绝不能被 trim 掉 —— 否则删除/重命名会匹配到另一个去空格的同名条目。
+    @Test func preservesSignificantWhitespaceInEntryNames() throws {
+        #expect(try ArchiveService.normalizedEntryRelativePath(" a.txt") == " a.txt")
+        #expect(try ArchiveService.normalizedEntryRelativePath("a.txt ") == "a.txt ")
+        #expect(try ArchiveService.normalizedEntryRelativePath("dir/ spaced .txt") == "dir/ spaced .txt")
+        // 安全检测不被首尾空白绕过:盘符 / 穿越 / 反斜杠仍被拒。
+        #expect(throws: (any Error).self) { try ArchiveService.normalizedEntryRelativePath(" ../escape") }
+        #expect(throws: (any Error).self) { try ArchiveService.normalizedEntryRelativePath(" C:\\evil") }
+    }
+
     @Test func formatGatingOnlyZipAndSevenZip() {
         #expect(ArchiveService.supportsEntryUpdate(URL(fileURLWithPath: "/tmp/a.zip")))
         #expect(ArchiveService.supportsEntryUpdate(URL(fileURLWithPath: "/tmp/a.7z")))

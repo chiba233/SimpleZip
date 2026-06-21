@@ -447,22 +447,25 @@ extension ArchiveService {
     /// - 任一段是 `..` / `.`(`/` 分隔的逃逸) → 拒绝;
     /// - 任一段形如盘符 `C:` / `C:foo`(字母 + 冒号开头) → 拒绝。
     static func normalizedEntryRelativePath(_ raw: String) throws -> String {
-        let trimmed = raw.trimmingCharacters(in: .whitespaces)
-        guard !trimmed.isEmpty, !trimmed.hasPrefix("/"), !trimmed.contains("\\") else {
+        // 安全校验在 **trim 后副本**上做(盘符 / `..` / 反斜杠 / 绝对路径的检测不受首尾空白干扰、不被削弱),
+        // 但**返回保留首尾空白的原名** —— 归档条目名前后空格是有意义的(『 a.txt』≠『a.txt』),trim 掉返回值会让
+        // 删除/重命名匹配到另一个去空格的同名条目(用户报的删错/改错条目)。trim 只动首尾,不改 `/` 结构,故两者分段对齐。
+        let probe = raw.trimmingCharacters(in: .whitespaces)
+        guard !probe.isEmpty, !probe.hasPrefix("/"), !probe.contains("\\") else {
             throw ArchiveError.commandFailed("Invalid entry path: \(raw)")
         }
-        var components: [String] = []
-        for segment in trimmed.split(separator: "/", omittingEmptySubsequences: true) {
+        for segment in probe.split(separator: "/", omittingEmptySubsequences: true) {
             let part = String(segment)
             guard part != "..", part != ".", !isWindowsDriveComponent(part) else {
                 throw ArchiveError.commandFailed("Invalid entry path: \(raw)")
             }
-            components.append(part)
         }
-        guard !components.isEmpty else {
+        // 校验通过后,用原名(未 trim)重建,保留段内首尾空白,仅折叠多余 `/`(与原行为一致)。
+        let rawComponents = raw.split(separator: "/", omittingEmptySubsequences: true).map(String.init)
+        guard !rawComponents.isEmpty else {
             throw ArchiveError.commandFailed("Invalid entry path: \(raw)")
         }
-        return components.joined(separator: "/")
+        return rawComponents.joined(separator: "/")
     }
 
     /// 某段是否是 Windows 盘符语义(`C:` / `c:` / `C:foo`)—— 字母开头紧跟冒号。这类段在 Windows 解压器

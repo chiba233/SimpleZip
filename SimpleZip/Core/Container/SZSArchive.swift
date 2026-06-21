@@ -227,24 +227,27 @@ enum SZSArchive {
     /// - 含空段（`a//b`）/ 以 `.` 或 `..` 单独成段；
     /// - 通过 `ArchiveSafety.isUnsafeEntryName` 标记的可疑名。
     static func validatedRelativePath(_ raw: String) throws -> String {
-        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else {
+        // 安全校验在 **trim 后副本**上做(反斜杠 / 盘符 / UNC / `..` 检测不受首尾空白干扰),但**返回原名 raw** ——
+        // 文件名前后空格是有意义的(『 a.txt』≠『a.txt』),trim 后写进清单会让校验时去查另一个去空格的文件、对不上。
+        // trim 只动首尾空白、不改 `/` 结构,故校验副本与原名分段对齐,返回原名不削弱任何穿越检测。
+        let probe = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !probe.isEmpty else {
             throw SZSError.unsafeRelativePath(raw)
         }
         // 拒绝反斜杠 / Windows 盘符 / UNC：在分割前判断更明确。
-        if trimmed.contains("\\") {
+        if probe.contains("\\") {
             throw SZSError.unsafeRelativePath(raw)
         }
-        if trimmed.hasPrefix("/") {
+        if probe.hasPrefix("/") {
             throw SZSError.unsafeRelativePath(raw)
         }
-        if trimmed.count >= 2 {
-            let idx = trimmed.index(trimmed.startIndex, offsetBy: 1)
-            if trimmed[idx] == ":" {
+        if probe.count >= 2 {
+            let idx = probe.index(probe.startIndex, offsetBy: 1)
+            if probe[idx] == ":" {
                 throw SZSError.unsafeRelativePath(raw)
             }
         }
-        let components = trimmed.split(separator: "/", omittingEmptySubsequences: false).map(String.init)
+        let components = probe.split(separator: "/", omittingEmptySubsequences: false).map(String.init)
         for component in components {
             if component.isEmpty {
                 throw SZSError.unsafeRelativePath(raw) // `a//b`
@@ -256,7 +259,7 @@ enum SZSArchive {
                 throw SZSError.unsafeRelativePath(raw)
             }
         }
-        return trimmed
+        return raw
     }
 
     // MARK: - 目录展开
