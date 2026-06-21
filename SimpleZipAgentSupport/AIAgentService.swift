@@ -98,8 +98,18 @@ final class AIAgentService: NSObject, SimpleZipAIAgentXPC {
         }
     }
 
+    /// XPC 解码前的硬大小上限:任何能到达本 Mach 服务的进程都可发超大 Data(XPC 默认上限 64MB),
+    /// 无守卫地全量 JSONDecoder 会 OOM / CPU 峰值拖垮 agent → 所有 AI 功能不可用直至重启。
+    private static let maxConfigPayloadBytes = 1 * 1024 * 1024          // 配置正常 < 1MB
+    private static let maxPassInputBytes = 32 * 1024 * 1024            // pass 输入已按 token 预算裁剪,远小于此;只挡病态/恶意超大
+
     func syncConfiguration(_ payload: Data, reply: @escaping (Int) -> Void) {
         Task {
+            guard payload.count <= Self.maxConfigPayloadBytes else {
+                agentLog("syncConfiguration: payload 过大(\(payload.count) bytes)→ 拒绝(防 OOM)")
+                reply(-1)
+                return
+            }
             guard let config = AIAgentConfiguration.decoded(from: payload) else {
                 agentLog("syncConfiguration: 解码失败(payload \(payload.count) bytes)→ 拒绝")
                 reply(-1)
@@ -114,6 +124,9 @@ final class AIAgentService: NSObject, SimpleZipAIAgentXPC {
     func generate(kind: String, inputJSON: Data, languageName: String, reply: @escaping (Data, Bool) -> Void) {
         Task {
             func fail(_ message: String) { reply(Data(message.utf8), false) }
+            guard inputJSON.count <= Self.maxPassInputBytes else {
+                fail("输入过大(\(inputJSON.count) bytes)→ 拒绝(防 OOM)"); return
+            }
             guard #available(macOS 26.0, *) else { fail("macOS < 26 — FoundationModels 不可用。"); return }
             // 红线:App 同步过「主/子开关关」则拒绝一切前台生成(前台也不豁免);未同步过默认放行(命令行自检兼容)。
             guard await AIAgentConfigurationStore.shared.foregroundAllowed else {
