@@ -317,7 +317,12 @@ extension ArchiveBrowserModel {
         let query = request.query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !query.isEmpty else { return }
         let displayName = (archiveDisplayOverride ?? url).lastPathComponent
-        let candidates = session.allItems.filter { ArchiveContentSearch.isTextCandidate($0, maxBytes: request.maxBytes) }
+        // 安全:内容搜索把候选条目解到 scratch 时用 safetyPolicy: .skipValidation(内部临时区、不弹交互安全框),
+        // 所以必须在这里**预先剔除路径穿越条目**(`../evil.txt` 等小文本条目本会通过扩展名/大小过滤),否则
+        // .preserve 解压会把它写出 scratch 之外。剔除不安全名后只搜安全条目;全不安全则候选为空、如实报 0。
+        let candidates = session.allItems
+            .filter { ArchiveContentSearch.isTextCandidate($0, maxBytes: request.maxBytes) }
+            .filter { !ArchiveSafety.isUnsafeEntryName($0.name) }
         guard !candidates.isEmpty else {
             contentSearchReport = ContentSearchReport(archiveName: displayName, query: query, candidateCount: 0, matches: [])
             return
@@ -536,6 +541,9 @@ extension ArchiveBrowserModel {
         guard let source = request.sourceFolder, let destination = request.destinationFolder else { return }
         let trimmedName = request.fileName.trimmingCharacters(in: .whitespaces)
         guard !trimmedName.isEmpty else { return }
+        // 安全(防御):文件名是单段基名,含 `/`、`..`、盘符会把产物 appendingPathComponent 带出目标目录。
+        // UI 的 canConfirm 已禁用确认,这里再兜底拦一次(自动化 / 异常入口)。
+        guard !ArchiveSafety.isUnsafeOutputBaseName(trimmedName) else { return }
 
         let outputURL: URL
         let skipCreate: Bool

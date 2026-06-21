@@ -51,7 +51,9 @@ enum WebArchiveStreamExtract {
             return WebArchiveProbeResult(filename: urlName, byteCount: nil, isStreamable: false,
                                          unsupportedReason: L10n.text("webExtract.unsupported.unreachable"))
         }
-        let filename = header.suggestedFilename ?? urlName
+        // 安全:文件名来自 URL 末段或服务器 Content-Disposition(均不可信),`%2E%2E%2F` 会解出 `../`、也可能含 `/`。
+        // 收敛成单段安全名,既用于 UI 显示也用于落盘(uniqueDestinationURL 还会再收敛一次,双保险)。
+        let filename = ArchiveExtractionCoordinator.sanitizedSingleComponentName(header.suggestedFilename ?? urlName)
         let byteCount = header.expectedContentLength > 0 ? header.expectedContentLength : nil
 
         // 格式门:文件名是流式支持的归档后缀。

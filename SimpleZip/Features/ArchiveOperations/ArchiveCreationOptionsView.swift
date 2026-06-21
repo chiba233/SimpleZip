@@ -1076,6 +1076,9 @@ struct ArchiveCreationOptionsView: View {
         } set: { newValue in
             let trimmedName = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !trimmedName.isEmpty else { return }
+            // 安全:文件名字段是单段基名,含 `/`、`\`、`..`、`~`、盘符会把产物 appendingPathComponent 带出保存目录。
+            // 不安全名直接不接受(字段回弹到当前合法名),绝不逃出用户选的目录。
+            guard !ArchiveSafety.isUnsafeOutputBaseName(trimmedName) else { return }
             request.destinationURL = request.destinationURL
                 .deletingLastPathComponent()
                 .appendingPathComponent(archiveFileName(fromBaseName: trimmedName))

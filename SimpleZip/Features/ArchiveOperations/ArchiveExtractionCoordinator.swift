@@ -21,7 +21,22 @@ final class ArchiveExtractionCoordinator {
         self.fileManager = fileManager
     }
 
+    /// 把外部来源的文件名收敛成**单段安全名**:取最后一段、去掉任何 `/`、`\` 与 `..`,空/`.`/`..` → `download`。
+    /// 网络下载文件名 / `Content-Disposition` 等可含 `../`(如 URL 里 `%2E%2E%2F` 解出),不收敛会让产物写出目标目录。
+    static func sanitizedSingleComponentName(_ raw: String) -> String {
+        let lastComponent = raw
+            .replacingOccurrences(of: "\\", with: "/")
+            .split(separator: "/", omittingEmptySubsequences: true)
+            .last.map(String.init) ?? ""
+        let trimmed = lastComponent.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty || trimmed == "." || trimmed == ".." { return "download" }
+        return trimmed
+    }
+
     func uniqueDestinationURL(for fileName: String, in directory: URL) -> URL {
+        // 安全:fileName 可能来自外部(下载文件名 / Content-Disposition),含 `/`、`\`、`..` 时
+        // appendingPathComponent 会把产物写出 directory(路径穿越)。先收敛成单段安全名。
+        let fileName = Self.sanitizedSingleComponentName(fileName)
         let initialURL = directory.appendingPathComponent(fileName)
         guard fileManager.fileExists(atPath: initialURL.path) else { return initialURL }
 

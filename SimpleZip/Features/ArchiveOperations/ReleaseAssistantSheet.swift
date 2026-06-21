@@ -52,9 +52,12 @@ struct ReleaseAssistantSheet: View {
     @State private var ledgerComparison: LedgerComparisonRequest?
 
     private var canConfirm: Bool {
-        request.sourceFolder != nil
+        let baseName = request.fileName.trimmingCharacters(in: .whitespaces)
+        return request.sourceFolder != nil
             && request.destinationFolder != nil
-            && !request.fileName.trimmingCharacters(in: .whitespaces).isEmpty
+            && !baseName.isEmpty
+            // 安全:文件名是单段基名,含 `/`、`..`、盘符等会把产物带出所选目录 → 禁用确认。
+            && !ArchiveSafety.isUnsafeOutputBaseName(baseName)
     }
 
     private var showsGPGRow: Bool {
