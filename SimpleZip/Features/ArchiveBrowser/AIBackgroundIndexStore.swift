@@ -28,14 +28,19 @@ final class AIBackgroundIndexStore: ObservableObject {
     @Published private(set) var scopes: [AIArchivePrefetchScope]
     /// 持久文件预索引(体量可能大,不 `@Published`;变更后手动发 `objectWillChange`)。
     private(set) var fileIndex: AIFileMemoryIndex {
-        // path→记录 缓存随索引变更重建(浏览器按 path O(1) 查建议)。
+        // path→记录 缓存**只置脏、按需懒重建**(浏览器按 path O(1) 查建议),不在每次写索引时即时全量重建:
+        // 一轮后台烘焙会多次写 fileIndex(每条建议各一次),旧的 didSet 即时重建 = 主 actor 上 O(n)×多次(日常开销
+        // 最重的一块);改脏标记后,多次写只在下次 record(forPath:) 读取时重建一次,浏览器没在显示 AI 抽屉就根本不建。
         // 不再维护全局「文件索引世代」:文件表的 reload 指纹只看**当前可见行**的建议内容(见 FileTable.syncContent),
         // 后台心跳每轮 ingest 重写 scope 元数据 / 给别处烤建议都不该 reload 用户正看的文件夹(否则闪烁,A17)。
-        didSet { rebuildPathIndex() }
+        didSet { recordByPathDirty = true }
     }
 
-    /// `path → 记录` 缓存(文件浏览器每行 O(1) 查模型建议用)。fileIndex 变更后由 `didSet` 自动重建。
+    /// `path → 记录` 缓存(文件浏览器每行 O(1) 查模型建议用)。**按需懒建**:fileIndex 变更只置脏,下次 `record(forPath:)`
+    /// 读取时才重建一次 —— 避免一轮多写时反复 O(n) 重建,且浏览器不查 AI 抽屉时根本不建(省内存,不再常驻镜像副本)。
     private var recordByPath: [String: AIFileMemoryRecord] = [:]
+    /// `recordByPath` 是否需重建(fileIndex 变更后置 true,下次读取时重建并清回 false)。init 默认 true(还没建)。
+    private var recordByPathDirty = true
 
     /// 用户对 AI 建议「我不喜欢」的抑制 key 集合(右键「我不喜欢」加入)。文件浏览器抽屉据此过滤掉被嫌弃的建议。
     /// 持久(派生数据,不进偏好备份)。
@@ -74,6 +79,8 @@ final class AIBackgroundIndexStore: ObservableObject {
     /// 跨重启持久(派生数据,不进偏好备份);只 app 写(agent 走 contentSummary),罕见上限重置防无界。
     private(set) var extractAdvisoryByPath: [String: String]
     private static let extractAdvisoryDerivedKey = "simplezip.ai.extractAdvisory.v1"
+    /// 失败解释缓存硬上限(兜底防无界;主要界是 `liveTaskIDs` 过滤,正常远小于此)。
+    private static let maxFailureExplanations = 200
 
     private let defaults: UserDefaults
     /// 阶段0a:派生数据(索引本体 + 下游预烘焙缓存)的独立文件存储。白名单 `scopes` + 反馈 `dislikedKeys` 仍留 `defaults`。
@@ -97,7 +104,8 @@ final class AIBackgroundIndexStore: ObservableObject {
         self.workbenchClusterChipsByCategory = AIBackgroundIndexStore.loadClusterChips(from: derived)
         self.toolbarRanking = AIBackgroundIndexStore.loadToolbarRanking(from: derived)
         self.extractAdvisoryByPath = AIBackgroundIndexStore.loadExtractAdvisory(from: derived)
-        rebuildPathIndex()   // init 里的 fileIndex 赋值不触发 didSet,手动建一次
+        // recordByPath 懒建:init 里 fileIndex 直接赋值不触发 didSet,但 recordByPathDirty 默认 true,
+        // 首次 record(forPath:) 读取时才建一次(浏览器从不查 AI 抽屉则永不建,省下 init 主线程一次 O(n) 展开)。
     }
 
     /// 阶段0a 一次性迁移:派生缓存从 UserDefaults 搬到 `AIDerivedDataStore`。幂等、防丢:文件已有则以文件为准
@@ -153,15 +161,19 @@ final class AIBackgroundIndexStore: ObservableObject {
         objectWillChange.send()
     }
 
-    /// 从当前 fileIndex 重建 `path → 记录` 缓存(只收带路径的记录;同路径取最近索引那条)。
+    /// 从当前 fileIndex 重建 `path → 记录` 缓存(只收带路径的记录;同路径取最近索引那条)。重建后清回脏标记。
     private func rebuildPathIndex() {
         var map: [String: AIFileMemoryRecord] = [:]
         for record in fileIndex.records { if let path = record.path { map[path] = record } }
         recordByPath = map
+        recordByPathDirty = false
     }
 
-    /// 按真实路径查一条预索引记录(文件浏览器 AI 抽屉读模型建议用)。O(1)。
-    func record(forPath path: String) -> AIFileMemoryRecord? { recordByPath[path] }
+    /// 按真实路径查一条预索引记录(文件浏览器 AI 抽屉读模型建议用)。脏则先懒重建一次,再 O(1) 查。
+    func record(forPath path: String) -> AIFileMemoryRecord? {
+        if recordByPathDirty { rebuildPathIndex() }
+        return recordByPath[path]
+    }
 
     func folderGroups(forPath folderPath: String) -> [CachedFolderGroup] {
         let key = Self.normalizedFolderPath(folderPath)
@@ -438,6 +450,14 @@ final class AIBackgroundIndexStore: ObservableObject {
         let explanation = CachedExplanation(fingerprint: fingerprint, text: text)
         var updated = workbenchFailureExplanationByTask.filter { liveTaskIDs.contains($0.key) }
         updated[taskID] = explanation
+        // 硬上限兜底:liveTaskIDs 已是主要界(只留仍在列表里的失败任务),但极端历史堆积时再加帽防无界增长。
+        // 保留刚写入的这条,其余截断到上限内(纯兜底,正常 liveTaskIDs 远小于此)。
+        if updated.count > Self.maxFailureExplanations {
+            for key in updated.keys where key != taskID {
+                if updated.count <= Self.maxFailureExplanations { break }
+                updated.removeValue(forKey: key)
+            }
+        }
         guard updated != workbenchFailureExplanationByTask else { return }
         workbenchFailureExplanationByTask = updated
         workbenchExplanationGeneration += 1
