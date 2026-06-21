@@ -40,6 +40,13 @@ nonisolated enum CLICompletions {
         'extract:Extract an archive'
         'verify:Verify a checksum file'
         'hash:Compute checksums'
+        'space:Disk-usage breakdown'
+        'rescue:Recover a damaged archive'
+        'checkup:Batch health check'
+        'duplicates:Find duplicate archives'
+        'reproduce:Check reproducible packing'
+        'audit:Audit a release directory'
+        'verify-group:Quick release-group check'
         'completions:Print a shell completion script'
       )
       if (( CURRENT == 2 )); then
@@ -69,8 +76,20 @@ nonisolated enum CLICompletions {
             '--json[JSON output]' '--quiet[Errors only]' \\
             '*:file:_files'
           ;;
+        rescue)
+          _arguments \\
+            '(-d --to)'{-d,--to}'[Destination parent folder]:directory:_files -/' \\
+            '--json[JSON output]' '--quiet[Errors only]' \\
+            '*:file:_files'
+          ;;
+        reproduce)
+          _arguments \\
+            '(-f --format)'{-f,--format}'[Archive format]:format:(zip 7z)' \\
+            '--json[JSON output]' '--quiet[Errors only]' \\
+            '*:directory:_files -/'
+          ;;
         completions) _values 'shell' zsh bash fish ;;
-        help) _values 'command' help version doctor open list check inspect compare create extract verify hash completions ;;
+        help) _values 'command' help version doctor open list check inspect compare create extract verify hash space rescue checkup duplicates reproduce audit verify-group completions ;;
         *) _arguments '--json[JSON output]' '--quiet[Errors only]' '--verbose[Raw backend output]' '*:file:_files' ;;
       esac
     }
@@ -83,7 +102,7 @@ nonisolated enum CLICompletions {
     _simplezip() {
       local cur commands
       cur="${COMP_WORDS[COMP_CWORD]}"
-      commands="help version doctor open list check inspect compare create extract verify hash completions"
+      commands="help version doctor open list check inspect compare create extract verify hash space rescue checkup duplicates reproduce audit verify-group completions"
       if [ "$COMP_CWORD" -eq 1 ]; then
         COMPREPLY=( $(compgen -W "$commands" -- "$cur") )
         return
@@ -95,8 +114,11 @@ nonisolated enum CLICompletions {
         hash)
           COMPREPLY=( $(compgen -W "--algo --json --quiet" -- "$cur") $(compgen -f -- "$cur") )
           ;;
-        extract)
+        extract|rescue)
           COMPREPLY=( $(compgen -W "--to --json --quiet" -- "$cur") $(compgen -f -- "$cur") )
+          ;;
+        reproduce)
+          COMPREPLY=( $(compgen -W "--format --json --quiet" -- "$cur") $(compgen -f -- "$cur") )
           ;;
         completions) COMPREPLY=( $(compgen -W "zsh bash fish" -- "$cur") ) ;;
         help) COMPREPLY=( $(compgen -W "$commands" -- "$cur") ) ;;
@@ -122,10 +144,18 @@ nonisolated enum CLICompletions {
     complete -c simplezip -n __fish_use_subcommand -a extract -d 'Extract an archive'
     complete -c simplezip -n __fish_use_subcommand -a verify -d 'Verify a checksum file'
     complete -c simplezip -n __fish_use_subcommand -a hash -d 'Compute checksums'
+    complete -c simplezip -n __fish_use_subcommand -a space -d 'Disk-usage breakdown'
+    complete -c simplezip -n __fish_use_subcommand -a rescue -d 'Recover a damaged archive'
+    complete -c simplezip -n __fish_use_subcommand -a checkup -d 'Batch health check'
+    complete -c simplezip -n __fish_use_subcommand -a duplicates -d 'Find duplicate archives'
+    complete -c simplezip -n __fish_use_subcommand -a reproduce -d 'Check reproducible packing'
+    complete -c simplezip -n __fish_use_subcommand -a audit -d 'Audit a release directory'
+    complete -c simplezip -n __fish_use_subcommand -a verify-group -d 'Quick release-group check'
     complete -c simplezip -n __fish_use_subcommand -a completions -d 'Print a shell completion script'
     complete -c simplezip -n '__fish_seen_subcommand_from completions' -a 'zsh bash fish'
     complete -c simplezip -n '__fish_seen_subcommand_from hash' -s a -l algo -d 'Algorithms (comma-separated, or all)'
-    complete -c simplezip -n '__fish_seen_subcommand_from extract' -s d -l to -d 'Destination parent folder'
+    complete -c simplezip -n '__fish_seen_subcommand_from extract rescue' -s d -l to -d 'Destination parent folder'
+    complete -c simplezip -n '__fish_seen_subcommand_from reproduce' -s f -l format -d 'Archive format (zip/7z)'
     complete -c simplezip -n '__fish_seen_subcommand_from create' -s t -l template -d 'Apply a saved template'
     complete -c simplezip -n '__fish_seen_subcommand_from create' -s l -l level -d 'Compression level 0-9'
     complete -c simplezip -n '__fish_seen_subcommand_from create' -l exclude-junk -d 'Exclude macOS junk files'

@@ -149,6 +149,35 @@ struct CLIInvocationTests {
         }
     }
 
+    @Test func releaseAndAnalysisToolsParse() throws {
+        #expect(try CLIInvocation.parse(["space", "a.zip"]) == .space(path: "a.zip"))
+        #expect(try CLIInvocation.parse(["rescue", "a.zip"]) == .rescue(path: "a.zip", destination: nil))
+        #expect(try CLIInvocation.parse(["rescue", "--to", "/out", "a.zip"]) == .rescue(path: "a.zip", destination: "/out"))
+        #expect(try CLIInvocation.parse(["checkup", "a.zip", "b.7z"]) == .checkup(paths: ["a.zip", "b.7z"]))
+        #expect(try CLIInvocation.parse(["duplicates", "a.zip", "b.zip"]) == .duplicates(paths: ["a.zip", "b.zip"]))
+        #expect(try CLIInvocation.parse(["reproduce", "folder"]) == .reproduce(path: "folder", format: nil))
+        #expect(try CLIInvocation.parse(["reproduce", "-f", "7z", "folder"]) == .reproduce(path: "folder", format: "7z"))
+        #expect(try CLIInvocation.parse(["audit", "dir"]) == .auditDirectory(path: "dir"))
+        #expect(try CLIInvocation.parse(["verify-group", "dir"]) == .verifyGroup(path: "dir"))
+    }
+
+    @Test func releaseAndAnalysisToolsRejectBadArgs() {
+        for command in ["space", "rescue", "checkup", "duplicates", "reproduce", "audit", "verify-group"] {
+            #expect(throws: CLIInvocation.ParseError.missingArguments(command: command)) {
+                try CLIInvocation.parse([command])
+            }
+        }
+        // 单归档 / 单目录的命令只收一个位置参数。
+        for command in ["space", "audit", "verify-group", "reproduce", "rescue"] {
+            #expect(throws: CLIInvocation.ParseError.missingArguments(command: command)) {
+                try CLIInvocation.parse([command, "a", "b"])
+            }
+        }
+        #expect(throws: CLIInvocation.ParseError.unexpectedOption("--bogus")) {
+            try CLIInvocation.parse(["checkup", "--bogus", "a.zip"])
+        }
+    }
+
     @Test func unknownCommandAndOptionsRejected() {
         #expect(throws: CLIInvocation.ParseError.unknownCommand("explode")) {
             try CLIInvocation.parse(["explode"])

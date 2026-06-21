@@ -54,6 +54,20 @@ enum CLIInvocation: Equatable {
     case inspect(path: String)
     /// 0.4.5:解压归档到唯一命名的文件夹(默认在归档旁,`--to` 指定父目录),走与 Finder 自动解压同一条安全路径。
     case extract(paths: [String], destination: String?)
+    /// 0.4.5:空间分析 —— 体积占用拆解(最大文件 / 目录 / 扩展名、压缩率、垃圾占比)。
+    case space(path: String)
+    /// 0.4.5:数据救援 —— 损坏归档的只读尽力救援到 `<原名> (rescued)` 文件夹(`--to` 指定父目录)。
+    case rescue(path: String, destination: String?)
+    /// 0.4.5:批量体检 —— 逐个归档列清单 + 完整性测试 + 可疑路径 / 垃圾 / 加密计数,末尾汇总。
+    case checkup(paths: [String])
+    /// 0.4.5:查找疑似重复归档 —— 按结构指纹(及条目数/大小)在给定归档 / 文件夹里聚类。
+    case duplicates(paths: [String])
+    /// 0.4.5:可复现报告 —— 同一源文件夹打包两次比 SHA-256 是否逐字节一致 + 影响因素清单(`--format zip|7z`)。
+    case reproduce(path: String, format: String?)
+    /// 0.4.5:检查发布包目录 —— 清点发布目录(产物/校验/容器/公钥/文档)+ SHA256SUMS 覆盖与陈旧 + 文档失效引用 + 孤儿文件。
+    case auditDirectory(path: String)
+    /// 0.4.5:快速核对发布组 —— 只按文件名速览发布目录组成(有无产物/容器/SHA256SUMS/公钥/VERIFY 文档,是否可校验)。
+    case verifyGroup(path: String)
 
     /// 0.4.4 #48:打印指定 shell 的补全脚本到 stdout(zsh / bash / fish)。
     case completions(shell: CLICompletions.Shell)
@@ -92,7 +106,7 @@ enum CLIInvocation: Equatable {
         return firstArgument == "--cli"
     }
 
-    nonisolated static let knownCommands = ["help", "version", "doctor", "open", "list", "check", "inspect", "compare", "create", "extract", "verify", "hash", "completions"]
+    nonisolated static let knownCommands = ["help", "version", "doctor", "open", "list", "check", "inspect", "compare", "create", "extract", "verify", "hash", "space", "rescue", "checkup", "duplicates", "reproduce", "audit", "verify-group", "completions"]
 
     /// 0.4.4 A:剥离全局旗标(--json/--quiet/--verbose,任意位置)→ (剩余参数, 旗标)。
     nonisolated static func extractOutputOptions(from arguments: [String]) -> (rest: [String], options: CLIOutputOptions) {
@@ -225,6 +239,64 @@ enum CLIInvocation: Equatable {
             }
             guard !positional.isEmpty else { throw ParseError.missingArguments(command: command) }
             return .extract(paths: positional, destination: destination)
+        case "space":
+            try rejectOptions(in: rest)
+            guard rest.count == 1 else { throw ParseError.missingArguments(command: command) }
+            return .space(path: rest[0])
+        case "rescue":
+            var destination: String?
+            var positional: [String] = []
+            var index = 0
+            while index < rest.count {
+                let argument = rest[index]
+                switch argument {
+                case "--to", "-d":
+                    guard index + 1 < rest.count else { throw ParseError.missingArguments(command: command) }
+                    destination = rest[index + 1]
+                    index += 2
+                default:
+                    if argument.hasPrefix("-") { throw ParseError.unexpectedOption(argument) }
+                    positional.append(argument)
+                    index += 1
+                }
+            }
+            guard positional.count == 1 else { throw ParseError.missingArguments(command: command) }
+            return .rescue(path: positional[0], destination: destination)
+        case "checkup":
+            try rejectOptions(in: rest)
+            guard !rest.isEmpty else { throw ParseError.missingArguments(command: command) }
+            return .checkup(paths: rest)
+        case "duplicates":
+            try rejectOptions(in: rest)
+            guard !rest.isEmpty else { throw ParseError.missingArguments(command: command) }
+            return .duplicates(paths: rest)
+        case "reproduce":
+            var format: String?
+            var positional: [String] = []
+            var index = 0
+            while index < rest.count {
+                let argument = rest[index]
+                switch argument {
+                case "--format", "-f":
+                    guard index + 1 < rest.count else { throw ParseError.missingArguments(command: command) }
+                    format = rest[index + 1]
+                    index += 2
+                default:
+                    if argument.hasPrefix("-") { throw ParseError.unexpectedOption(argument) }
+                    positional.append(argument)
+                    index += 1
+                }
+            }
+            guard positional.count == 1 else { throw ParseError.missingArguments(command: command) }
+            return .reproduce(path: positional[0], format: format)
+        case "audit":
+            try rejectOptions(in: rest)
+            guard rest.count == 1 else { throw ParseError.missingArguments(command: command) }
+            return .auditDirectory(path: rest[0])
+        case "verify-group":
+            try rejectOptions(in: rest)
+            guard rest.count == 1 else { throw ParseError.missingArguments(command: command) }
+            return .verifyGroup(path: rest[0])
         case "completions":
             guard let shellArgument = rest.first else { throw ParseError.missingArguments(command: command) }
             guard let shell = CLICompletions.Shell(rawValue: shellArgument) else {
@@ -303,6 +375,13 @@ enum CLIInvocation: Equatable {
       simplezip extract <archive>... [--to DIR]  Extract into a uniquely named folder (safe path)
       simplezip verify <checksum-file>...        Verify SHA256SUMS / checksums.txt / .sha256 / .md5 / .sfv
       simplezip hash <file>... [--algo LIST]     Compute checksums (CRC32/MD5/SHA1/SHA256/SHA512; default SHA256)
+      simplezip space <archive>                  Disk-usage breakdown (largest files/folders/extensions, ratio)
+      simplezip rescue <archive> [--to DIR]      Best-effort data recovery from a damaged archive
+      simplezip checkup <archive>...             Batch health check (test + suspicious/junk/encrypted counts)
+      simplezip duplicates <path>...             Find duplicate archives by structural fingerprint
+      simplezip reproduce <folder> [--format F]  Pack a folder twice and check byte-identical reproducibility
+      simplezip audit <folder>                   Audit a release directory (checksum coverage, orphans, stale refs)
+      simplezip verify-group <folder>            Quick name-only release-group check (is it verifiable?)
       simplezip doctor                           Check the CLI environment (app, backends, symlink)
       simplezip completions <zsh|bash|fish>      Print a shell completion script to stdout
       simplezip version                          Print version
@@ -426,6 +505,71 @@ enum CLIInvocation: Equatable {
             Encrypted archives prompt for a password (never shown on the command line);
             SIMPLEZIP_PASSWORD is tried first when set, then your saved preset / session
             password. Exit 1 if any archive fails.
+            """
+        case "space":
+            return """
+            simplezip space <archive> [--json] [--quiet]
+
+            Disk-usage breakdown for an archive: original vs packed size and ratio, the
+            largest files, top-level folders and extensions, and macOS-junk bytes.
+            Read-only; encrypted archives prompt for a password (or SIMPLEZIP_PASSWORD).
+            """
+        case "rescue":
+            return """
+            simplezip rescue <archive> [--to DIR] [--json] [--quiet]
+
+            Best-effort recovery from a damaged archive: pulls out whatever still reads
+            into a new "<name> (rescued)" folder (never overwriting; the original is never
+            touched). Rescued files may be incomplete and the archive is NOT repaired.
+            Recovered output still passes the untrusted-entry safety checks. --to sets the
+            parent folder. Exit 1 if nothing could be recovered.
+            """
+        case "checkup":
+            return """
+            simplezip checkup <archive>... [--json] [--quiet]
+
+            Batch health check across several archives: per archive an integrity test plus
+            file count, total size, and suspicious-path / macOS-junk / encrypted-entry
+            counts, then a summary line. Encrypted archives prompt for a password (or
+            SIMPLEZIP_PASSWORD). Exit 1 if any archive fails its integrity test.
+            """
+        case "duplicates":
+            return """
+            simplezip duplicates <path>... [--json] [--quiet]
+
+            Finds duplicate archives among the given archives (or every archive inside a
+            folder, when one directory is given). Groups by structural fingerprint
+            (identical path/size/CRC structure), then by matching entry-count-and-size.
+            Read-only. Exit 0 always; prints the groups it finds.
+            """
+        case "reproduce":
+            return """
+            simplezip reproduce <folder> [--format zip|7z] [--json] [--quiet]
+
+            Packs the folder twice with reproducible settings and reports whether the two
+            archives are byte-for-byte identical (SHA-256), plus which factors are
+            normalized / stripped / stored-as-is. Only zip and 7z support reproducible
+            output (default zip). Temporary archives are written to the system temp dir
+            and cleaned up. Exit 1 when the two builds differ.
+            """
+        case "audit":
+            return """
+            simplezip audit <folder> [--json] [--quiet]
+
+            Audits a release directory by name + checksum file (no hashing): classifies
+            artifacts / checksums / signed containers / public keys / VERIFY docs, then
+            reports SHA256SUMS coverage gaps and stale entries, file names referenced by
+            VERIFY*.md that are missing, and orphan files. Exit 1 if any artifact is left
+            uncovered by SHA256SUMS. For a content-level check, use `verify`.
+            """
+        case "verify-group":
+            return """
+            simplezip verify-group <folder> [--json] [--quiet]
+
+            A fast, name-only snapshot of a release folder's composition: whether it has a
+            downloadable artifact or signed container, a SHA256SUMS, a public key and a
+            VERIFY doc — and whether a downloader could verify it (artifact/container +
+            checksums). Reads nothing; exit 1 when it isn't verifiable.
             """
         case "doctor":
             return """

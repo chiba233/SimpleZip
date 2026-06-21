@@ -54,7 +54,8 @@ enum CLIRunner {
             // #48:纯打印补全脚本,不需要后端环境。
             print(CLICompletions.script(for: shell))
             return 0
-        case .version, .doctor, .open, .list, .check, .inspect, .compare, .create, .extract, .verify, .hash:
+        case .version, .doctor, .open, .list, .check, .inspect, .compare, .create, .extract, .verify, .hash,
+             .space, .rescue, .checkup, .duplicates, .reproduce, .auditDirectory, .verifyGroup:
             break
         }
 
@@ -94,6 +95,20 @@ enum CLIRunner {
             return await runInspect(path: path, environment: environment, output: output)
         case .extract(let paths, let destination):
             return await runExtract(paths: paths, destination: destination, environment: environment, output: output)
+        case .space(let path):
+            return await runSpace(path: path, environment: environment, output: output)
+        case .rescue(let path, let destination):
+            return await runRescue(path: path, destination: destination, environment: environment, output: output)
+        case .checkup(let paths):
+            return await runCheckup(paths: paths, environment: environment, output: output)
+        case .duplicates(let paths):
+            return await runDuplicates(paths: paths, environment: environment, output: output)
+        case .reproduce(let path, let format):
+            return await runReproduce(path: path, format: format, environment: environment, output: output)
+        case .auditDirectory(let path):
+            return await runAudit(path: path, environment: environment, output: output)
+        case .verifyGroup(let path):
+            return await runVerifyGroup(path: path, environment: environment, output: output)
         }
     }
 
@@ -780,6 +795,441 @@ enum CLIRunner {
             printJSON(["command": "extract", "results": resultObjects, "ok": failures == 0])
         }
         return failures == 0 ? 0 : 1
+    }
+
+    // MARK: - 工具批输入归一(0.4.5)
+
+    /// 单个目录 → 目录内顶层可用归档(含 `.siz`,名称自然排序);否则原样当成归档路径列表。供 checkup / duplicates 用。
+    private static func resolveArchiveInputs(_ paths: [String]) -> [URL] {
+        if paths.count == 1 {
+            let url = URL(fileURLWithPath: paths[0])
+            var isDir: ObjCBool = false
+            if FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir), isDir.boolValue {
+                let contents = (try? FileManager.default.contentsOfDirectory(at: url, includingPropertiesForKeys: nil)) ?? []
+                return contents
+                    .filter { SignedContainerService.isToolableArchive($0) }
+                    .sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
+            }
+        }
+        return paths.map { URL(fileURLWithPath: $0) }
+    }
+
+    // MARK: - space(0.4.5,空间分析)
+
+    private static func runSpace(path: String, environment: Environment, output options: CLIOutputOptions) async -> Int32 {
+        let url = URL(fileURLWithPath: path)
+        guard FileManager.default.fileExists(atPath: url.path) else {
+            printError("simplezip: no such file: \(url.path)")
+            return 2
+        }
+        let startedAt = Date()
+        do {
+            let items = try await listWithPasswordPrompts(url)
+            let a = ArchiveSpaceAnalysis.analyze(items)
+            func bytes(_ value: Int64) -> String { ByteCountFormatter.string(fromByteCount: value, countStyle: .file) }
+            var lines: [String] = [
+                "Files: \(a.fileCount)",
+                "Original size: \(bytes(a.totalBytes))",
+                "Packed size: \(bytes(a.packedBytes))"
+            ]
+            if let ratio = a.compressionRatio { lines.append("Compression ratio: \(String(format: "%.0f%%", ratio * 100))") }
+            if a.junkCount > 0 { lines.append("macOS junk: \(a.junkCount) entries, \(bytes(a.junkBytes))") }
+            if a.encryptedCount > 0 { lines.append("Encrypted entries: \(a.encryptedCount), \(bytes(a.encryptedBytes))") }
+            if !a.largestFiles.isEmpty {
+                lines.append("Largest files:")
+                a.largestFiles.forEach { lines.append("  \(bytes($0.bytes))\t\($0.name)") }
+            }
+            if !a.topLevelDirectories.isEmpty {
+                lines.append("Top-level folders:")
+                a.topLevelDirectories.prefix(10).forEach { lines.append("  \(bytes($0.bytes))\t\($0.name.isEmpty ? "(root)" : $0.name)") }
+            }
+            if !a.extensions.isEmpty {
+                lines.append("Extensions:")
+                a.extensions.forEach { lines.append("  \(bytes($0.bytes))\t\($0.name.isEmpty ? "(none)" : $0.name)") }
+            }
+            if options.json {
+                printJSON([
+                    "command": "space", "archive": url.path,
+                    "fileCount": a.fileCount, "totalBytes": a.totalBytes, "packedBytes": a.packedBytes,
+                    "junkCount": a.junkCount, "junkBytes": a.junkBytes,
+                    "encryptedCount": a.encryptedCount, "encryptedBytes": a.encryptedBytes,
+                    "largestFiles": a.largestFiles.map { ["name": $0.name, "bytes": $0.bytes] as [String: Any] },
+                    "topLevelFolders": a.topLevelDirectories.map { ["name": $0.name, "bytes": $0.bytes] as [String: Any] },
+                    "extensions": a.extensions.map { ["name": $0.name, "bytes": $0.bytes] as [String: Any] }
+                ])
+            } else if !options.quiet {
+                lines.forEach { print($0) }
+            }
+            recordTask(environment: environment, kind: .inspect, category: .archive,
+                       title: "simplezip space \(url.lastPathComponent)", detail: url.path,
+                       startedAt: startedAt, succeeded: true, failureMessage: nil, rawOutput: lines.joined(separator: "\n"))
+            return 0
+        } catch {
+            printError("simplezip: cannot analyze \(url.path): \(describe(error))")
+            return 1
+        }
+    }
+
+    // MARK: - rescue(0.4.5,数据救援)
+
+    private static func runRescue(path: String, destination: String?, environment: Environment, output options: CLIOutputOptions) async -> Int32 {
+        let url = URL(fileURLWithPath: path)
+        guard FileManager.default.fileExists(atPath: url.path) else {
+            printError("simplezip: no such file: \(url.path)")
+            return 2
+        }
+        var destinationParent: URL?
+        if let destination {
+            let dir = URL(fileURLWithPath: destination)
+            var isDir: ObjCBool = false
+            guard FileManager.default.fileExists(atPath: dir.path, isDirectory: &isDir), isDir.boolValue else {
+                printError("simplezip: destination is not an existing folder: \(dir.path)")
+                return 2
+            }
+            destinationParent = dir
+        }
+        // 损坏包可能列不动 → best-effort;列得动则 run() 内部照常过 validateForExtraction。
+        let listed = try? await ArchiveService.list(url)
+        let startedAt = Date()
+        func attempt(_ password: String) async throws -> ArchiveSalvage.Outcome {
+            try await ArchiveSalvage.run(archive: url, listedItems: listed, password: password,
+                                         destinationParent: destinationParent, operationID: UUID(), outputObserver: nil)
+        }
+        do {
+            var outcome: ArchiveSalvage.Outcome
+            do {
+                outcome = try await attempt("")
+            } catch {
+                guard ArchiveService.errorSuggestsPasswordRequirement(error) else { throw error }
+                var resolved: ArchiveSalvage.Outcome?
+                var lastError = error
+                if let env = ProcessInfo.processInfo.environment["SIMPLEZIP_PASSWORD"], !env.isEmpty {
+                    do { resolved = try await attempt(env) }
+                    catch { lastError = error; guard ArchiveService.errorSuggestsPasswordRequirement(error) else { throw error } }
+                }
+                if resolved == nil {
+                    for _ in 0..<3 {
+                        guard let password = promptPassword(for: url.lastPathComponent) else { throw CancellationError() }
+                        do { resolved = try await attempt(password); break }
+                        catch { lastError = error; guard ArchiveService.errorSuggestsPasswordRequirement(error) else { throw error } }
+                    }
+                }
+                guard let resolvedOutcome = resolved else { throw lastError }
+                outcome = resolvedOutcome
+            }
+            var lines: [String] = [
+                "Rescued \(outcome.rescuedFileCount) file(s) → \(outcome.destination.path)"
+            ]
+            if let reported = outcome.reportedErrorCount { lines.append("Backend reported \(reported) sub-item error(s).") }
+            if !outcome.failedEntryPaths.isEmpty {
+                lines.append("Could not read:")
+                outcome.failedEntryPaths.prefix(20).forEach { lines.append("  \($0)") }
+            }
+            lines.append("Note: rescued files may be incomplete; the archive itself was NOT repaired.")
+            if options.json {
+                let reportedErrorJSON: Any
+                if let count = outcome.reportedErrorCount { reportedErrorJSON = count } else { reportedErrorJSON = NSNull() }
+                printJSON([
+                    "command": "rescue", "archive": url.path, "destination": outcome.destination.path,
+                    "rescuedFileCount": outcome.rescuedFileCount,
+                    "reportedErrorCount": reportedErrorJSON,
+                    "failedEntryPaths": outcome.failedEntryPaths
+                ])
+            } else if !options.quiet {
+                lines.forEach { print($0) }
+            }
+            recordTask(environment: environment, kind: .extract, category: .archive,
+                       title: "simplezip rescue \(url.lastPathComponent)", detail: outcome.destination.path,
+                       startedAt: startedAt, succeeded: outcome.rescuedFileCount > 0,
+                       failureMessage: outcome.rescuedFileCount > 0 ? nil : "nothing recovered",
+                       rawOutput: lines.joined(separator: "\n"))
+            // 一个文件都没救出来 = 失败(exit 1);救出 ≥1 即成功(部分救援是预期)。
+            return outcome.rescuedFileCount > 0 ? 0 : 1
+        } catch is CancellationError {
+            printError("simplezip: rescue cancelled.")
+            return 1
+        } catch {
+            printError("simplezip: rescue failed for \(url.path): \(describe(error))")
+            return 1
+        }
+    }
+
+    // MARK: - checkup(0.4.5,批量体检)
+
+    private static func runCheckup(paths: [String], environment: Environment, output options: CLIOutputOptions) async -> Int32 {
+        let urls = resolveArchiveInputs(paths)
+        guard !urls.isEmpty else {
+            printError("simplezip: no archives to check.")
+            return 2
+        }
+        let startedAt = Date()
+        var failures = 0
+        var rowObjects: [[String: Any]] = []
+        var lines: [String] = []
+        for url in urls {
+            guard FileManager.default.fileExists(atPath: url.path) else {
+                printError("simplezip: no such file: \(url.path)")
+                lines.append("\(url.lastPathComponent): missing")
+                failures += 1
+                continue
+            }
+            // 批量场景不弹密码框:列不动/需口令的如实标注,不打断整批。
+            guard let items = try? await ArchiveService.list(url) else {
+                lines.append("\(url.lastPathComponent): not listable (encrypted name or damaged)")
+                rowObjects.append(["archive": url.path, "listable": false])
+                continue
+            }
+            let facts = ArchiveCheckup.entryFacts(items: items)
+            let stats = ReleaseInspection.stats(for: items)
+            var testResult = "passed"
+            do {
+                try await ArchiveService.test(url, password: "")
+            } catch {
+                if ArchiveService.errorSuggestsPasswordRequirement(error) {
+                    testResult = "needs password"
+                } else {
+                    testResult = "FAILED"
+                    failures += 1
+                }
+            }
+            let sizeText = ByteCountFormatter.string(fromByteCount: stats.totalBytes, countStyle: .file)
+            lines.append("\(url.lastPathComponent): \(testResult) · \(stats.fileCount) files · \(sizeText) · suspicious \(facts.suspiciousPathCount) · junk \(facts.junkCount) · encrypted \(facts.encryptedCount)")
+            rowObjects.append([
+                "archive": url.path, "listable": true, "test": testResult,
+                "fileCount": stats.fileCount, "totalBytes": stats.totalBytes,
+                "suspiciousPathCount": facts.suspiciousPathCount, "junkCount": facts.junkCount,
+                "encryptedCount": facts.encryptedCount
+            ])
+        }
+        if options.json {
+            printJSON(["command": "checkup", "rows": rowObjects, "archives": urls.count, "failed": failures, "ok": failures == 0])
+        } else if !options.quiet {
+            lines.forEach { print($0) }
+            if urls.count >= 2 { print("\(urls.count) archives · \(failures) failed") }
+        }
+        recordTask(environment: environment, kind: .test, category: .archive,
+                   title: "simplezip checkup (\(urls.count))", detail: nil,
+                   startedAt: startedAt, succeeded: failures == 0,
+                   failureMessage: failures == 0 ? nil : "\(failures) failed", rawOutput: lines.joined(separator: "\n"))
+        return failures == 0 ? 0 : 1
+    }
+
+    // MARK: - duplicates(0.4.5,查找疑似重复归档)
+
+    private static func runDuplicates(paths: [String], environment: Environment, output options: CLIOutputOptions) async -> Int32 {
+        let urls = resolveArchiveInputs(paths)
+        guard urls.count >= 2 else {
+            printError("simplezip: need at least two archives to compare.")
+            return 2
+        }
+        let startedAt = Date()
+        var sources: [ArchiveDuplicateScan.Source] = []
+        var skipped: [String] = []
+        for url in urls {
+            guard FileManager.default.fileExists(atPath: url.path) else { skipped.append(url.lastPathComponent); continue }
+            // `.siz` 按内层算指纹;列不动(加密名/损坏)→ 跳过(与 GUI 同口径,批量不弹框)。
+            let items: [ArchiveItem]? = try? await SignedContainerService.withToolAdaptedArchive(url) { target in
+                try await ArchiveService.list(target)
+            }
+            guard let items else { skipped.append(url.lastPathComponent); continue }
+            let files = items.filter { !$0.isDirectory }
+            sources.append(ArchiveDuplicateScan.Source(
+                url: url,
+                fingerprint: ArchiveStructuralFingerprint.compute(for: items),
+                entryCount: files.count,
+                totalBytes: files.reduce(0) { $0 + ($1.size ?? 0) }))
+        }
+        let groups = ArchiveDuplicateScan.groups(from: sources)
+        var lines: [String] = []
+        if groups.isEmpty {
+            lines.append("No duplicate archives found among \(sources.count) scanned.")
+        } else {
+            for group in groups {
+                let kind = group.confidence == .identicalStructure ? "identical structure" : "same count & size"
+                lines.append("[\(kind)] \(group.urls.map(\.lastPathComponent).joined(separator: ", "))")
+            }
+        }
+        if !skipped.isEmpty { lines.append("Skipped (not listable): \(skipped.joined(separator: ", "))") }
+        if options.json {
+            printJSON([
+                "command": "duplicates", "scanned": sources.count, "skipped": skipped,
+                "groups": groups.map { group -> [String: Any] in
+                    ["confidence": group.confidence == .identicalStructure ? "identicalStructure" : "sameCountAndSize",
+                     "archives": group.urls.map(\.path)]
+                }
+            ])
+        } else if !options.quiet {
+            lines.forEach { print($0) }
+        }
+        recordTask(environment: environment, kind: .test, category: .archive,
+                   title: "simplezip duplicates (\(sources.count))", detail: nil,
+                   startedAt: startedAt, succeeded: true, failureMessage: nil, rawOutput: lines.joined(separator: "\n"))
+        return 0
+    }
+
+    // MARK: - reproduce(0.4.5,可复现报告)
+
+    private static func runReproduce(path: String, format: String?, environment: Environment, output options: CLIOutputOptions) async -> Int32 {
+        let folderURL = URL(fileURLWithPath: path)
+        var isDir: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: folderURL.path, isDirectory: &isDir), isDir.boolValue else {
+            printError("simplezip: reproduce needs a folder: \(folderURL.path)")
+            return 2
+        }
+        let token = format ?? "zip"
+        guard let createFmt = createFormat(forOutputName: "x.\(token)") else {
+            printError("simplezip: unknown format \"\(token)\" (use zip or 7z).")
+            return 2
+        }
+        guard createFmt == .zip || createFmt == .sevenZip else {
+            printError("simplezip: reproduce supports only zip and 7z (reproducible formats).")
+            return 2
+        }
+        let temp = FileManager.default.temporaryDirectory
+            .appendingPathComponent("SimpleZip-Reproduce-\(UUID().uuidString)", isDirectory: true)
+        do {
+            try FileManager.default.createDirectory(at: temp, withIntermediateDirectories: true)
+        } catch {
+            printError("simplezip: cannot create temp dir: \(describe(error))")
+            return 2
+        }
+        defer { try? FileManager.default.removeItem(at: temp) }
+        var creationOptions = ArchiveCreationOptions()
+        creationOptions.format = createFmt
+        creationOptions.reproducibleArchive = true
+        let ext = createFmt.pathExtension
+        let first = temp.appendingPathComponent("first.\(ext)")
+        let second = temp.appendingPathComponent("second.\(ext)")
+        let startedAt = Date()
+        do {
+            try await ArchiveService.createArchive(from: [folderURL], destination: first, options: creationOptions)
+            try await ArchiveService.createArchive(from: [folderURL], destination: second, options: creationOptions)
+            let firstHash = try HashService.sha256(for: first)
+            let secondHash = try HashService.sha256(for: second)
+            var report = ReproducibilityReport.analyze(format: createFmt, reproducibleEnabled: true)
+            report.firstSHA256 = firstHash
+            report.secondSHA256 = secondHash
+            let identical = report.identical ?? false
+            var lines: [String] = [
+                "Format: .\(ext)",
+                "Byte-for-byte identical: \(identical ? "yes" : "no")",
+                "First  SHA-256: \(firstHash)",
+                "Second SHA-256: \(secondHash)",
+                "Factors:"
+            ]
+            for factor in report.factors { lines.append("  \(factor.factor.rawValue): \(factor.status.rawValue)") }
+            if !identical, !report.nonReproducibleFactors.isEmpty {
+                lines.append("Likely culprits (stored as-is): \(report.nonReproducibleFactors.map(\.rawValue).joined(separator: ", "))")
+            }
+            if options.json {
+                printJSON([
+                    "command": "reproduce", "folder": folderURL.path, "format": ext,
+                    "identical": identical, "firstSHA256": firstHash, "secondSHA256": secondHash,
+                    "factors": report.factors.map { ["factor": $0.factor.rawValue, "status": $0.status.rawValue] as [String: Any] }
+                ])
+            } else if !options.quiet {
+                lines.forEach { print($0) }
+            }
+            recordTask(environment: environment, kind: .inspect, category: .archive,
+                       title: "simplezip reproduce \(folderURL.lastPathComponent)", detail: folderURL.path,
+                       startedAt: startedAt, succeeded: true, failureMessage: nil, rawOutput: lines.joined(separator: "\n"))
+            return identical ? 0 : 1
+        } catch {
+            printError("simplezip: reproduce failed: \(describe(error))")
+            return 1
+        }
+    }
+
+    // MARK: - audit(0.4.5,检查发布包目录)
+
+    private static func runAudit(path: String, environment: Environment, output options: CLIOutputOptions) async -> Int32 {
+        let dir = URL(fileURLWithPath: path)
+        var isDir: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: dir.path, isDirectory: &isDir), isDir.boolValue else {
+            printError("simplezip: audit needs a folder: \(dir.path)")
+            return 2
+        }
+        let names = ((try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)) ?? [])
+            .map(\.lastPathComponent)
+        let inventory = ReleaseDirectoryAudit.classify(names: names) { ArchiveService.isSupportedArchive(URL(fileURLWithPath: $0)) }
+        var checksumEntries: [String] = []
+        for checksumFile in inventory.checksumFiles {
+            if let text = try? String(contentsOf: dir.appendingPathComponent(checksumFile), encoding: .utf8) {
+                checksumEntries += ChecksumFile.parse(text, fileName: checksumFile).map(\.name)
+            }
+        }
+        let coverage = ReleaseDirectoryAudit.checksumCoverage(entryNames: checksumEntries, artifacts: inventory.artifacts)
+        var missingRefs: [String] = []
+        for doc in inventory.verifyDocs {
+            if let text = try? String(contentsOf: dir.appendingPathComponent(doc), encoding: .utf8) {
+                missingRefs += ReleaseDirectoryAudit.missingDocumentReferences(documentText: text, directoryNames: names)
+            }
+        }
+        let orphans = ReleaseDirectoryAudit.orphans(in: inventory)
+        let startedAt = Date()
+        var lines: [String] = [
+            "Artifacts: \(inventory.artifacts.count) · checksum files: \(inventory.checksumFiles.count) · containers: \(inventory.containers.count) · public keys: \(inventory.publicKeys.count) · VERIFY docs: \(inventory.verifyDocs.count)"
+        ]
+        if !coverage.uncovered.isEmpty { lines.append("UNCOVERED by SHA256SUMS: \(coverage.uncovered.joined(separator: ", "))") }
+        if !coverage.stale.isEmpty { lines.append("Stale checksum entries (no such file): \(coverage.stale.joined(separator: ", "))") }
+        if !missingRefs.isEmpty { lines.append("VERIFY doc references missing on disk: \(missingRefs.joined(separator: ", "))") }
+        if !orphans.isEmpty { lines.append("Orphan files (not a known release role): \(orphans.joined(separator: ", "))") }
+        if coverage.uncovered.isEmpty, coverage.stale.isEmpty, missingRefs.isEmpty {
+            lines.append("No coverage gaps, stale entries or broken references found.")
+        }
+        if options.json {
+            printJSON([
+                "command": "audit", "folder": dir.path,
+                "artifacts": inventory.artifacts, "checksumFiles": inventory.checksumFiles,
+                "containers": inventory.containers, "publicKeys": inventory.publicKeys, "verifyDocs": inventory.verifyDocs,
+                "uncovered": coverage.uncovered, "staleChecksumEntries": coverage.stale,
+                "missingDocReferences": missingRefs, "orphans": orphans,
+                "ok": coverage.uncovered.isEmpty
+            ])
+        } else if !options.quiet {
+            lines.forEach { print($0) }
+        }
+        recordTask(environment: environment, kind: .inspect, category: .archive,
+                   title: "simplezip audit \(dir.lastPathComponent)", detail: dir.path,
+                   startedAt: startedAt, succeeded: coverage.uncovered.isEmpty,
+                   failureMessage: coverage.uncovered.isEmpty ? nil : "uncovered artifacts", rawOutput: lines.joined(separator: "\n"))
+        // 有产物没被 SHA256SUMS 覆盖 = 下载者无从校验 → exit 1。
+        return coverage.uncovered.isEmpty ? 0 : 1
+    }
+
+    // MARK: - verify-group(0.4.5,快速核对发布组)
+
+    private static func runVerifyGroup(path: String, environment: Environment, output options: CLIOutputOptions) async -> Int32 {
+        let dir = URL(fileURLWithPath: path)
+        var isDir: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: dir.path, isDirectory: &isDir), isDir.boolValue else {
+            printError("simplezip: verify-group needs a folder: \(dir.path)")
+            return 2
+        }
+        let names = ((try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)) ?? [])
+            .map(\.lastPathComponent)
+        let inventory = ReleaseDirectoryAudit.classify(names: names) { ArchiveService.isSupportedArchive(URL(fileURLWithPath: $0)) }
+        let summary = ReleaseDirectoryAudit.quickVerify(inventory)
+        func mark(_ value: Bool) -> String { value ? "yes" : "no" }
+        let lines = [
+            "Downloadable artifact: \(mark(summary.hasArtifact))",
+            "Signed container (.szs/.siz): \(mark(summary.hasContainer))",
+            "SHA256SUMS: \(mark(summary.hasChecksums))",
+            "Public key: \(mark(summary.hasPublicKey))",
+            "VERIFY doc: \(mark(summary.hasVerifyDoc))",
+            "Verifiable by a downloader: \(mark(summary.isVerifiable))"
+        ]
+        if options.json {
+            printJSON([
+                "command": "verify-group", "folder": dir.path,
+                "hasArtifact": summary.hasArtifact, "hasContainer": summary.hasContainer,
+                "hasChecksums": summary.hasChecksums, "hasPublicKey": summary.hasPublicKey,
+                "hasVerifyDoc": summary.hasVerifyDoc, "verifiable": summary.isVerifiable
+            ])
+        } else if !options.quiet {
+            lines.forEach { print($0) }
+        }
+        return summary.isVerifiable ? 0 : 1
     }
 
     // MARK: - doctor(0.4.4 A)

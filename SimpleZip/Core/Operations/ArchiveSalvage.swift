@@ -57,6 +57,7 @@ nonisolated enum ArchiveSalvage {
         archive: URL,
         listedItems: [ArchiveItem]?,
         password: String,
+        destinationParent: URL? = nil,
         operationID: UUID?,
         outputObserver: (@Sendable (String) -> Void)?
     ) async throws -> Outcome {
@@ -65,8 +66,8 @@ nonisolated enum ArchiveSalvage {
             try ArchiveSafety.validateForExtraction(listedItems)
         }
 
-        let preferred = archive
-            .deletingLastPathComponent()
+        // 救援目录落在 `destinationParent`(CLI `--to`)或归档所在目录(默认,GUI 行为)。
+        let preferred = (destinationParent ?? archive.deletingLastPathComponent())
             .appendingPathComponent(archive.deletingPathExtension().lastPathComponent + " (rescued)")
         let destination = UniqueFileName.suffixed(for: preferred, suffix: "") {
             FileManager.default.fileExists(atPath: $0.path)
