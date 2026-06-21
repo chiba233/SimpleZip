@@ -24,6 +24,12 @@ struct DevToolsView: View {
     @State private var sevenZipVersion = "…"
     @State private var rarVersion = "…"
     @State private var actionFeedback: String?
+    /// 侧栏导航当前选中区。默认 = 环境。
+    @State private var selectedSection: DevToolsSection = .environment
+    /// 每个 actionRow 的最新结果(键 = 行标题),行内显示在该行下方,免得跑到底部一处共享反馈再去翻。
+    @State private var actionResults: [String: String] = [:]
+    /// 更新助手测试:多选要弹哪些卡(存 rawValue)。
+    @State private var selectedTestCards: Set<String> = []
     // 0.4.3 #12:自检样本结果(运行时现造恶意样本对真实后端断言)。
     @State private var sampleResults: [SelfTestSampleRunner.SampleResult] = []
     @State private var isRunningSamples = false
@@ -60,19 +66,125 @@ struct DevToolsView: View {
         return "\(short) (\(build))"
     }
 
-    var body: some View {
-        VStack(spacing: 0) {
-            DialogHero(
-                systemImage: "hammer.fill",
-                colors: [.gray, .black],
-                title: L10n.text("devtools.title"),
-                subtitle: appVersionLine
-            )
+    /// 侧栏导航的八个区(顺序 = 旧的从上到下)。每项一个 SF Symbol + 标题(已有 L10n 键的用键,更新测试这条沿用调试区中文硬编码惯例)。
+    private enum DevToolsSection: String, CaseIterable, Identifiable {
+        case environment
+        case paths
+        case actions
+        case selfTest
+        case formatLab
+        case aiData
+        case updateTest
+        case defaults
 
-            // 独立窗口形态:满高滚动(不再像 sheet 那样封顶 560)。
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    DialogSection(L10n.text("devtools.section.environment")) {
+        var id: String { rawValue }
+
+        var title: String {
+            switch self {
+            case .environment: return L10n.text("devtools.section.environment")
+            case .paths: return L10n.text("devtools.section.paths")
+            case .actions: return L10n.text("devtools.section.actions")
+            case .selfTest: return L10n.text("devtools.section.selfTest")
+            case .formatLab: return L10n.text("devtools.section.formatLab")
+            case .aiData: return L10n.text("devtools.section.aiData")
+            case .updateTest: return "更新助手测试(调试)"
+            case .defaults: return L10n.text("devtools.section.defaults")
+            }
+        }
+
+        var systemImage: String {
+            switch self {
+            case .environment: return "desktopcomputer"
+            case .paths: return "folder"
+            case .actions: return "bolt"
+            case .selfTest: return "stethoscope"
+            case .formatLab: return "flask"
+            case .aiData: return "sparkles"
+            case .updateTest: return "sparkles.rectangle.stack"
+            case .defaults: return "slider.horizontal.3"
+            }
+        }
+    }
+
+    var body: some View {
+        NavigationSplitView {
+            // 单选 List 的 selection 需可空绑定;包一层:选空时退回当前区,详情不致空白。
+            let selectionBinding = Binding<DevToolsSection?>(
+                get: { selectedSection },
+                set: { selectedSection = $0 ?? selectedSection }
+            )
+            List(DevToolsSection.allCases, selection: selectionBinding) { section in
+                Label(section.title, systemImage: section.systemImage)
+                    .tag(section)
+            }
+            .navigationSplitViewColumnWidth(min: 200, ideal: 220, max: 280)
+        } detail: {
+            VStack(spacing: 0) {
+                DialogHero(
+                    systemImage: "hammer.fill",
+                    colors: [.gray, .black],
+                    title: L10n.text("devtools.title"),
+                    subtitle: appVersionLine
+                )
+
+                // 详情区:只渲染当前选中区的内容,满高滚动。
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
+                        detailContent
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 16)
+                }
+
+                // 独立窗口自带关闭按钮 → 只有旧 sheet 形态(onClose 非 nil)才渲染底部关闭条。
+                if let onClose {
+                    Divider()
+                    PinnedBottomBar {
+                        Spacer()
+                        Button(L10n.text("button.close")) { onClose() }
+                            .buttonStyle(.borderedProminent)
+                            .keyboardShortcut(.defaultAction)
+                    }
+                }
+            }
+        }
+        .frame(minWidth: 680, maxWidth: .infinity, maxHeight: .infinity)
+        .onAppear {
+            Task { @MainActor in
+                sevenZipVersion = await ArchiveService.sevenZipVersion()
+                rarVersion = await ArchiveService.rarVersion()
+            }
+            loadAIDataSnapshot()
+        }
+        .onReceive(aiDataRefreshTimer) { _ in
+            loadAIDataSnapshot()
+        }
+        .onDisappear {
+            aiInteractionExempt = false
+            AIBackgroundIndexer.shared.setDevToolsExemption(false)   // 关 DevTools 强制复位,豁免不外泄
+        }
+    }
+
+    /// 详情区:据当前侧栏选中区渲染对应 section(内容逐字搬自原长列表,未改内部)。
+    @ViewBuilder
+    private var detailContent: some View {
+        switch selectedSection {
+        case .environment: sectionEnvironment
+        case .paths: sectionPaths
+        case .actions: sectionActions
+        case .selfTest: sectionSelfTest
+        case .formatLab: sectionFormatLab
+        case .aiData: sectionAIData
+        case .updateTest: sectionUpdateTest
+        case .defaults: sectionDefaults
+        }
+    }
+
+    // MARK: - 各区内容(从原长列表逐字提取,内部未改)
+
+    @ViewBuilder
+    private var sectionEnvironment: some View {
+        DialogSection(L10n.text("devtools.section.environment")) {
                         infoRow("app", "SimpleZip", appVersionLine)
                         infoRow("desktopcomputer", "macOS", ProcessInfo.processInfo.operatingSystemVersionString)
                         infoRow("archivebox", "7zz", sevenZipVersion)
@@ -84,23 +196,29 @@ struct DevToolsView: View {
                                 ? L10n.text("devtools.gpg.available")
                                 : L10n.text("devtools.gpg.unavailable")
                         )
-                    }
+        }
+    }
 
-                    DialogSection(L10n.text("devtools.section.paths")) {
-                        pathRow(L10n.text("devtools.path.appSupport"), applicationSupportURL)
-                        pathRow(L10n.text("devtools.path.keyring"), GPGBackend.simpleZipGPGHomeDirectory())
-                        pathRow(L10n.text("devtools.path.temp"), FileManager.default.temporaryDirectory)
-                        pathRow(L10n.text("devtools.path.preferences"), preferencesPlistURL)
-                    }
+    @ViewBuilder
+    private var sectionPaths: some View {
+        DialogSection(L10n.text("devtools.section.paths")) {
+            pathRow(L10n.text("devtools.path.appSupport"), applicationSupportURL)
+            pathRow(L10n.text("devtools.path.keyring"), GPGBackend.simpleZipGPGHomeDirectory())
+            pathRow(L10n.text("devtools.path.temp"), FileManager.default.temporaryDirectory)
+            pathRow(L10n.text("devtools.path.preferences"), preferencesPlistURL)
+        }
+    }
 
-                    DialogSection(L10n.text("devtools.section.actions")) {
+    @ViewBuilder
+    private var sectionActions: some View {
+        DialogSection(L10n.text("devtools.section.actions")) {
                         actionRow(
                             "arrow.counterclockwise",
                             L10n.text("devtools.action.resetWelcome"),
                             L10n.text("devtools.action.resetWelcome.detail")
                         ) {
                             UserDefaults.standard.set(false, forKey: AppPreferences.Key.welcomeAssistantCompleted)
-                            flash(L10n.text("devtools.feedback.welcomeReset"))
+                            actionResults[L10n.text("devtools.action.resetWelcome")] = L10n.text("devtools.feedback.welcomeReset")
                         }
                         actionRow(
                             "exclamationmark.triangle",
@@ -108,7 +226,7 @@ struct DevToolsView: View {
                             L10n.text("devtools.action.simulateCrash.detail")
                         ) {
                             UserDefaults.standard.set(false, forKey: "SimpleZip.session.cleanShutdown")
-                            flash(L10n.text("devtools.feedback.crashArmed"))
+                            actionResults[L10n.text("devtools.action.simulateCrash")] = L10n.text("devtools.feedback.crashArmed")
                         }
                         actionRow(
                             "doc.on.clipboard",
@@ -119,14 +237,17 @@ struct DevToolsView: View {
                                 let report = await DiagnosticsCopier.makeGeneralReport()
                                 NSPasteboard.general.clearContents()
                                 NSPasteboard.general.setString(report, forType: .string)
-                                flash(L10n.text("devtools.feedback.reportCopied"))
+                                actionResults[L10n.text("devtools.action.copyReport")] = L10n.text("devtools.feedback.reportCopied")
                             }
                         }
-                    }
+        }
+    }
 
-                    // 0.4.3 #12:自检样本库 —— 现造路径逃逸 / 加密 / 损坏 / 缺分卷等样本,
-                    // 对装进 app 的真实后端逐项断言,发版前确认安全逻辑没回归。
-                    DialogSection(L10n.text("devtools.section.selfTest")) {
+    // 0.4.3 #12:自检样本库 —— 现造路径逃逸 / 加密 / 损坏 / 缺分卷等样本,
+    // 对装进 app 的真实后端逐项断言,发版前确认安全逻辑没回归。
+    @ViewBuilder
+    private var sectionSelfTest: some View {
+        DialogSection(L10n.text("devtools.section.selfTest")) {
                         HStack {
                             Button {
                                 isRunningSamples = true
@@ -163,11 +284,14 @@ struct DevToolsView: View {
                                 }
                             }
                         }
-                    }
+        }
+    }
 
-                    // 0.4.4 #6:格式兼容性实验室 —— 选小文件夹,对 zip/7z/tar/tar.gz 实测
-                    // 结构/权限/xattr/symlink/时间戳/注释/可复现(样本复制进临时区加探针,原文件夹只读)。
-                    DialogSection(L10n.text("devtools.section.formatLab")) {
+    // 0.4.4 #6:格式兼容性实验室 —— 选小文件夹,对 zip/7z/tar/tar.gz 实测
+    // 结构/权限/xattr/symlink/时间戳/注释/可复现(样本复制进临时区加探针,原文件夹只读)。
+    @ViewBuilder
+    private var sectionFormatLab: some View {
+        DialogSection(L10n.text("devtools.section.formatLab")) {
                         HStack {
                             Button {
                                 runFormatLab()
@@ -186,10 +310,13 @@ struct DevToolsView: View {
                         if !formatLabResults.isEmpty {
                             formatLabMatrix
                         }
-                    }
+        }
+    }
 
-                    // 0.4.5 #80:AI 可用数据(只读)—— 让「喂给 AI 的本机数据」可查。涉密内容不在此列(也从不进 AI)。
-                    DialogSection(L10n.text("devtools.section.aiData")) {
+    // 0.4.5 #80:AI 可用数据(只读)—— 让「喂给 AI 的本机数据」可查。涉密内容不在此列(也从不进 AI)。
+    @ViewBuilder
+    private var sectionAIData: some View {
+        DialogSection(L10n.text("devtools.section.aiData")) {
                         infoRow("sparkles", L10n.text("devtools.aiData.assistant"), aiAssistantStatus)
                         infoRow("archivebox", L10n.text("devtools.aiData.archiveMemory"), aiArchiveMemoryStatus)
                         infoRow("magnifyingglass", L10n.text("devtools.aiData.spotlight"), aiSpotlightStatus)
@@ -233,7 +360,7 @@ struct DevToolsView: View {
                         ) {
                             AIBackgroundIndexStore.shared.clearDerivedData()
                             loadAIDataSnapshot()
-                            flash("已清空 AI 派生数据")
+                            actionResults["清空 AI 派生数据"] = "已清空 AI 派生数据"
                         }
                         // 独立 AI 进程改造:两条投递通道各验一次「端上模型能否在非 App 的独立进程里跑」。
                         // ① 后台 LaunchAgent 通道:SMAppService 注册 + 连 Mach XPC;在 Login Items 可见、受「允许在后台」门控。
@@ -422,66 +549,48 @@ struct DevToolsView: View {
                         ) {
                             copySpotlightData()
                         }
-                    }
+            // flash(...) 仍被本区若干 actionRow 用(复制类),其结果显示在此区底部的共享反馈条。
+            sharedActionFeedback
+        }
+    }
 
-                    // 更新助手测试:独立 section(不塞进「AI 可用数据」box)—— 选单挑卡直接弹更新助手 + 重置已看标记。
-                    DialogSection("更新助手测试(调试)") {
-                        updateAssistantTestRow()
-                        actionRow(
-                            "arrow.counterclockwise.circle",
-                            "重置更新助手「已看」标记",
-                            "清空全部卡的已看 + 迁移标记 —— 下次启动老用户(已完成欢迎助手)会重新收到更新助手。"
-                        ) {
-                            AppPreferences.resetUpdateCardsSeen()
-                            flash("已重置更新助手标记(下次启动生效)")
-                        }
-                    }
-
-                    if let actionFeedback {
-                        Label(actionFeedback, systemImage: "checkmark.circle.fill")
-                            .font(.caption)
-                            .foregroundStyle(.green)
-                    }
-
-                    DialogSection(L10n.text("devtools.section.defaults")) {
-                        defaultsSnapshotList
-                        Button(L10n.text("devtools.defaults.copyAll")) {
-                            NSPasteboard.general.clearContents()
-                            NSPasteboard.general.setString(defaultsSnapshotText, forType: .string)
-                            flash(L10n.text("devtools.feedback.defaultsCopied"))
-                        }
-                        .controlSize(.small)
-                    }
-                }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 16)
-            }
-
-            // 独立窗口自带关闭按钮 → 只有旧 sheet 形态(onClose 非 nil)才渲染底部关闭条。
-            if let onClose {
-                Divider()
-                PinnedBottomBar {
-                    Spacer()
-                    Button(L10n.text("button.close")) { onClose() }
-                        .buttonStyle(.borderedProminent)
-                        .keyboardShortcut(.defaultAction)
-                }
+    // 更新助手测试:独立 section(不塞进「AI 可用数据」box)—— 复选挑卡直接弹更新助手 + 重置已看标记。
+    @ViewBuilder
+    private var sectionUpdateTest: some View {
+        DialogSection("更新助手测试(调试)") {
+            updateAssistantTestRow()
+            actionRow(
+                "arrow.counterclockwise.circle",
+                "重置更新助手「已看」标记",
+                "清空全部卡的已看 + 迁移标记 —— 下次启动老用户(已完成欢迎助手)会重新收到更新助手。"
+            ) {
+                AppPreferences.resetUpdateCardsSeen()
+                actionResults["重置更新助手「已看」标记"] = "已重置更新助手标记(下次启动生效)"
             }
         }
-        .frame(minWidth: 680, maxWidth: .infinity, maxHeight: .infinity)
-        .onAppear {
-            Task { @MainActor in
-                sevenZipVersion = await ArchiveService.sevenZipVersion()
-                rarVersion = await ArchiveService.rarVersion()
+    }
+
+    @ViewBuilder
+    private var sectionDefaults: some View {
+        DialogSection(L10n.text("devtools.section.defaults")) {
+            defaultsSnapshotList
+            Button(L10n.text("devtools.defaults.copyAll")) {
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(defaultsSnapshotText, forType: .string)
+                flash(L10n.text("devtools.feedback.defaultsCopied"))
             }
-            loadAIDataSnapshot()
+            .controlSize(.small)
+            sharedActionFeedback
         }
-        .onReceive(aiDataRefreshTimer) { _ in
-            loadAIDataSnapshot()
-        }
-        .onDisappear {
-            aiInteractionExempt = false
-            AIBackgroundIndexer.shared.setDevToolsExemption(false)   // 关 DevTools 强制复位,豁免不外泄
+    }
+
+    /// 共享反馈条:仍走 `flash(...)` 的调用点(复制 / 重置类)把结果设进 `actionFeedback`,在所属区底部显示一次。
+    @ViewBuilder
+    private var sharedActionFeedback: some View {
+        if let actionFeedback {
+            Label(actionFeedback, systemImage: "checkmark.circle.fill")
+                .font(.caption)
+                .foregroundStyle(.green)
         }
     }
 
@@ -540,51 +649,82 @@ struct DevToolsView: View {
 
     @ViewBuilder
     private func actionRow(_ systemImage: String, _ title: String, _ detail: String, action: @escaping () -> Void) -> some View {
-        HStack(spacing: 10) {
-            VStack(alignment: .leading, spacing: 1) {
-                Text(title)
-                    .font(.callout.weight(.medium))
-                Text(detail)
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 10) {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(title)
+                        .font(.callout.weight(.medium))
+                    Text(detail)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer()
+                Button {
+                    action()
+                } label: {
+                    Image(systemName: systemImage)
+                }
+                .controlSize(.small)
+            }
+            // 该行自己的最新结果(键 = 行标题),就近显示在行下方 —— 不必再翻到底部一处共享反馈。
+            if let result = actionResults[title], !result.isEmpty {
+                Label(result, systemImage: "checkmark.circle.fill")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.green)
+                    .textSelection(.enabled)
                     .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
-            Spacer()
-            Button {
-                action()
-            } label: {
-                Image(systemName: systemImage)
-            }
-            .controlSize(.small)
         }
     }
 
-    /// 更新助手测试行:右侧一个**选单**挑「哪张卡」(或全部)直接弹更新助手——不必真升级。
+    /// 更新助手测试行:逐卡复选要弹哪些,一个按钮直接弹更新助手——不必真升级。
     @ViewBuilder
     private func updateAssistantTestRow() -> some View {
-        HStack(spacing: 10) {
+        VStack(alignment: .leading, spacing: 8) {
             VStack(alignment: .leading, spacing: 1) {
                 Text("触发更新助手(选卡测试)")
                     .font(.callout.weight(.medium))
-                Text("从右侧选单挑一张 / 全部新卡,直接弹更新助手 —— 不必真升级。走完会把所选卡标记已看(再测用下面的重置)。")
+                Text("勾选要弹的新卡(可多选),点下面按钮直接弹更新助手 —— 不必真升级。走完会把所选卡标记已看(再测用下面的重置)。")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            Spacer()
-            Menu {
-                ForEach(UpdateCard.allCases) { card in
-                    Button("「\(card.rawValue)」卡") { triggerUpdateAssistant([card.rawValue]) }
+            ForEach(UpdateCard.allCases) { card in
+                Toggle(isOn: Binding(
+                    get: { selectedTestCards.contains(card.rawValue) },
+                    set: { isOn in
+                        if isOn { selectedTestCards.insert(card.rawValue) }
+                        else { selectedTestCards.remove(card.rawValue) }
+                    }
+                )) {
+                    Text("「\(card.rawValue)」卡")
+                        .font(.callout)
                 }
-                if UpdateCard.allCases.count > 1 {
-                    Divider()
-                    Button("全部新卡") { triggerUpdateAssistant(UpdateCard.allCases.map(\.rawValue)) }
-                }
-            } label: {
-                Label("选择卡片", systemImage: "sparkles.rectangle.stack")
+                .toggleStyle(.checkbox)
             }
-            .controlSize(.small)
-            .fixedSize()
+            HStack(spacing: 10) {
+                Button("全选") {
+                    selectedTestCards = Set(UpdateCard.allCases.map(\.rawValue))
+                }
+                .controlSize(.small)
+                Button("清空") {
+                    selectedTestCards.removeAll()
+                }
+                .controlSize(.small)
+                .disabled(selectedTestCards.isEmpty)
+                Spacer()
+                Button {
+                    let ordered = UpdateCard.allCases.map(\.rawValue).filter { selectedTestCards.contains($0) }
+                    triggerUpdateAssistant(ordered)
+                } label: {
+                    Label("触发更新助手(已选 \(selectedTestCards.count))", systemImage: "sparkles.rectangle.stack")
+                }
+                .controlSize(.small)
+                .buttonStyle(.borderedProminent)
+                .disabled(selectedTestCards.isEmpty)
+            }
         }
     }
 
