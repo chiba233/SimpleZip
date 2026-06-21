@@ -675,6 +675,7 @@
 				DEAD_CODE_STRIPPING = YES;
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
 				ONLY_ACTIVE_ARCH = YES;
+				OTHER_CODE_SIGN_FLAGS = "--identifier yumeka.SimpleZip-in-mac.dev.aiagent";
 				PRODUCT_BUNDLE_IDENTIFIER = "yumeka.SimpleZip-in-mac.dev.aiagent";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;
@@ -713,6 +714,7 @@
 				CODE_SIGN_STYLE = Manual;
 				DEAD_CODE_STRIPPING = YES;
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				OTHER_CODE_SIGN_FLAGS = "--identifier yumeka.SimpleZip-in-mac.aiagent";
 				PRODUCT_BUNDLE_IDENTIFIER = "yumeka.SimpleZip-in-mac.aiagent";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;
