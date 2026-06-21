@@ -77,16 +77,29 @@ enum SevenZipBackend {
 
     // MARK: - 操作（Phase 4 step 3b）
 
-    /// 用 `7zz l -slt` 列出压缩包条目。
+    /// 用 `7zz l -slt` 列出压缩包条目 —— **流式解析**。
     /// `password` 非空时走密码 strategy 让 7zz 在交互提示时拿到密码；空时不喂任何输入。
-    /// 解析交给 `ArchiveService.parseSevenZipList` —— 那一段已经被 fixture 测试覆盖。
+    /// 输出**逐 chunk 喂**进增量 `SevenZipListStreamParser`,**不把整串原始输出 + 其 \r 副本攒在内存里**
+    /// (超大归档同时持有原始串 + 副本 + 条目数组是 OOM 元凶)。返回串只留尾部供失败诊断;头注释由 parser
+    /// 从头段提取。解析逻辑被 fixture 覆盖(parseSevenZipList 整串入口委托同一 parser)。
     nonisolated static func list(
         _ archive: URL,
         password: String = "",
         operationID: UUID? = nil
     ) async throws -> [ArchiveItem] {
-        let output = try await rawListOutput(archive, password: password, operationID: operationID)
-        return ArchiveService.parseSevenZipList(output)
+        let tool = try toolPath()
+        let inputStrategy: ProcessInputStrategy = password.isEmpty ? .none : .passwordPrompts([password])
+        let parser = ArchiveService.SevenZipListStreamParser()
+        _ = try await BackendProcessRunner.runAndCapture(
+            tool,
+            arguments: ["l", "-slt", archive.path],
+            inputStrategy: inputStrategy,
+            outputObserver: { parser.consume($0) },
+            operationID: operationID,
+            outputRetentionLimit: BackendProcessRunner.diagnosticsOutputRetentionLimit
+        )
+        ArchiveService.recordHeaderComment(parser.headerComment, for: archive)
+        return parser.finish()
     }
 
     /// `7zz l -slt` 的**原始输出**(#13 归档元数据报告要解析头部块;list 共用本函数)。

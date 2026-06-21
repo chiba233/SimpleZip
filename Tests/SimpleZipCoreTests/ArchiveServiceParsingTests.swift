@@ -172,6 +172,50 @@ struct ArchiveServiceParsingTests {
         #expect(items.map(\.name) == ["file.txt"])
     }
 
+    @Test
+    func streamParserPerCharChunksMatchOneShot() {
+        // 流式路径(SevenZipBackend.list)按任意字节边界喂 chunk;现有 fixture 都是整串喂,测不到「跨 chunk
+        // 切半行 / 切在空白分隔行」。这条用最极端的逐字符喂,断言与一次性 parseSevenZipList 完全一致,
+        // 并确认头块(Type/Physical Size)被正确跳过。
+        let output = """
+        Path = /tmp/x.7z
+        Type = 7z
+        Physical Size = 100
+
+        ----------
+        Path = a.txt
+        Size = 1
+        Modified = 2026-05-13 01:02:03
+        Attributes = A
+        Method = LZMA2
+
+        Path = dir/b.txt
+        Size = 2
+        Modified = 2026-05-13 01:02:04
+        Attributes = A
+        Method = LZMA2
+        """
+        let oneShot = ArchiveService.parseSevenZipList(output)
+        let parser = ArchiveService.SevenZipListStreamParser()
+        for ch in output { parser.consume(String(ch)) }
+        let streamed = parser.finish()
+        #expect(oneShot.map(\.name) == ["a.txt", "dir/b.txt"])
+        #expect(streamed.map(\.name) == oneShot.map(\.name))
+        #expect(streamed.map(\.modifiedText) == oneShot.map(\.modifiedText))
+    }
+
+    @Test
+    func streamParserPerCharChunksHandleCRLF() {
+        // 密码路径用 PTY,macOS ONLCR 把 \n 变 \r\n —— 流式逐 chunk 也必须正确去 \r 并分块。
+        let output = "Path = a.txt\r\nSize = 1\r\nModified = 2026-05-13 01:02:03\r\nMethod = LZMA2\r\n\r\nPath = b.txt\r\nSize = 2\r\nModified = 2026-05-13 01:02:04\r\nMethod = LZMA2\r\n"
+        let parser = ArchiveService.SevenZipListStreamParser()
+        for ch in output { parser.consume(String(ch)) }
+        let streamed = parser.finish()
+        #expect(streamed.map(\.name) == ["a.txt", "b.txt"])
+        // value 不应带残留 \r(否则 ArchiveSafety 误判)。
+        #expect(streamed.allSatisfy { !$0.name.contains("\r") && !$0.method.contains("\r") })
+    }
+
     // MARK: - expandedEntryNames 边角
 
     @Test

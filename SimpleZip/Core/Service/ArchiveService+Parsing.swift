@@ -163,22 +163,77 @@ extension ArchiveService {
         return stem.isEmpty ? archiveName : stem
     }
 
+    /// 一次性解析整串 `7zz l -slt` 输出 → [ArchiveItem]。委托给增量 `SevenZipListStreamParser`(喂整串 + finish),
+    /// 与逐 chunk 流式路径**完全同逻辑**(fixture 覆盖此入口)。流式路径见 `SevenZipBackend.list`:按 chunk 喂同一
+    /// parser,**不再把整串原始输出 + 其 \r 副本同时压在内存里**(超大归档 OOM 的元凶之一)。
     nonisolated static func parseSevenZipList(_ output: String) -> [ArchiveItem] {
-        // 当 list 走密码路径时（runWithPseudoTerminal），底层 PTY 在 macOS 默认 ONLCR
-        // 状态下会把 7zz 输出里的每个 \n 转成 \r\n。下面按 \n 分行后每行末尾会留 \r：
-        //   1) 含 \r 的「空白分隔行」(只有 "\r") 不再触发 flush()，多个条目的 values 互相覆盖；
-        //   2) 即便最终能 flush 出来，Path / Method 这些 value 也带 \r 尾，触发 ArchiveSafety 误判。
-        // 这里在解析前把所有 \r 剔除掉 —— 7z 输出里 \r 不会出现在文件名里（合法路径不允许）。
-        let output = output.replacingOccurrences(of: "\r", with: "")
-        var rows: [ArchiveItem] = []
-        var values: [String: String] = [:]
-        // 头块信息(zstd 单流合成内层名要用):Type + 归档文件名。
-        var headerType = ""
-        var headerArchiveName = ""
-        // 整次 parse 复用一个 Calendar(见 archiveDateCalendar:手动解析绕开 DateFormatter 的 ICU 冷启动)。
-        let calendar = archiveDateCalendar()
+        let parser = SevenZipListStreamParser()
+        parser.consume(output)
+        return parser.finish()
+    }
 
-        func flush() {
+    /// 增量解析 `7zz l -slt` 输出。按 chunk 喂 `consume`、跨 chunk 用 `remainder` 接半行,`finish()` 收尾。
+    /// **不持有整串输出**:逐 chunk 去 \r、逐块 flush,内存只留「当前块 values + 累积 rows + 有界头段缓冲」。
+    /// 线程:由 BackendProcessRunner 的**单个**读取线程顺序喂 `consume`,`await` 返回后(读取已结束)才 `finish`
+    /// —— 存在 happens-before,无并发访问,故 `@unchecked Sendable` 不加锁(逐行加锁对百万行不划算)。
+    nonisolated final class SevenZipListStreamParser: @unchecked Sendable {
+        private var rows: [ArchiveItem] = []
+        private var values: [String: String] = [:]
+        // 头块信息(zstd 单流合成内层名要用):Type + 归档文件名。
+        private var headerType = ""
+        private var headerArchiveName = ""
+        // 跨 chunk 的半行缓存(上一块末尾未结束的行)。
+        private var remainder = ""
+        // 头注释(Comment,可能多行 `{ }`)在头段(`----------` 之前)。累积头段原文(有界)供 parseArchiveHeaderComment 提取。
+        private var headerBuffer = ""
+        private var headerDone = false
+        // 整次 parse 复用一个 Calendar(见 archiveDateCalendar:手动解析绕开 DateFormatter 的 ICU 冷启动)。
+        private let calendar = ArchiveService.archiveDateCalendar()
+
+        /// 头段原文解析出的归档级注释(zip/rar 头部 Comment);无则空串。
+        var headerComment: String { ArchiveService.parseArchiveHeaderComment(headerBuffer) }
+
+        /// 喂入一段输出(可能在任意字节边界切开)。
+        func consume(_ chunk: String) {
+            // 逐 chunk 去 \r(PTY ONLCR 把 \n 变 \r\n;不整串复制),跨 chunk 用 remainder 接半行。
+            let combined = remainder + chunk.replacingOccurrences(of: "\r", with: "")
+            let segments = combined.components(separatedBy: "\n")
+            remainder = segments.last ?? ""   // 最后一段可能是半行,留到下一块
+            for line in segments.dropLast() {
+                handleLine(line)
+            }
+        }
+
+        /// 收尾:把残留半行当最后一行处理,再 flush 末块,返回全部条目。
+        func finish() -> [ArchiveItem] {
+            if !remainder.isEmpty {
+                handleLine(remainder)
+                remainder = ""
+            }
+            flush()
+            return rows
+        }
+
+        private func handleLine(_ line: String) {
+            // 头段累积(到 `----------` 止;有界防异常输出无限累积),供 headerComment 提取。
+            if !headerDone {
+                if line.hasPrefix("----------") {
+                    headerDone = true
+                } else if headerBuffer.utf8.count < 64_000 {
+                    headerBuffer += line + "\n"
+                }
+            }
+            if line.isEmpty {
+                flush()
+                return
+            }
+            let parts = line.split(separator: "=", maxSplits: 1).map { $0.trimmingCharacters(in: .whitespaces) }
+            if parts.count == 2 {
+                values[parts[0]] = parts[1]
+            }
+        }
+
+        private func flush() {
             guard let rawPath = values["Path"] else {
                 // zstd 单流(0.4.3 实测):`-slt` 的条目块**没有 Path**,只有空的 Size/Packed Size 行
                 // (gzip/xz 都带 Path,唯独 zstd 不带)。7zz 自己在普通 `l` 输出和解压时按
@@ -186,7 +241,7 @@ extension ArchiveService {
                 // 否则 zst/tar.zst 打开永远是空列表。按名解选中条目实测可用(7zz 接受合成名)。
                 if headerType == "zstd", !headerArchiveName.isEmpty,
                    values.keys.contains("Size") || values.keys.contains("Packed Size") {
-                    let inner = singleStreamInnerName(forArchiveNamed: headerArchiveName)
+                    let inner = ArchiveService.singleStreamInnerName(forArchiveNamed: headerArchiveName)
                     rows.append(
                         ArchiveItem(
                             name: inner,
@@ -215,7 +270,7 @@ extension ArchiveService {
                 values.removeAll()
                 return
             }
-            let path = decodeArchivePathEscapes(rawPath)
+            let path = ArchiveService.decodeArchivePathEscapes(rawPath)
             guard path != "." else {
                 values.removeAll()
                 return
@@ -263,20 +318,20 @@ extension ArchiveService {
                     name: path,
                     isDirectory: isDirectory,
                     size: isDirectory ? nil : size,
-                    modified: parseSevenZipModified(modifiedText, calendar: calendar),
+                    modified: ArchiveService.parseSevenZipModified(modifiedText, calendar: calendar),
                     sizeText: isDirectory ? "" : ByteCountFormatter.string(fromByteCount: size, countStyle: .file),
                     modifiedText: modifiedText,
                     method: values["Method"] ?? "",
-                    isEncrypted: values["Encrypted"] == "+" || archiveMethodSuggestsEncryption(values["Method"] ?? ""),
+                    isEncrypted: values["Encrypted"] == "+" || ArchiveService.archiveMethodSuggestsEncryption(values["Method"] ?? ""),
                     packedSize: (isDirectory || packedSize == nil) ? nil : packedSize,
                     packedSizeText: (isDirectory || packedSize == nil)
                         ? ""
                         : ByteCountFormatter.string(fromByteCount: packedSize ?? 0, countStyle: .file),
                     crc: values["CRC"] ?? "",
-                    created: parseSevenZipModified(createdText, calendar: calendar),
+                    created: ArchiveService.parseSevenZipModified(createdText, calendar: calendar),
                     createdText: createdText,
                     attributes: values["Attributes"] ?? "",
-                    accessed: parseSevenZipModified(accessedText, calendar: calendar),
+                    accessed: ArchiveService.parseSevenZipModified(accessedText, calendar: calendar),
                     accessedText: accessedText,
                     hostOS: values["Host OS"] ?? "",
                     characteristics: values["Characteristics"] ?? "",
@@ -286,22 +341,6 @@ extension ArchiveService {
             )
             values.removeAll()
         }
-
-        for line in output.split(separator: "\n", omittingEmptySubsequences: false) {
-            let text = String(line)
-            if text.isEmpty {
-                flush()
-                continue
-            }
-
-            let parts = text.split(separator: "=", maxSplits: 1).map { $0.trimmingCharacters(in: .whitespaces) }
-            if parts.count == 2 {
-                values[parts[0]] = parts[1]
-            }
-        }
-
-        flush()
-        return rows
     }
 
     /// `zipEncryption` 非 nil 时(调用方已在打开时缓存了检测结果,见 ArchiveSession.detectedZipEncryption)直接用,
