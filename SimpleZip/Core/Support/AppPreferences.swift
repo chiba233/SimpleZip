@@ -970,14 +970,14 @@ enum AppPreferences {
 
     nonisolated static func pinSidebarURL(_ url: URL) {
         var paths = defaults.stringArray(forKey: Key.pinnedSidebarPaths) ?? []
-        let path = url.standardizedFileURL.path
+        let path = url.standardized.path
         paths.removeAll { $0 == path }
         paths.insert(path, at: 0)
         defaults.set(Array(paths.prefix(12)), forKey: Key.pinnedSidebarPaths)
     }
 
     nonisolated static func unpinSidebarURL(_ url: URL) {
-        let path = url.standardizedFileURL.path
+        let path = url.standardized.path
         let paths = (defaults.stringArray(forKey: Key.pinnedSidebarPaths) ?? []).filter { $0 != path }
         defaults.set(paths, forKey: Key.pinnedSidebarPaths)
     }
@@ -1644,13 +1644,17 @@ enum AppPreferences {
 
     private nonisolated static func rememberRecentFolder(_ url: URL) {
         var paths = defaults.stringArray(forKey: Key.recentSidebarPaths) ?? []
-        let path = url.standardizedFileURL.path
+        let path = url.standardized.path
         paths.removeAll { $0 == path }
         paths.insert(path, at: 0)
         defaults.set(Array(paths.prefix(8)), forKey: Key.recentSidebarPaths)
     }
 
     private nonisolated static func urls(forKey key: String) -> [URL] {
-        (defaults.stringArray(forKey: key) ?? []).map { URL(fileURLWithPath: $0) }
+        // URL(fileURLWithPath:) without isDirectory: maps to directoryHint:.checkFileSystem on
+        // macOS 26 Swift Foundation, which calls lstat() for every path. On network volumes this
+        // blocks the main thread (dev9 sample: 2384/2384 samples on lstat via recentSidebarURLs
+        // at app-activate). Use .inferFromPath — no filesystem access, infers from trailing slash.
+        (defaults.stringArray(forKey: key) ?? []).map { URL(filePath: $0, directoryHint: .inferFromPath) }
     }
 }
