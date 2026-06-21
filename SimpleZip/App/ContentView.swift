@@ -339,9 +339,11 @@ struct ContentView: View {
         }
         // 地址栏输入网络归档 URL → 独立「下载并解压」面板(探测服务器是否流式 + 边下边解,整包不落盘)。
         .sheet(item: $model.webExtractRequest) { request in
-            WebExtractSheet(request: request) {
+            WebExtractSheet(request: request) { extractedTarget in
                 model.webExtractRequest = nil
-                model.refreshVisibleFolder(request.destination)
+                if let extractedTarget {
+                    model.revealWebExtractResult(extractedTarget)   // app 内导航 + 选中,不唤醒 Finder
+                }
             }
         }
         .sheet(item: $model.permissionsEditRequest) { request in

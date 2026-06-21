@@ -1110,6 +1110,19 @@ extension ArchiveBrowserModel {
     func refreshVisibleFolder(containing url: URL) {
         refreshVisibleFolder(url.deletingLastPathComponent())
     }
+
+    /// 网络解压完成后在**应用自己的浏览器**里揭示结果:导航到目标所在文件夹 + 选中解出的项 —— **不唤醒 Finder**
+    /// (SimpleZip 自己就是文件浏览器)。已在目标文件夹则刷新,否则导航过去;选中靠 pendingSelectionURL(文件表
+    /// 加载后按它选中,与选区匹配同口径用 standardizedFileURL)。
+    func revealWebExtractResult(_ target: URL) {
+        let folder = target.deletingLastPathComponent()
+        pendingSelectionURL = target.standardizedFileURL
+        if case .folder(let current) = mode, current.standardizedFileURL == folder.standardizedFileURL {
+            reload()
+        } else {
+            openFolder(folder)
+        }
+    }
 }
 
 /// #72:跨「外部打开(Spotlight 单文件 intent)」→「归档异步加载完成」的侧信道 —— 记下某归档加载完要 reveal

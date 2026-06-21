@@ -19,7 +19,8 @@ struct WebExtractRequest: Identifiable {
 
 struct WebExtractSheet: View {
     @State var request: WebExtractRequest
-    let onClose: () -> Void
+    /// 关闭回调:成功带回解出的目标 URL(供 app 内浏览器导航 + 选中,**不唤醒 Finder**);取消 / 失败为 nil。
+    let onClose: (URL?) -> Void
 
     private enum Phase: Equatable {
         case probing
@@ -236,11 +237,11 @@ struct WebExtractSheet: View {
                     })
                 phase = .done(target)
                 SystemSound.operationComplete?.play()
-                NSWorkspace.shared.activateFileViewerSelecting([target])
-                try? await Task.sleep(nanoseconds: 1_000_000_000)
-                onClose()
+                // 不唤醒 Finder —— SimpleZip 自己就是文件浏览器,在 app 内导航 + 选中(见 onClose 回调)。
+                try? await Task.sleep(nanoseconds: 800_000_000)
+                onClose(target)
             } catch is CancellationError {
-                onClose()
+                onClose(nil)
             } catch {
                 phase = .failed(error.localizedDescription)
             }
@@ -264,6 +265,6 @@ struct WebExtractSheet: View {
         if case .running = phase {
             runTask?.cancel()   // → URLSession task 取消 + bsdtar 终止 + 清理(见 WebArchiveStreamExtract）
         }
-        onClose()
+        onClose(nil)
     }
 }
