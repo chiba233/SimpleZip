@@ -23,7 +23,6 @@ struct DevToolsView: View {
 
     @State private var sevenZipVersion = "…"
     @State private var rarVersion = "…"
-    @State private var actionFeedback: String?
     /// 侧栏导航当前选中区。默认 = 环境。
     @State private var selectedSection: DevToolsSection = .environment
     /// 每个 actionRow 的最新结果(键 = 行标题),行内显示在该行下方,免得跑到底部一处共享反馈再去翻。
@@ -54,8 +53,6 @@ struct DevToolsView: View {
     @State private var aiGateStatus = "…"
     /// 每个 pass 上次跑的候选数 / 跳过原因(区分「无候选」和「门控没过 / 没跑过」)。
     @State private var aiPassDiagStatus = "…"
-    /// agent 探针/查询的**常驻**当前状态(用户明确要别 flash 一闪而过)。最近一次任意 agent 通道调用的结果常驻在此。
-    @State private var agentProbeStatus = "未运行 —— 点下面任一 agent 探针/查询按钮试一次。"
     @State private var aiDataSnapshotInFlight = false
 
     private let aiDataRefreshTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
@@ -216,28 +213,28 @@ struct DevToolsView: View {
                             "arrow.counterclockwise",
                             L10n.text("devtools.action.resetWelcome"),
                             L10n.text("devtools.action.resetWelcome.detail")
-                        ) {
+                        ) { setResult in
                             UserDefaults.standard.set(false, forKey: AppPreferences.Key.welcomeAssistantCompleted)
-                            actionResults[L10n.text("devtools.action.resetWelcome")] = L10n.text("devtools.feedback.welcomeReset")
+                            setResult(L10n.text("devtools.feedback.welcomeReset"))
                         }
                         actionRow(
                             "exclamationmark.triangle",
                             L10n.text("devtools.action.simulateCrash"),
                             L10n.text("devtools.action.simulateCrash.detail")
-                        ) {
+                        ) { setResult in
                             UserDefaults.standard.set(false, forKey: "SimpleZip.session.cleanShutdown")
-                            actionResults[L10n.text("devtools.action.simulateCrash")] = L10n.text("devtools.feedback.crashArmed")
+                            setResult(L10n.text("devtools.feedback.crashArmed"))
                         }
                         actionRow(
                             "doc.on.clipboard",
                             L10n.text("devtools.action.copyReport"),
                             L10n.text("devtools.action.copyReport.detail")
-                        ) {
+                        ) { setResult in
                             Task { @MainActor in
                                 let report = await DiagnosticsCopier.makeGeneralReport()
                                 NSPasteboard.general.clearContents()
                                 NSPasteboard.general.setString(report, forType: .string)
-                                actionResults[L10n.text("devtools.action.copyReport")] = L10n.text("devtools.feedback.reportCopied")
+                                setResult(L10n.text("devtools.feedback.reportCopied"))
                             }
                         }
         }
@@ -343,24 +340,24 @@ struct DevToolsView: View {
                             "doc.on.clipboard",
                             L10n.text("devtools.action.copyAIIndexData"),
                             L10n.text("devtools.action.copyAIIndexData.detail")
-                        ) {
-                            copyAIIndexData()
+                        ) { setResult in
+                            copyAIIndexData(setResult: setResult)
                         }
                         actionRow(
                             "doc.on.clipboard",
                             "复制工具栏习惯统计",
                             "导出全部「选择上下文桶 → 动作 → 点击次数」(工具栏 + 右键菜单都记)。验证右键选项的点击有没有进习惯数据 —— 单选按后缀分桶(mode|1|ext)、复选统一桶(mode|multi)。"
-                        ) {
-                            copyToolbarUsageData()
+                        ) { setResult in
+                            copyToolbarUsageData(setResult: setResult)
                         }
                         actionRow(
                             "trash",
                             "清空 AI 派生数据",
                             "调用 clearDerivedData():清 AI 索引本体(AIFileMemoryIndex)+ 下游预烘焙缓存(文件组/整理/工作台 chip·解读·失败·聚集)+ 反馈与自动检查队列;不删真实文件、不碰 Spotlight、不删显式「不感兴趣」偏好。"
-                        ) {
+                        ) { setResult in
                             AIBackgroundIndexStore.shared.clearDerivedData()
                             loadAIDataSnapshot()
-                            actionResults["清空 AI 派生数据"] = "已清空 AI 派生数据"
+                            setResult("已清空 AI 派生数据")
                         }
                         // 独立 AI 进程改造:两条投递通道各验一次「端上模型能否在非 App 的独立进程里跑」。
                         // ① 后台 LaunchAgent 通道:SMAppService 注册 + 连 Mach XPC;在 Login Items 可见、受「允许在后台」门控。
@@ -368,10 +365,10 @@ struct DevToolsView: View {
                             "bolt.horizontal.circle",
                             "测试 AI agent 探针(后台 LaunchAgent 通道)",
                             "注册 LaunchAgent(SMAppService)+ 连 Mach XPC,在 agent 进程里试跑一次端上模型,结果显示在下方(也打到 agent stderr,Console 过滤 SimpleZipAIAgent 看完整)。这条通道在 Login Items 可见、受「允许在后台」开关门控:关掉它后台索引连同此探针都会被 launchd 拒。注册可能需 SimpleZip Dev 签名 + App 从 /Applications 跑。"
-                        ) {
-                            agentProbeStatus = "正在连后台 LaunchAgent 跑探针…(每个 App 启动只首刀重注册,之后直接连)"
+                        ) { setResult in
+                            setResult("正在连后台 LaunchAgent 跑探针…(每个 App 启动只首刀重注册,之后直接连)")
                             AIAgentClient.runBackgroundProbe { result in
-                                agentProbeStatus = result
+                                setResult(result)
                             }
                         }
                         // ② 前台 XPC Service 通道:连内嵌 .xpc(serviceName);App 连接即按需拉起、不进 Login Items、
@@ -380,10 +377,10 @@ struct DevToolsView: View {
                             "bolt.badge.automatic",
                             "测试 AI agent 探针(前台 XPC Service 通道)",
                             "连内嵌 XPC Service(Contents/XPCServices/SimpleZipAIXPCService.xpc),在它里面试跑一次端上模型。这条通道由 App 连接即按需拉起、随 App 生命周期、不进 Login Items、不受「允许在后台」开关 gate —— 即便用户关掉后台权限,前台 AI 也能起。结果显示在下方(stderr 同样过滤 SimpleZipAIAgent)。"
-                        ) {
-                            agentProbeStatus = "正在连前台 XPC Service 跑探针…"
+                        ) { setResult in
+                            setResult("正在连前台 XPC Service 跑探针…")
                             AIAgentClient.runForegroundProbe { result in
-                                agentProbeStatus = result
+                                setResult(result)
                             }
                         }
                         // ③ 前台 XPC Service 真实查询:经同一通道发**真实**自然语言请求,验证 App→agent 真实生成数据流。
@@ -391,10 +388,10 @@ struct DevToolsView: View {
                             "text.magnifyingglass",
                             "测试 agent 真实查询(前台 XPC Service)",
                             "经前台 XPC Service 把一句写死的自然语言请求(『我想找个压缩在某处的预算表格』)发给 agent,agent 跑真实结构化生成回搜索关键词,结果显示在下方。比上面的写死探针更进一步:验证 App→agent 的真实查询数据流(『真生成迁 agent』的关键一步)。"
-                        ) {
-                            agentProbeStatus = "正在经前台 XPC Service 跑真实查询…"
+                        ) { setResult in
+                            setResult("正在经前台 XPC Service 跑真实查询…")
                             AIAgentClient.runForegroundQuery("我想找个压缩在某处的预算表格") { result in
-                                agentProbeStatus = result
+                                setResult(result)
                             }
                         }
                         // ③b 通用 generate(kind:) 契约自检:对照写死的『真实查询』(只测旧专用 extractArchiveKeyword 方法),
@@ -403,10 +400,10 @@ struct DevToolsView: View {
                             "checklist",
                             "自检 XPC pass 引擎(通用 generate 契约 · 散文 + 结构化)",
                             "对照上面写死的『真实查询』(只测旧专用 extractArchiveKeyword 方法),这条经迁移后所有 pass 共用的通用 generate(kind:) 契约跑两种代表性 pass —— reportText(散文,报告解释 AI 的中心 pass)+ archiveFileKeyword(结构化,@Generable 受约束输出)。一键验证『报告 / 文件·归档建议 / NL 查询全部走同一条 XPC 通用通路』,逐 pass 报成功与输出片段。"
-                        ) {
-                            agentProbeStatus = "正在自检 XPC pass 引擎(通用 generate 契约)…散文 + 结构化两个 pass 串行跑,各需一次端上生成,稍候。"
+                        ) { setResult in
+                            setResult("正在自检 XPC pass 引擎(通用 generate 契约)…散文 + 结构化两个 pass 串行跑,各需一次端上生成,稍候。")
                             AIAgentClient.runEnginePassSelfTest { result in
-                                agentProbeStatus = result
+                                setResult(result)
                             }
                         }
                         // ③c 被动监视:查引擎进程自启动以来跑过哪些 pass、多少次、成不成(像其它管线一样的监视器,不碰模型)。
@@ -414,10 +411,10 @@ struct DevToolsView: View {
                             "chart.bar.doc.horizontal",
                             "查引擎 pass 统计(被动监视 · 跑过哪些 / 多少次 / 成不成)",
                             "经前台 XPC Service 调 passStats(不碰模型、瞬回),列出引擎进程自启动以来每种 pass 的调用次数、成功 / 失败数、最近一次时间与成败。对照上面主动自检,这条是被动观测引擎真实跑过什么 —— 触发几次 AI 功能(失败解释 / 文件建议 / 报告解读…)后来查,看它们是否真走了 XPC 引擎。"
-                        ) {
-                            agentProbeStatus = "正在查引擎 pass 统计…"
+                        ) { setResult in
+                            setResult("正在查引擎 pass 统计…")
                             AIAgentClient.queryPassStats { result in
-                                agentProbeStatus = result
+                                setResult(result)
                             }
                         }
                         // ③d 后台调度规划观测(AIBackgroundPlanner,确定性、app 内、不走 XPC):看据当前 runtime + 已收集信号会规划哪些后台 job。
@@ -425,16 +422,16 @@ struct DevToolsView: View {
                             "list.bullet.indent",
                             "查后台调度规划(AIBackgroundPlanner · 确定性)",
                             "用当前运行时(电源/空闲/活跃度档)+ 已收集的 interaction 信号 + 索引健康,调 AIBackgroundPlanner 规划一组 tier-gated 后台 job(该补什么数据 / 预热哪个 surface,绝不越当前档位天花板)。确定性、瞬回、不碰模型。v1 只观测规划结果,逐 job 执行是后续步骤。"
-                        ) {
+                        ) { setResult in
                             let plan = AIBackgroundIndexer.shared.planBackgroundJobs()
                             if plan.jobs.isEmpty {
-                                agentProbeStatus = "后台调度规划:档位天花板 = \(plan.allowedTier.rawValue);当前无 job(数据不足 / 档位不够 —— 触发些 AI 功能积累信号、或在空闲充电时再看)。"
+                                setResult("后台调度规划:档位天花板 = \(plan.allowedTier.rawValue);当前无 job(数据不足 / 档位不够 —— 触发些 AI 功能积累信号、或在空闲充电时再看)。")
                             } else {
                                 var lines = ["后台调度规划:档位天花板 = \(plan.allowedTier.rawValue),\(plan.jobs.count) 个 job(优先级降序):"]
                                 for j in plan.jobs {
                                     lines.append("· \(j.kind.rawValue) · p\(j.priority) · [\(j.requiredTier.rawValue)] · \(j.reasonTokens.joined(separator: ", "))")
                                 }
-                                agentProbeStatus = lines.joined(separator: "\n")
+                                setResult(lines.joined(separator: "\n"))
                             }
                         }
                         // ③e 工作区证据缺口观测(AIWorkspaceEvidenceGap,确定性、app 内):看 planner 执行(Phase 1+2a)的**输入** ——
@@ -443,10 +440,10 @@ struct DevToolsView: View {
                             "checkmark.seal",
                             "查工作区证据缺口(AIWorkspaceEvidenceGap · 确定性)",
                             "读 AIWorkspaceStore.currentEvidenceGaps:遍历各工作区成员、查派生索引里算没算过哈希 / 测没测过完整性,确定性判出「缺证据」缺口(missingHash / missingArchiveHealth)。这是 planner 执行 Phase 1+2a 的输入 —— 后台空闲会据此补哈希 / 补测。瞬回、不碰模型 / 不碰 reload。"
-                        ) {
+                        ) { setResult in
                             let gaps = AIWorkspaceStore.shared.currentEvidenceGaps
                             if gaps.isEmpty {
-                                agentProbeStatus = "工作区证据缺口:0 条(所有工作区成员都已算过哈希 + 小归档都已测,或当前无工作区成员 —— 打开 / 索引些归档积累成员后再看)。"
+                                setResult("工作区证据缺口:0 条(所有工作区成员都已算过哈希 + 小归档都已测,或当前无工作区成员 —— 打开 / 索引些归档积累成员后再看)。")
                             } else {
                                 let byKind = Dictionary(grouping: gaps, by: { $0.kind.rawValue })
                                 var lines = ["工作区证据缺口:\(gaps.count) 条,涉及 \(Set(gaps.map(\.workspaceID)).count) 个工作区:"]
@@ -455,7 +452,7 @@ struct DevToolsView: View {
                                     let refs = group.reduce(0) { $0 + $1.affectedSourceRefs.count }
                                     lines.append("· \(kind):\(group.count) 条 · 共 \(refs) 个成员待补")
                                 }
-                                agentProbeStatus = lines.joined(separator: "\n")
+                                setResult(lines.joined(separator: "\n"))
                             }
                         }
                         // ③f pending 检查队列观测(AIPendingCheckStore):planner 执行链的**下游** —— dispatcher 入队的 hash/test 检查在此排队、插电执行。
@@ -463,12 +460,12 @@ struct DevToolsView: View {
                             "tray.full",
                             "查 pending 检查队列(AIPendingCheckStore)",
                             "读 AIPendingCheckStore.counts:后台调度 dispatcher(executePlannedJobsIfDue)与模型挑的只读检查都入这条队列,插电时逐条执行(hash/test/inspect/security)→ 写内联结果。看待执行 / 已完成数,验证 planner 执行链下游(gap → plan → 入队 → 执行)真在跑。瞬回、不碰模型。"
-                        ) {
+                        ) { setResult in
                             let c = AIPendingCheckStore.shared.counts
                             if c.pending == 0 && c.done == 0 {
-                                agentProbeStatus = "pending 检查队列:空(没有积累的检查 —— 触发 AI 索引、或在空闲充电时让「调度执行」入队后再看)。"
+                                setResult("pending 检查队列:空(没有积累的检查 —— 触发 AI 索引、或在空闲充电时让「调度执行」入队后再看)。")
                             } else {
-                                agentProbeStatus = "pending 检查队列:待执行 \(c.pending) 条、已完成 \(c.done) 条(插电时按活跃度间隔逐条执行,结果写文件抽屉内联)。"
+                                setResult("pending 检查队列:待执行 \(c.pending) 条、已完成 \(c.done) 条(插电时按活跃度间隔逐条执行,结果写文件抽屉内联)。")
                             }
                         }
                         // ③g 交互 / 兴趣摘要观测(AIFeedbackStore → 确定性聚合):planner 除证据缺口外的另两个输入 —— 验证 archive-open interest 与跨表面交互信号真收集到没。
@@ -476,11 +473,11 @@ struct DevToolsView: View {
                             "chart.bar.doc.horizontal",
                             "查交互 / 兴趣摘要(planner 输入)",
                             "读 AIFeedbackStore 折叠出的 interactionCounterSummary(跨表面点击 / 打开信号计数)+ interestSummary(归档打开累积的位置亲和 / 交互亲和)。这是 planner 除证据缺口外的另两个输入 —— 验证 archive-open interest 与交互信号真在收集、喂进后台调度。瞬回、不碰模型 / 不碰 reload。"
-                        ) {
+                        ) { setResult in
                             let ic = AIFeedbackStore.shared.interactionCounterSummary
                             let it = AIFeedbackStore.shared.interestSummary
                             if ic.counters.isEmpty && it.locationAffinities.isEmpty && it.interactionAffinities.isEmpty {
-                                agentProbeStatus = "交互 / 兴趣摘要:暂无(还没积累信号 —— 打开些归档 / 点些 AI 建议后再看)。"
+                                setResult("交互 / 兴趣摘要:暂无(还没积累信号 —— 打开些归档 / 点些 AI 建议后再看)。")
                             } else {
                                 var lines = ["交互信号:\(ic.counters.count) 类计数"]
                                 for c in ic.counters.prefix(4) {
@@ -490,7 +487,7 @@ struct DevToolsView: View {
                                 for la in it.locationAffinities.prefix(3) {
                                     lines.append("· 位置 \(la.locationKind) 打开 ×\(la.openCount)")
                                 }
-                                agentProbeStatus = lines.joined(separator: "\n")
+                                setResult(lines.joined(separator: "\n"))
                             }
                         }
                         // ④ 配置同步:把当前 App 的 AI 设置推给 agent(坑 9 schemaVersion 协商)。把 AI 主/子开关关掉后点这,
@@ -499,38 +496,20 @@ struct DevToolsView: View {
                             "arrow.triangle.2.circlepath",
                             "同步 AI 配置到 agent",
                             "把当前 App 的 AI 开关(主 / 建议 / 索引 / 预读 + 活跃度档)编码成 payload,经前台 XPC Service 推给 agent;agent 解码存储并回报支持的 schemaVersion。之后 agent 的真实查询会按这份配置门控:AI 主开关或建议开关关掉 → agent 不生成。结果显示在下方状态卡片。"
-                        ) {
-                            agentProbeStatus = "正在同步 AI 配置到 agent…"
+                        ) { setResult in
+                            setResult("正在同步 AI 配置到 agent…")
                             AIAgentClient.syncConfiguration(AIAgentClient.currentConfiguration()) { result in
-                                agentProbeStatus = result
+                                setResult(result)
                             }
                         }
-                        // agent 探针/查询/配置同步的**常驻**当前状态(用户明确要:别 flash 一闪而过)。上面几个按钮的最近结果常驻在此、可选中复制。
-                        VStack(alignment: .leading, spacing: 4) {
-                            HStack(spacing: 6) {
-                                Image(systemName: "dot.radiowaves.left.and.right")
-                                    .foregroundStyle(.secondary)
-                                Text("agent 探针 · 当前状态")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            Text(agentProbeStatus)
-                                .font(.callout)
-                                .textSelection(.enabled)
-                                .fixedSize(horizontal: false, vertical: true)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                        }
-                        .padding(10)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 8))
                         // AI 建议明细:每个计数类别(摘要/打开方式/网页/.../哈希/压缩/转换/内联结果)的**完整文件清单**
                         // + 门控 / 预算 / 各管线诊断 —— 一次性复制出来逐条 debug「这个类别到底有哪些文件、为啥是 0」。
                         actionRow(
                             "list.bullet.clipboard",
                             "复制 AI 建议明细(全分类 + 每文件 + 管线)",
                             "把上面每个计数展开成完整清单:每类列出命中的真实文件路径 + 短摘要 + 动作 / 内联结果,附门控 / 预算 / 管线诊断。"
-                        ) {
-                            copyAISuggestionDetail()
+                        ) { setResult in
+                            copyAISuggestionDetail(setResult: setResult)
                         }
                         // 工作台四 pass(筛选排序 / 需要处理解读 / 失败解释 / 真建议)的完整后台缓存 —— 排查
                         // 「DevTools 说有产物、工作台 UI 却没显示」到底差在哪(指纹不匹配 / category 错位 / 文案空)。
@@ -538,19 +517,17 @@ struct DevToolsView: View {
                             "rectangle.3.group.bubble",
                             "复制工作台 AI 数据(四 pass 完整缓存)",
                             "导出筛选排序 / 需要处理解读 / 失败解释 / 真建议四个 pass 的完整后台缓存(指纹 + 文案 + chip 命名 + filter),逐条排查为何 UI 没显示。"
-                        ) {
-                            copyWorkbenchAIDetail()
+                        ) { setResult in
+                            copyWorkbenchAIDetail(setResult: setResult)
                         }
                         // Spotlight 全量捐献集复制(每条 item 的标识/标题/关键字)——隐藏调试区,中文硬编码。
                         actionRow(
                             "magnifyingglass.circle",
                             "复制 Spotlight 数据集(完整)",
                             "导出每一条会捐献给 Spotlight 的 item(标识 / 标题 / 描述 / 关键字),逐条排查索引内容。"
-                        ) {
-                            copySpotlightData()
+                        ) { setResult in
+                            copySpotlightData(setResult: setResult)
                         }
-            // flash(...) 仍被本区若干 actionRow 用(复制类),其结果显示在此区底部的共享反馈条。
-            sharedActionFeedback
         }
     }
 
@@ -563,9 +540,9 @@ struct DevToolsView: View {
                 "arrow.counterclockwise.circle",
                 "重置更新助手「已看」标记",
                 "清空全部卡的已看 + 迁移标记 —— 下次启动老用户(已完成欢迎助手)会重新收到更新助手。"
-            ) {
+            ) { setResult in
                 AppPreferences.resetUpdateCardsSeen()
-                actionResults["重置更新助手「已看」标记"] = "已重置更新助手标记(下次启动生效)"
+                setResult("已重置更新助手标记(下次启动生效)")
             }
         }
     }
@@ -574,23 +551,22 @@ struct DevToolsView: View {
     private var sectionDefaults: some View {
         DialogSection(L10n.text("devtools.section.defaults")) {
             defaultsSnapshotList
-            Button(L10n.text("devtools.defaults.copyAll")) {
+            let copyAllTitle = L10n.text("devtools.defaults.copyAll")
+            Button(copyAllTitle) {
                 NSPasteboard.general.clearContents()
                 NSPasteboard.general.setString(defaultsSnapshotText, forType: .string)
-                flash(L10n.text("devtools.feedback.defaultsCopied"))
+                actionResults[copyAllTitle] = L10n.text("devtools.feedback.defaultsCopied")
             }
             .controlSize(.small)
-            sharedActionFeedback
-        }
-    }
-
-    /// 共享反馈条:仍走 `flash(...)` 的调用点(复制 / 重置类)把结果设进 `actionFeedback`,在所属区底部显示一次。
-    @ViewBuilder
-    private var sharedActionFeedback: some View {
-        if let actionFeedback {
-            Label(actionFeedback, systemImage: "checkmark.circle.fill")
-                .font(.caption)
-                .foregroundStyle(.green)
+            // 该按钮自己的结果,就近显示在下方,常驻直到再次点击。
+            if let result = actionResults[copyAllTitle], !result.isEmpty {
+                Label(result, systemImage: "checkmark.circle.fill")
+                    .font(.caption)
+                    .foregroundStyle(.green)
+                    .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
         }
     }
 
@@ -648,7 +624,9 @@ struct DevToolsView: View {
     }
 
     @ViewBuilder
-    private func actionRow(_ systemImage: String, _ title: String, _ detail: String, action: @escaping () -> Void) -> some View {
+    private func actionRow(_ systemImage: String, _ title: String, _ detail: String, action: @escaping (_ setResult: @escaping (String) -> Void) -> Void) -> some View {
+        // 每行自己的结果 setter:写进 actionResults[title],就近显示在本行下方,常驻直到该行再被点击(不自动清除)。
+        let setResult: (String) -> Void = { actionResults[title] = $0 }
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 10) {
                 VStack(alignment: .leading, spacing: 1) {
@@ -661,13 +639,14 @@ struct DevToolsView: View {
                 }
                 Spacer()
                 Button {
-                    action()
+                    action(setResult)
                 } label: {
                     Image(systemName: systemImage)
                 }
                 .controlSize(.small)
             }
             // 该行自己的最新结果(键 = 行标题),就近显示在行下方 —— 不必再翻到底部一处共享反馈。
+            // 多行探针输出:允许换行 + 可选中,不被截断。
             if let result = actionResults[title], !result.isEmpty {
                 Label(result, systemImage: "checkmark.circle.fill")
                     .font(.caption)
@@ -940,7 +919,7 @@ struct DevToolsView: View {
         return (["\(counts.count) 桶 · \(total) 次点击"] + lines).joined(separator: "\n")
     }
 
-    private func copyToolbarUsageData() {
+    private func copyToolbarUsageData(setResult: @escaping (String) -> Void) {
         let counts = ToolbarActionUsageStore.shared.debugAllCounts()
         var report = "# 工具栏习惯统计(建议七)\n\n"
         if counts.isEmpty {
@@ -956,7 +935,7 @@ struct DevToolsView: View {
         }
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(report, forType: .string)
-        flash("已复制工具栏习惯统计")
+        setResult("已复制工具栏习惯统计")
     }
 
     private func makeAIDataSnapshot() async -> DevToolsAIDataSnapshot {
@@ -1061,18 +1040,18 @@ struct DevToolsView: View {
 
     /// AI 建议明细全量复制(隐藏调试区,中文硬编码):门控 / 预算 / 各管线诊断 + **每个计数类别的完整文件清单**。
     /// 直接回答「这个类别到底命中了哪些文件 / 为什么是 0」—— 在主 actor 上从索引现读现拼(用户点一下才跑,几毫秒)。
-    private func copyAISuggestionDetail() {
+    private func copyAISuggestionDetail(setResult: @escaping (String) -> Void) {
         Task { @MainActor in
             let text = buildAISuggestionDetailReport()
             NSPasteboard.general.clearContents()
             NSPasteboard.general.setString(text, forType: .string)
-            flash("已复制 AI 建议明细(全分类)")
+            setResult("已复制 AI 建议明细(全分类)")
         }
     }
 
     /// 工作台四 pass 完整缓存复制(隐藏调试区,中文硬编码):筛选排序 / 需要处理解读 / 失败解释 / 真建议的
     /// 后台缓存原文(指纹 + 文案 + chip 命名 + filter)。排查「DevTools 有产物、工作台 UI 没显示」差在哪。
-    private func copyWorkbenchAIDetail() {
+    private func copyWorkbenchAIDetail(setResult: @escaping (String) -> Void) {
         Task { @MainActor in
             let store = AIBackgroundIndexStore.shared
             var out: [String] = ["# 工作台 AI 四 pass 缓存  生成于 \(Date())"]
@@ -1097,7 +1076,7 @@ struct DevToolsView: View {
             }
             NSPasteboard.general.clearContents()
             NSPasteboard.general.setString(out.joined(separator: "\n"), forType: .string)
-            flash("已复制工作台 AI 四 pass 缓存")
+            setResult("已复制工作台 AI 四 pass 缓存")
         }
     }
 
@@ -1238,7 +1217,7 @@ struct DevToolsView: View {
         return out.joined(separator: "\n")
     }
 
-    private func copyAIIndexData() {
+    private func copyAIIndexData(setResult: @escaping (String) -> Void) {
         Task { @MainActor in
             do {
                 let snapshot = makeAIIndexDataSnapshot()
@@ -1247,24 +1226,24 @@ struct DevToolsView: View {
                 encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
                 let data = try encoder.encode(snapshot)
                 guard let text = String(data: data, encoding: .utf8) else {
-                    flash(L10n.format("devtools.feedback.aiIndexDataFailed", "UTF-8"))
+                    setResult(L10n.format("devtools.feedback.aiIndexDataFailed", "UTF-8"))
                     return
                 }
                 NSPasteboard.general.clearContents()
                 NSPasteboard.general.setString(text, forType: .string)
-                flash(L10n.text("devtools.feedback.aiIndexDataCopied"))
+                setResult(L10n.text("devtools.feedback.aiIndexDataCopied"))
             } catch {
-                flash(L10n.format("devtools.feedback.aiIndexDataFailed", error.localizedDescription))
+                setResult(L10n.format("devtools.feedback.aiIndexDataFailed", error.localizedDescription))
             }
         }
     }
 
     /// Spotlight 捐献快照复制(隐藏调试区)。各域计数走后台(读多个 store 的 JSON),回主 actor 设剪贴板。
     /// 注明 AI 建议 / AI 文件索引**不在 Spotlight**(私有派生数据,在「复制 AI 索引数据」里)—— 直接回答「有没有进索引」。
-    private func copySpotlightData() {
+    private func copySpotlightData(setResult: @escaping (String) -> Void) {
         Task { @MainActor in
             guard #available(macOS 15.0, *) else {
-                flash("需要 macOS 15 才能导出 Spotlight 数据集")
+                setResult("需要 macOS 15 才能导出 Spotlight 数据集")
                 return
             }
             // 全量 dump:每一条会捐献的 item(与索引同源,含完整真实标识 / 标题 / 关键字)。隐藏调试区,无需脱敏。
@@ -1282,12 +1261,12 @@ struct DevToolsView: View {
             encoder.dateEncodingStrategy = .iso8601
             encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
             guard let data = try? encoder.encode(dump), let text = String(data: data, encoding: .utf8) else {
-                flash("复制 Spotlight 索引失败")
+                setResult("复制 Spotlight 索引失败")
                 return
             }
             NSPasteboard.general.clearContents()
             NSPasteboard.general.setString(text, forType: .string)
-            flash("已复制 Spotlight 数据集(\(items.count) 条)")
+            setResult("已复制 Spotlight 数据集(\(items.count) 条)")
         }
     }
 
@@ -1304,13 +1283,6 @@ struct DevToolsView: View {
         )
     }
 
-    private func flash(_ text: String) {
-        withAnimation { actionFeedback = text }
-        Task {
-            try? await Task.sleep(nanoseconds: 2_500_000_000)
-            withAnimation { actionFeedback = nil }
-        }
-    }
 }
 
 private nonisolated struct DevToolsArchiveCacheProbe {

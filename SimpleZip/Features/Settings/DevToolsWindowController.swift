@@ -37,7 +37,11 @@ final class DevToolsWindowController {
         window.contentViewController = NSHostingController(rootView: DevToolsView())
         window.isReleasedWhenClosed = false
         window.level = .normal
+        // 记忆用户拉伸后的宽高 / 位置(跨开关、跨重启)—— AppKit 自动存进 UserDefaults。
+        // 先 center 给首次默认居中,再设 autosave;有存档时 setFrameUsingName 会覆盖回上次尺寸。
         window.center()
+        window.setFrameAutosaveName("SimpleZipDevToolsWindow")
+        window.setFrameUsingName("SimpleZipDevToolsWindow")
         window.makeKeyAndOrderFront(nil)
         self.window = window
     }
