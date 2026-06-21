@@ -67,6 +67,7 @@
 "error.openFolderFirst" = "先にフォルダを開き、圧縮するファイルを選択してください。";
 "error.selectFilesToArchive" = "アーカイブに追加するファイルまたはフォルダを1つ以上選択してください。";
 "error.openOrSelectArchive" = "対応しているアーカイブを開くか選択してください。";
+"error.selectOrOpenFolder" = "フォルダを開くか選択してください。";
 "error.unsupportedFormat" = "現在のバックエンドではこのアーカイブ形式を扱えません。";
 "error.missingSevenZip" = "7-Zip のコマンドラインツールが見つかりません。.7z アーカイブを扱うには Homebrew で 7zz をインストールしてください。";
 "error.missingRarTool" = "RAR コマンドラインツールが見つかりません。RAR 書庫を作成するには rar をインストールしてください。";
@@ -211,9 +212,9 @@
 "menu.findArchive" = "ファイルを含む書庫を探す…";
 "finder.title" = "ファイルを含む書庫を探す";
 "finder.subtitle" = "開いたことのある書庫を検索します";
-"finder.prompt" = "例:履歴書はどこ";
+"finder.prompt" = "例:resume.pdf";
 "finder.search" = "検索";
-"finder.hint" = "探しているファイルを説明してください。SimpleZip は開いたことのある書庫を調べます(暗号化されていない名前のみ記憶)。";
+"finder.hint" = "ファイル名の一部を入力してください。SimpleZip は開いたことのあるアーカイブを検索します(暗号化されていない名前のみ記憶)。";
 "finder.noResults" = "開いた書庫に「%@」を含むものはありません。";
 "finder.resultsHeader" = "「%@」は %@ 個の書庫で見つかりました:";
 "finder.failed" = "検索できませんでした。もう一度お試しください。";

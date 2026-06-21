@@ -21,8 +21,7 @@ struct ArchiveFinderSheet: View {
     let onClose: () -> Void
 
     @State private var query = ""
-    @State private var running = false
-    @State private var keyword = ""            // AI 实际抽出的搜索词
+    @State private var keyword = ""            // 当前搜索词(= 用户输入,用于结果标题回显)
     @State private var groups: [ResultGroup] = []
     @State private var searched = false
     @State private var error: String?
@@ -38,8 +37,8 @@ struct ArchiveFinderSheet: View {
     var body: some View {
         VStack(spacing: 0) {
             DialogHero(
-                systemImage: "sparkle.magnifyingglass",
-                colors: [.purple, .indigo],
+                systemImage: "magnifyingglass.circle",
+                colors: [.blue, .teal],
                 title: L10n.text("finder.title"),
                 subtitle: L10n.text("finder.subtitle")
             )
@@ -63,14 +62,13 @@ struct ArchiveFinderSheet: View {
     private var content: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 6) {
-                Image(systemName: "sparkles").foregroundStyle(.purple)
+                Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
                 TextField(L10n.text("finder.prompt"), text: $query)
                     .textFieldStyle(.roundedBorder)
-                    .onSubmit { Task { await run() } }
-                if running { ProgressView().controlSize(.small) }
-                Button(L10n.text("finder.search")) { Task { await run() } }
+                    .onSubmit { run() }
+                Button(L10n.text("finder.search")) { run() }
                     .buttonStyle(.borderedProminent)
-                    .disabled(query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || running)
+                    .disabled(query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
 
             if let error {
@@ -100,9 +98,6 @@ struct ArchiveFinderSheet: View {
                     .foregroundStyle(.tertiary)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            Text(L10n.text("ai.disclaimer"))
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
         }
     }
 
@@ -135,43 +130,31 @@ struct ArchiveFinderSheet: View {
     }
 
     @MainActor
-    private func run() async {
+    private func run() {
         let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !q.isEmpty, !running else { return }
-        guard #available(macOS 26.0, *) else { return }
-        running = true
+        guard !q.isEmpty else { return }
         error = nil
-        searched = false
-        defer { running = false }
-        do {
-            // AI 只把口语抽成一个文件名关键词;抽不出就退回整句。
-            let extracted = try await AIReportAssistant.archiveFileKeyword(for: q)
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-            let needle = extracted.isEmpty ? q : extracted
-            keyword = needle
-            // 确定性搜索:已打开归档的非加密清单缓存,按归档分组。
-            let hits = ArchiveListingCacheStore().search(needle, limit: 200)
-            var entriesByPath: [String: [String]] = [:]
-            var nameByPath: [String: String] = [:]
-            var order: [String] = []
-            for hit in hits {
-                if entriesByPath[hit.archivePath] == nil {
-                    order.append(hit.archivePath)
-                    nameByPath[hit.archivePath] = hit.archiveName
-                }
-                if !(entriesByPath[hit.archivePath]?.contains(hit.entryName) ?? false) {
-                    entriesByPath[hit.archivePath, default: []].append(hit.entryName)
-                }
+        keyword = q
+        // 确定性子串搜索(大小写不敏感):直接拿用户输入搜已打开归档的非加密清单缓存,按归档分组。不经 AI。
+        let hits = ArchiveListingCacheStore().search(q, limit: 200)
+        var entriesByPath: [String: [String]] = [:]
+        var nameByPath: [String: String] = [:]
+        var order: [String] = []
+        for hit in hits {
+            if entriesByPath[hit.archivePath] == nil {
+                order.append(hit.archivePath)
+                nameByPath[hit.archivePath] = hit.archiveName
             }
-            groups = order.map {
-                ResultGroup(id: $0, archivePath: $0,
-                            archiveName: nameByPath[$0] ?? URL(fileURLWithPath: $0).lastPathComponent,
-                            entries: entriesByPath[$0] ?? [])
+            if !(entriesByPath[hit.archivePath]?.contains(hit.entryName) ?? false) {
+                entriesByPath[hit.archivePath, default: []].append(hit.entryName)
             }
-            searched = true
-        } catch {
-            self.error = L10n.text("finder.failed")
         }
+        groups = order.map {
+            ResultGroup(id: $0, archivePath: $0,
+                        archiveName: nameByPath[$0] ?? URL(fileURLWithPath: $0).lastPathComponent,
+                        entries: entriesByPath[$0] ?? [])
+        }
+        searched = true
     }
 }
 

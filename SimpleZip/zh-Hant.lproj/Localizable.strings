@@ -67,6 +67,7 @@
 "error.openFolderFirst" = "請先開啟一個資料夾，然後選取要壓縮的檔案。";
 "error.selectFilesToArchive" = "請選取一個或多個要加入壓縮檔的檔案或資料夾。";
 "error.openOrSelectArchive" = "請先開啟或選取支援的壓縮檔。";
+"error.selectOrOpenFolder" = "請先開啟或選取資料夾。";
 "error.unsupportedFormat" = "目前後端不支援這種壓縮檔格式。";
 "error.missingSevenZip" = "找不到 7-Zip 命令列工具。請透過 Homebrew 安裝 7zz 以處理 .7z 壓縮檔。";
 "error.missingRarTool" = "找不到 RAR 命令列工具。請安裝 rar 以建立 RAR 壓縮檔。";
@@ -211,9 +212,9 @@
 "menu.findArchive" = "尋找包含檔案的封存檔…";
 "finder.title" = "尋找包含檔案的封存檔";
 "finder.subtitle" = "在你開啟過的封存檔裡搜尋";
-"finder.prompt" = "例如:我的履歷在哪";
+"finder.prompt" = "例如 resume.pdf";
 "finder.search" = "搜尋";
-"finder.hint" = "描述你要找的檔案;SimpleZip 會查你開啟過的封存檔(只記非加密的名字)。";
+"finder.hint" = "輸入檔名的一部分;SimpleZip 會在你開啟過的壓縮檔中尋找(只記住非加密的名稱)。";
 "finder.noResults" = "開啟過的封存檔裡沒有「%@」。";
 "finder.resultsHeader" = "「%@」在 %@ 個封存檔裡找到:";
 "finder.failed" = "搜尋失敗 —— 再試一次。";

@@ -603,6 +603,7 @@
 "error.openFolderFirst" = "Open a folder first, then select files to compress.";
 "error.selectFilesToArchive" = "Select one or more files or folders to add to an archive.";
 "error.openOrSelectArchive" = "Open or select a supported archive first.";
+"error.selectOrOpenFolder" = "Open or select a folder first.";
 "error.unsupportedFormat" = "This archive format is not supported by the current backend.";
 "error.missingSevenZip" = "7-Zip command line tool was not found. Install 7zz with Homebrew to handle .7z archives.";
 "error.missingRarTool" = "RAR command line tool was not found. Install rar to create RAR archives.";
@@ -1818,9 +1819,9 @@
 "menu.findArchive" = "Find Archive Containing File…";
 "finder.title" = "Find Archive Containing File";
 "finder.subtitle" = "Searches the archives you've opened";
-"finder.prompt" = "e.g. where's my resume";
+"finder.prompt" = "e.g. resume.pdf";
 "finder.search" = "Search";
-"finder.hint" = "Describe the file you're looking for; SimpleZip checks the archives you've opened (only non-encrypted names are remembered).";
+"finder.hint" = "Type part of a file name; SimpleZip checks the archives you've opened (only non-encrypted names are remembered).";
 "finder.noResults" = "No opened archive contains “%@”.";
 "finder.resultsHeader" = "“%@” found in %@ archive(s):";
 "finder.failed" = "Couldn't search — try again.";

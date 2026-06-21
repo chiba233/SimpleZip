@@ -229,8 +229,8 @@ struct ArchiveFileCommands: Commands {
             Button(L10n.text("menu.nearDuplicates")) { model?.presentNearDuplicateReport() }
                 .disabled(!isArchiveOpen)
 
-            // #63(macOS 26 AI):用一句话找「文件X在哪个包」—— 仅 AI 可用时出现(A4)。
-            if AIReportAssistant.isReady {
+            // #63「文件X在哪个包」:确定性子串搜已打开归档的清单缓存(不再经 AI 抽词)。依赖清单缓存,故门控在缓存开关上。
+            if AppPreferences.archiveListingCacheEnabled {
                 Button(L10n.text("menu.findArchive")) { model?.presentArchiveFinder() }
                     .disabled(model == nil)
             }

@@ -67,6 +67,7 @@
 "error.openFolderFirst" = "Abre primero una carpeta y luego selecciona los archivos para comprimir.";
 "error.selectFilesToArchive" = "Selecciona uno o más archivos o carpetas para añadir al archivo comprimido.";
 "error.openOrSelectArchive" = "Abre o selecciona primero un archivo comprimido compatible.";
+"error.selectOrOpenFolder" = "Abre o selecciona primero una carpeta.";
 "error.unsupportedFormat" = "El backend actual no admite este formato de archivo comprimido.";
 "error.missingSevenZip" = "No se encontró la herramienta de línea de comandos de 7-Zip. Instala 7zz con Homebrew para manejar archivos .7z.";
 "error.missingRarTool" = "No se encontró la herramienta de línea de comandos de RAR. Instala rar para crear archivos RAR.";
@@ -211,9 +212,9 @@
 "menu.findArchive" = "Buscar archivo que contenga…";
 "finder.title" = "Buscar archivo que lo contenga";
 "finder.subtitle" = "Busca en los archivos que has abierto";
-"finder.prompt" = "p. ej., dónde está mi currículum";
+"finder.prompt" = "p. ej. curriculum.pdf";
 "finder.search" = "Buscar";
-"finder.hint" = "Describe el archivo que buscas; SimpleZip revisa los archivos que has abierto (solo se recuerdan nombres no cifrados).";
+"finder.hint" = "Escribe parte de un nombre de archivo; SimpleZip busca en los archivos comprimidos que has abierto (solo se recuerdan los nombres no cifrados).";
 "finder.noResults" = "Ningún archivo abierto contiene «%@».";
 "finder.resultsHeader" = "«%@» encontrado en %@ archivo(s):";
 "finder.failed" = "No se pudo buscar: inténtalo de nuevo.";

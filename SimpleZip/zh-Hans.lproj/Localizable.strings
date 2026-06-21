@@ -603,6 +603,7 @@
 "error.openFolderFirst" = "请先打开一个文件夹，然后选择要压缩的文件。";
 "error.selectFilesToArchive" = "请选择一个或多个要加入压缩包的文件或文件夹。";
 "error.openOrSelectArchive" = "请先打开或选择一个支持的压缩包。";
+"error.selectOrOpenFolder" = "请先打开或选择一个文件夹。";
 "error.unsupportedFormat" = "当前后端不支持这种压缩包格式。";
 "error.missingSevenZip" = "未找到 7-Zip 命令行工具。请通过 Homebrew 安装 7zz 以处理 .7z 压缩包。";
 "error.invalidSevenZipVolumeSize" = "分卷大小格式无效，应类似 100m、2g 或 512k。";
@@ -1816,9 +1817,9 @@
 "menu.findArchive" = "查找包含文件的归档…";
 "finder.title" = "查找包含文件的归档";
 "finder.subtitle" = "在你打开过的归档里搜索";
-"finder.prompt" = "例如:我的简历在哪";
+"finder.prompt" = "例如 resume.pdf";
 "finder.search" = "搜索";
-"finder.hint" = "描述你要找的文件;SimpleZip 会查你打开过的归档(只记非加密的名字)。";
+"finder.hint" = "输入文件名的一部分;SimpleZip 会在你打开过的归档里查找(只记住非加密的名称)。";
 "finder.noResults" = "打开过的归档里没有「%@」。";
 "finder.resultsHeader" = "「%@」在 %@ 个归档里找到:";
 "finder.failed" = "搜索失败 —— 再试一次。";

@@ -812,15 +812,14 @@ extension ArchiveBrowserModel {
     func checkupSelectedArchives() {
         var urls = selectedFileItems.filter { !$0.isDirectory && SignedContainerService.isToolableArchive($0.url) }.map(\.url)
         var scopeName = L10n.format("checkup.scope.selection", "\(urls.count)")
-        if urls.isEmpty,
-           selectedFileItems.count == 1,
-           let folder = selectedFileItems.first, folder.isDirectory, !folder.isPackage {
-            let names = (try? fileManager.contentsOfDirectory(atPath: folder.url.path)) ?? []
+        // 没直接选中归档 → 体检**选中的子文件夹**,没选则**当前浏览的文件夹**顶层的归档(不再逼你回上层选中)。
+        if urls.isEmpty, let folder = releaseScopeFolder() {
+            let names = (try? fileManager.contentsOfDirectory(atPath: folder.path)) ?? []
             urls = names
-                .map { folder.url.appendingPathComponent($0) }
+                .map { folder.appendingPathComponent($0) }
                 .filter { SignedContainerService.isToolableArchive($0) }
                 .sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
-            scopeName = folder.url.lastPathComponent
+            scopeName = folder.lastPathComponent
         }
         guard !urls.isEmpty else {
             errorMessage = L10n.text("error.openOrSelectArchive")
@@ -953,11 +952,22 @@ extension ArchiveBrowserModel {
 
     // MARK: - 发布目录完整性检查(0.4.4 #11)
 
+    /// 文件夹级发布操作(快速核对 / 目录审计 / 可复现)的作用目录:
+    /// 优先**选中的普通子文件夹**;没选中时退回**当前正在浏览的文件夹**(你正看着的就是要检查的,
+    /// 不再逼你回上层选中它 —— 这是这些功能此前「请先选归档」误报的根因)。都拿不到 → nil。
+    func releaseScopeFolder() -> URL? {
+        if let selected = selectedFileItems.first(where: { $0.isDirectory && !$0.isPackage })?.url {
+            return selected
+        }
+        if case .folder(let url) = mode { return url }
+        return nil
+    }
+
     /// 右键文件夹「检查发布目录…」:SHA256SUMS 覆盖与实测 / .szs 清单文件级核对 / VERIFY.md 引用 /
     /// 随包公钥独立验签(临时 GNUPGHOME) / 孤儿文件。**只读** —— 不改目录里任何文件。
     func auditSelectedReleaseDirectory() {
-        guard let directory = selectedFileItems.first(where: { $0.isDirectory && !$0.isPackage })?.url else {
-            errorMessage = L10n.text("error.openOrSelectArchive")
+        guard let directory = releaseScopeFolder() else {
+            errorMessage = L10n.text("error.selectOrOpenFolder")
             return
         }
         runReleaseDirectoryAudit(directory)
@@ -967,8 +977,8 @@ extension ArchiveBrowserModel {
     /// 公钥 / 验证文档 是否组成完整发布组。不实测哈希、不验签(那是 `auditSelectedReleaseDirectory`
     /// 的重型版),只读目录列举。结果复用同一份 `ReleaseDirectoryAuditReport` / 视图,不另造 UI。
     func quickVerifyReleaseGroup() {
-        guard let directory = selectedFileItems.first(where: { $0.isDirectory && !$0.isPackage })?.url else {
-            errorMessage = L10n.text("error.openOrSelectArchive")
+        guard let directory = releaseScopeFolder() else {
+            errorMessage = L10n.text("error.selectOrOpenFolder")
             return
         }
         Task { @MainActor in
@@ -1307,8 +1317,8 @@ extension ArchiveBrowserModel {
     /// 右键文件夹「可复现性报告」:对该文件夹用可复现 zip **打两次**,比 SHA-256 是否逐字节相同 +
     /// 如实列出影响可复现的因素。只读源、只写临时(用后即删),不动用户文件。
     func runReproducibilityCheck() {
-        guard let folder = selectedFileItems.first(where: { $0.isDirectory && !$0.isPackage })?.url else {
-            errorMessage = L10n.text("error.openOrSelectArchive")
+        guard let folder = releaseScopeFolder() else {
+            errorMessage = L10n.text("error.selectOrOpenFolder")
             return
         }
         runReproducibilityCheck(for: folder)
