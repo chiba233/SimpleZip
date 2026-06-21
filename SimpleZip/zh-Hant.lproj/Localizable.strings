@@ -2718,3 +2718,9 @@
 "welcome.ai.privacyNote" = "全部在你的 Mac 上執行。SimpleZip 只解釋、分類、建議 —— 從不替你做決定,也絕不讀取加密壓縮檔的內容。";
 "dupArchives.needTwo" = "尋找重複壓縮檔需要本資料夾中至少有兩個壓縮檔。";
 "welcome.ai.background.body" = "讓 SimpleZip 在背景安靜地提前準備摘要與建議。全部可選。";
+
+"update.window.title" = "更新助手";
+"update.hero.title" = "已更新到 SimpleZip %@";
+"update.hero.body" = "幾步設定新功能。";
+"update.done.title" = "搞定!";
+"update.done.body" = "新功能已就緒。";

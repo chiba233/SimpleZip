@@ -2718,3 +2718,9 @@
 "welcome.ai.privacyNote" = "すべて Mac 上で実行されます。SimpleZip は説明・分類・提案のみを行い、あなたの代わりに判断したり、暗号化されたアーカイブの内容を読み取ることはありません。";
 "dupArchives.needTwo" = "重複を探すには、このフォルダに少なくとも 2 つのアーカイブが必要です。";
 "welcome.ai.background.body" = "SimpleZip がバックグラウンドで静かに要約や提案を事前に準備します。すべて任意です。";
+
+"update.window.title" = "新着情報";
+"update.hero.title" = "SimpleZip %@ に更新しました";
+"update.hero.body" = "数ステップで新機能を設定しましょう。";
+"update.done.title" = "完了!";
+"update.done.body" = "新機能を使う準備ができました。";

@@ -39,6 +39,10 @@ struct ContentView: View {
     @State private var showsWelcomeAssistant = false
     @State private var didCheckWelcomeAssistant = false
 
+    /// 更新助手 sheet(老用户升级后只展示本次新增卡片 + 搞定页)。`pendingUpdateCards` = 本次该展示的未看卡。
+    @State private var showsUpdateAssistant = false
+    @State private var pendingUpdateCards: [UpdateCard] = []
+
     /// `.siz` 签名验证状态：unwrap 完成 + 验签结果就绪后赋值，触发 SwiftUI sheet 显示签名信息对话框。
     /// 用 sheet 替代 NSAlert 是因为后者在 SwiftUI 视图 context（没 key window 锚定）下渲染成无 chrome
     /// 浮动框，关闭行为也不可控。sheet 行为可控、跟 app 其它对话框（创建 / 解压选项）一致。
@@ -499,6 +503,13 @@ struct ContentView: View {
         .sheet(isPresented: $showsWelcomeAssistant) {
             WelcomeAssistantView {
                 showsWelcomeAssistant = false
+                // 走完(含跳过)完整欢迎助手 = 已看过其中全部更新卡片 → 不再弹更新助手。
+                UpdateAssistant.markSeen(UpdateCard.allCases)
+            }
+        }
+        .sheet(isPresented: $showsUpdateAssistant) {
+            UpdateAssistantView(cards: pendingUpdateCards) {
+                showsUpdateAssistant = false
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .openWelcomeAssistant)) { _ in
@@ -827,6 +838,16 @@ struct ContentView: View {
                 // 异步触发让 onAppear 的其它处理先跑完；避免一打开主窗口就立刻被 sheet 盖住。
                 DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(150)) {
                     showsWelcomeAssistant = true
+                }
+            } else {
+                // 老用户:一次性迁移(把本版前就存在的卡标记已看)+ 有未看的新功能卡 → 弹更新助手(只展示新卡)。
+                UpdateAssistant.migrateForExistingUserIfNeeded()
+                let pending = UpdateAssistant.pendingCards()
+                if !pending.isEmpty {
+                    pendingUpdateCards = pending
+                    DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(150)) {
+                        showsUpdateAssistant = true
+                    }
                 }
             }
         }

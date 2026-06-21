@@ -337,6 +337,10 @@ enum AppPreferences {
         /// 欢迎助手是否已经完成过一次 —— 控制「首次启动自动弹」逻辑。
         /// 用户从「SimpleZip 菜单 → 重新运行欢迎助手」入口可以重置回 false 让它再弹一次。
         nonisolated static let welcomeAssistantCompleted = "welcomeAssistantCompleted"
+        /// 更新助手:已展示过的「更新卡片」id 集(JSON array)。未在集内的卡 = 老用户升级后该弹的新功能卡。
+        nonisolated static let seenUpdateCards = "seenUpdateCards"
+        /// 更新助手:老用户一次性迁移标记(把本版之前就存在的卡标记已看,避免升级后被全量更新助手轰炸)。
+        nonisolated static let updateCardsMigrated = "updateCardsMigrated"
         nonisolated static let activityHistory = "activityHistory"
         nonisolated static let activityHistoryLimit = "activityHistoryLimit"
         nonisolated static let heavyTaskConcurrencyLimit = "heavyTaskConcurrencyLimit"
@@ -1096,6 +1100,28 @@ enum AppPreferences {
     /// 助手走完最后一步 / 用户点「开始使用」时调用。
     nonisolated static func markWelcomeAssistantCompleted() {
         defaults.set(true, forKey: Key.welcomeAssistantCompleted)
+    }
+
+    // MARK: - 更新助手卡片「已看」标记(通用 id 存储;具体卡片枚举在 App 层 UpdateAssistant)
+
+    /// 已展示过的更新卡片 id 集。未在集内 = 老用户升级后该弹的新功能卡。
+    nonisolated static var seenUpdateCards: Set<String> {
+        Set((defaults.array(forKey: Key.seenUpdateCards) as? [String]) ?? [])
+    }
+
+    /// 把若干更新卡片 id 标记为已看(欢迎助手走完 = 全标;更新助手走完 = 标其展示的那些)。
+    nonisolated static func markUpdateCardsSeen(_ ids: [String]) {
+        guard !ids.isEmpty else { return }
+        defaults.set(Array(seenUpdateCards.union(ids)), forKey: Key.seenUpdateCards)
+    }
+
+    /// 老用户一次性迁移是否已做。
+    nonisolated static var updateCardsMigrated: Bool {
+        defaults.bool(forKey: Key.updateCardsMigrated)
+    }
+
+    nonisolated static func markUpdateCardsMigrated() {
+        defaults.set(true, forKey: Key.updateCardsMigrated)
     }
 
     /// 用户在设置里挑的「当前活跃」自定义启动路径。空表示尚未挑选。

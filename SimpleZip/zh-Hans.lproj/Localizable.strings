@@ -2795,3 +2795,9 @@
 "welcome.ai.privacyNote" = "全部在你的 Mac 上运行。SimpleZip 只解释、归类、建议 —— 从不替你做决定,也绝不读取加密压缩包的内容。";
 "dupArchives.needTwo" = "查找重复归档需要本文件夹里至少有两个归档。";
 "welcome.ai.background.body" = "让 SimpleZip 在后台安静地提前准备摘要与建议。全部可选。";
+
+"update.window.title" = "更新助手";
+"update.hero.title" = "已更新到 SimpleZip %@";
+"update.hero.body" = "几步设定新功能。";
+"update.done.title" = "搞定!";
+"update.done.body" = "新功能已就绪。";

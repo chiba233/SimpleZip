@@ -2716,3 +2716,9 @@
 "welcome.ai.privacyNote" = "Alles läuft auf deinem Mac. SimpleZip erklärt, ordnet ein und schlägt vor — es entscheidet nie für dich und liest nie Inhalte verschlüsselter Archive.";
 "dupArchives.needTwo" = "Zum Finden von Duplikaten werden mindestens zwei Archive in diesem Ordner benötigt.";
 "welcome.ai.background.body" = "SimpleZip bereitet Zusammenfassungen und Vorschläge leise im Hintergrund vor. Alles optional.";
+
+"update.window.title" = "Neuigkeiten";
+"update.hero.title" = "Auf SimpleZip %@ aktualisiert";
+"update.hero.body" = "Richte die Neuerungen in wenigen Schritten ein.";
+"update.done.title" = "Fertig!";
+"update.done.body" = "Die neuen Funktionen sind einsatzbereit.";

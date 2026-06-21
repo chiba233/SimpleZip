@@ -2717,3 +2717,9 @@
 "welcome.ai.privacyNote" = "모든 작업은 Mac에서 실행됩니다. SimpleZip은 설명·분류·제안만 하며, 대신 결정하거나 암호화된 압축 파일의 내용을 읽지 않습니다.";
 "dupArchives.needTwo" = "중복을 찾으려면 이 폴더에 압축 파일이 2개 이상 있어야 합니다.";
 "welcome.ai.background.body" = "SimpleZip이 백그라운드에서 조용히 요약과 추천을 미리 준비합니다. 모두 선택 사항입니다.";
+
+"update.window.title" = "새로운 기능";
+"update.hero.title" = "SimpleZip %@(으)로 업데이트됨";
+"update.hero.body" = "몇 단계로 새 기능을 설정하세요.";
+"update.done.title" = "완료!";
+"update.done.body" = "새 기능을 사용할 준비가 되었습니다.";
