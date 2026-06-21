@@ -6,11 +6,14 @@
 ![Swift](https://img.shields.io/badge/Swift-SwiftUI-F05138?logo=swift&logoColor=white)
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 
-**A native macOS archive manager that feels like Finder.** Open archives like
-folders, peek at — or *edit* — files inside without unpacking, make and convert
-ZIP / 7z / RAR / TAR / DMG / gz / bz2 / xz in a couple of clicks — and open
-`tar.zst`, ISO, CAB, CPIO and installer PKGs read-only. When you need it, sign
-and verify archives so the people you send them to know they're really from you.
+**The native macOS archive manager that feels like Finder — fast, private, and
+quietly smart.** Open archives like folders and *edit* files inside without
+unpacking, make / convert / split ZIP · 7z · RAR · TAR · DMG · gz · bz2 · xz in a
+couple of clicks, paste a download link to stream-extract a remote archive
+without saving the whole thing first — and, if you want it, let an optional
+on-device AI quietly point you to the right next step. Need to open more?
+`tar.zst`, ISO, CAB, CPIO and installer PKGs open read-only too, and you can sign
+& verify archives so the people you send them to know they're really from you.
 
 No subscriptions, no telemetry, no clutter. Just a fast, native window — built
 on the official 7-Zip engine, which ships inside the app.
@@ -99,6 +102,17 @@ on the official 7-Zip engine, which ships inside the app.
   heads-up grounded in your *actual* files — packing a folder into a single-file
   format, a name conflict, suspicious paths, low disk space — next to a
   deterministic compression-size estimate.
+- **AI suggestions, right in the file browser.** Expand a file or archive row and
+  an optional on-device assistant offers an at-a-glance summary and *fitting*
+  actions — compute a checksum, open with the right app, pull a single file out of
+  an archive, surface a link it found inside. It only ever suggests; if the model
+  has nothing to say, the row stays empty. Whitelisted folders only, read quietly
+  while your Mac is idle, never uploaded, encrypted contents never read.
+- **Settings and a toolbar that adapt.** The create and extract dialogs can apply
+  recommended settings in one tap, and the toolbar reorders its actions for the
+  file at hand so your likely next step comes first — habit-based when AI is off,
+  smarter when it's on. Passwords, encryption strength and destinations are never
+  auto-changed.
 
 ### 🧰 Power tools, when you reach for them
 
@@ -124,6 +138,13 @@ on the official 7-Zip engine, which ships inside the app.
   after the archive, unwrap a single wrapper directory, auto-rename conflicts
   (existing files untouched), reveal in Finder when done, and optionally move the
   archive to the Trash after a fully successful run.
+- **Download & extract from a URL** — paste an `http(s)` link to an archive into
+  the address bar and SimpleZip streams it straight to disk *as it downloads*, so
+  the whole archive never has to be saved first. Streamable formats and servers
+  only — it checks first rather than pretending to support one.
+- **Streaming fast extraction** — for ZIP and tar-family archives, an opt-in
+  streaming mode reads sequentially: noticeably quicker for big archives and over
+  network volumes.
 - **Release Assistant** — pack (reproducible, junk excluded) → inspect →
   SHA256SUMS → optional signing, in one resumable flow; **workspace presets** save
   the whole setup under a name. It keeps a **release ledger** (every run recorded
