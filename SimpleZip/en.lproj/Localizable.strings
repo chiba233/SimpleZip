@@ -586,11 +586,11 @@
 "externalExtract.batch.allDone" = "Extracted all %d archives";
 "externalExtract.batch.summary" = "%1$d succeeded, %2$d failed";
 "externalExtract.batch.moreFailures" = "+%d more";
-"welcome.button.cancel" = "Cancel";
-"welcome.cancelConfirm.title" = "Cancel the welcome assistant?";
+"welcome.button.cancel" = "Skip";
+"welcome.cancelConfirm.title" = "Skip the welcome assistant?";
 "welcome.cancelConfirm.message" = "Choices you've already made will be kept, but you haven't finished the remaining steps. You can restart the assistant any time from SimpleZip → Run Welcome Assistant Again.";
 "welcome.cancelConfirm.cancel" = "Keep Going";
-"welcome.cancelConfirm.confirm" = "Cancel Assistant";
+"welcome.cancelConfirm.confirm" = "Skip";
 "welcome.startupLocation.pickCustom" = "Choose Custom Folder…";
 "welcome.presetPassword.savedHint" = "Saved to Keychain. To reveal the plaintext via Touch ID, go to Settings → General.";
 
@@ -1026,6 +1026,17 @@
 "help.topic.analyze.body" = "• Right-click an archive → Space Analysis: largest files, folder and extension breakdown, compression ratio.\n• Right-click a folder's empty area → Find Suspected Duplicate Archives: groups by structural fingerprint, even across formats.\n• Inside an open archive, Search File Contents scans text files only, in a temp area deleted right after.";
 "help.topic.presets.title" = "Batch extraction & conversion";
 "help.topic.presets.body" = "• The extract dialog's Apply Preset menu fills three scenarios in one click: clean unpack / cautious / extract & tidy.\n• Conversion supports a unified output folder, skip-when-identical, automatic retry and post-conversion testing.\n• Missing a volume? Right-click any volume → Search for Missing Volumes: pick a folder, found parts are copied back, a complete set auto-combines and tests.";
+"help.category.ai" = "AI Assistance";
+"help.topic.aiSuggestions.title" = "AI suggestions";
+"help.topic.aiSuggestions.body" = "Expand a file or archive row in the browser to see an at-a-glance AI summary and fitting actions — compute a checksum, open with the right app, or pull a single file out of an archive. Everything runs on your Mac; turn it on in Settings → AI.";
+"help.topic.aiAssist.title" = "Smart presets & toolbar";
+"help.topic.aiAssist.body" = "In the Create and Extract dialogs, apply recommended settings in one tap. The toolbar also reorders itself for the file at hand, putting the action you most likely want first.";
+"help.topic.aiBackground.title" = "Background preread & privacy";
+"help.topic.aiBackground.body" = "AI prereads only the folders you whitelist, and only while your Mac is idle. Nothing is uploaded, encrypted contents are never read, and it only explains and suggests — it never deletes or approves anything for you. Turn it off or clear it anytime in Settings → AI.";
+"help.topic.fastExtract.title" = "Streaming fast extraction";
+"help.topic.fastExtract.body" = "When extracting ZIP or tar-family archives, opt into streaming fast extraction — sequential reading that's noticeably quicker for large archives and network volumes. Just tick it in the Extract options.";
+"help.topic.webExtract.title" = "Download & extract from a URL";
+"help.topic.webExtract.body" = "Paste an http(s) link pointing at an archive into the address bar, and SimpleZip opens a Download & Extract panel that unpacks as it downloads — so the whole archive never has to be saved first. Available for streamable formats and servers.";
 "help.topic.safety.title" = "Security report & self-check";
 "help.topic.safety.body" = "• Opening an archive with suspicious paths shows a banner; the security report lists each family (escapes, drive letters, case collisions, invisible characters…).\n• Extraction always lands in a staging area first — files already in your destination are never touched.\n• The developer tools' self-check library runs 15 hostile samples against the real backends — a final physical before each release.";
 "help.topic.cli.title" = "CLI & URL automation";
@@ -1831,7 +1842,7 @@
 "menu.aboutSimpleZip" = "About SimpleZip";
 "menu.tools" = "Tools";
 "menu.activityCenter" = "Activity Center";
-"about.description" = "A full-featured native archive manager for macOS.\nCreate, browse, edit in place, convert, encrypt, and verify archives across dozens of formats — with GPG signing, reproducible archives, and checksum workflows built in.";
+"about.description" = "A full-featured native archive manager for macOS — fast, private, all on your Mac.\nCreate, browse, edit in place, convert, encrypt, and verify dozens of formats; stream huge or web-hosted archives straight to disk without unpacking everything first — with GPG signing, reproducible archives, checksum workflows, and optional on-device AI assistance built in.";
 "about.author" = "By Hoshino Yumeka";
 "about.copyright" = "© Hoshino Yumeka. Released under the MIT License.";
 "menu.projectPage" = "SimpleZip Project Page";

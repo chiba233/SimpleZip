@@ -586,11 +586,11 @@
 "externalExtract.batch.allDone" = "%d 个全部解压完成";
 "externalExtract.batch.summary" = "成功 %1$d，失败 %2$d";
 "externalExtract.batch.moreFailures" = "还有 %d 个";
-"welcome.button.cancel" = "取消";
-"welcome.cancelConfirm.title" = "确定要取消欢迎助手吗？";
+"welcome.button.cancel" = "跳过";
+"welcome.cancelConfirm.title" = "确定要跳过欢迎助手吗？";
 "welcome.cancelConfirm.message" = "当前已经做出的选项会保留，但你还没看完后面的步骤。你可以稍后从「SimpleZip → 重新运行欢迎助手」再开。";
 "welcome.cancelConfirm.cancel" = "继续助手";
-"welcome.cancelConfirm.confirm" = "确认取消";
+"welcome.cancelConfirm.confirm" = "跳过";
 "welcome.startupLocation.pickCustom" = "选择自定义文件夹…";
 "welcome.presetPassword.savedHint" = "已加密保存到钥匙串。Touch ID 揭示明文请到「偏好设置 → 通用」。";
 
@@ -1024,6 +1024,17 @@
 "help.topic.analyze.body" = "• 右键压缩包 → 空间分析：最大文件、目录与扩展名占比、压缩率一目了然。\n• 文件夹空白处右键「查找疑似重复归档」：按结构指纹归组，跨格式的重复也认得出。\n• 打开压缩包后「在内容中搜索」：只搜文本文件、解到临时区即用即删。";
 "help.topic.presets.title" = "解压与转换的批量姿势";
 "help.topic.presets.body" = "• 解压对话框「套用预设」：干净解压 / 保守安全 / 解完整理三个场景一键填好。\n• 转换对话框支持统一输出目录、已存在相同跳过、失败重试、转后测试。\n• 分卷缺卷时右键 → 搜索缺失分卷：另选目录找回，找齐自动合并并测试。";
+"help.category.ai" = "AI 辅助";
+"help.topic.aiSuggestions.title" = "AI 建议";
+"help.topic.aiSuggestions.body" = "在文件浏览器里展开文件或压缩包行,就能看到 AI 的一句话定性和贴合的操作建议——算校验值、用合适的 App 打开、或只取出包里的某个文件。全部在你的 Mac 本地运行,可在「设置 → AI」开启。";
+"help.topic.aiAssist.title" = "智能推荐设置与工具栏";
+"help.topic.aiAssist.body" = "在创建和解压对话框里,一键「套用推荐设置」。工具栏也会按当前文件智能排序,把你最可能要用的操作放在最前。";
+"help.topic.aiBackground.title" = "后台预读与隐私";
+"help.topic.aiBackground.body" = "AI 只在你授权的白名单文件夹里、且设备空闲时预读。不上传任何内容,绝不读取加密内容,而且只解释和建议——从不替你删除或放行任何东西。可随时在「设置 → AI」关闭或清空。";
+"help.topic.fastExtract.title" = "流式快速解压";
+"help.topic.fastExtract.body" = "解压 ZIP 或 tar 系压缩包时,可勾选「流式快速解压」——顺序读取,对大包和网络卷明显更快。在解压选项里勾选即可。";
+"help.topic.webExtract.title" = "从网址边下边解";
+"help.topic.webExtract.body" = "把指向压缩包的 http(s) 网址粘进地址栏,SimpleZip 会弹出「下载并解压」面板,边下载边解压——整包不必先存到本地。仅支持可流式的格式与服务器。";
 "help.topic.safety.title" = "安全报告与自检";
 "help.topic.safety.body" = "• 打开压缩包遇到可疑路径会有横幅；安全报告逐类列出（逃逸、盘符、大小写冲突、不可见字符…）。\n• 解压一律先到临时区再合并，目标目录原有文件零接触。\n• 开发者工具里的自检样本库对真实后端跑 15 个恶意样本，发版前最后一道体检。";
 "help.topic.cli.title" = "CLI 与 URL 自动化";
@@ -1829,7 +1840,7 @@
 "menu.aboutSimpleZip" = "关于 SimpleZip";
 "menu.tools" = "工具";
 "menu.activityCenter" = "活动中心";
-"about.description" = "macOS 原生的全能压缩包管理器。\n创建、浏览、原位编辑、格式转换、加密与校验，覆盖数十种格式——并内建 GPG 签名、可复现压缩与校验文件工作流。";
+"about.description" = "macOS 原生的全能压缩包管理器——快、私密,一切都在你的 Mac 上完成。\n创建、浏览、原位编辑、格式转换、加密与校验,覆盖数十种格式;超大或网络上的压缩包都能边下边解、不必先落整包——并内建 GPG 签名、可复现压缩、校验文件工作流,以及可选的端上 AI 辅助。";
 "about.author" = "作者：Hoshino Yumeka";
 "about.copyright" = "© Hoshino Yumeka. 采用 MIT 许可证发布。";
 "menu.projectPage" = "SimpleZip 项目主页";

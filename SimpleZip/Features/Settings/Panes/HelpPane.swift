@@ -39,6 +39,8 @@ private struct HelpCategory: Identifiable {
         HelpCategory(key: "basics", systemImage: "archivebox", color: .blue, topics: [
             HelpTopic(key: "open", systemImage: "archivebox", colors: [.blue, .cyan]),
             HelpTopic(key: "extract", systemImage: "arrow.down.doc", colors: [.green, .teal]),
+            HelpTopic(key: "fastExtract", systemImage: "bolt", colors: [.yellow, .orange]),
+            HelpTopic(key: "webExtract", systemImage: "arrow.down.circle", colors: [.blue, .indigo]),
             HelpTopic(key: "create", systemImage: "plus.square.on.square", colors: [.orange, .yellow]),
             HelpTopic(key: "edit", systemImage: "pencil.and.outline", colors: [.purple, .indigo]),
             HelpTopic(key: "search", systemImage: "magnifyingglass", colors: [.pink, .orange])
@@ -51,6 +53,11 @@ private struct HelpCategory: Identifiable {
         HelpCategory(key: "analyze", systemImage: "chart.pie", color: .indigo, topics: [
             HelpTopic(key: "analyze", systemImage: "chart.pie", colors: [.indigo, .purple]),
             HelpTopic(key: "presets", systemImage: "wand.and.stars", colors: [.purple, .pink])
+        ]),
+        HelpCategory(key: "ai", systemImage: "sparkles", color: .purple, topics: [
+            HelpTopic(key: "aiSuggestions", systemImage: "sparkles", colors: [.purple, .pink]),
+            HelpTopic(key: "aiAssist", systemImage: "wand.and.stars", colors: [.indigo, .purple]),
+            HelpTopic(key: "aiBackground", systemImage: "clock.arrow.2.circlepath", colors: [.pink, .orange])
         ]),
         HelpCategory(key: "safety", systemImage: "shield.lefthalf.filled", color: .orange, topics: [
             HelpTopic(key: "metadata", systemImage: "doc.badge.gearshape", colors: [.brown, .orange]),
