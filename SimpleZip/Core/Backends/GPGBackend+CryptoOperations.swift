@@ -142,6 +142,22 @@ extension GPGBackend {
         }
     }
 
+    /// 同目录唯一临时输出路径(原子签名用 —— 同卷才能 move/replace 原子)。
+    private static func atomicSignTempURL(besideOutput outputURL: URL) -> URL {
+        outputURL.deletingLastPathComponent()
+            .appendingPathComponent(".simplezip-sign-\(UUID().uuidString).tmp")
+    }
+
+    /// 把临时签名产物原子替换到目标:目标已存在 → `replaceItemAt`(原子);不存在 → `moveItem`。抛错由调用方清临时件。
+    private static func atomicReplaceSignatureOutput(_ destination: URL, with temp: URL) throws {
+        let fm = FileManager.default
+        if fm.fileExists(atPath: destination.path) {
+            _ = try fm.replaceItemAt(destination, withItemAt: temp)
+        } else {
+            try fm.moveItem(at: temp, to: destination)
+        }
+    }
+
     /// **Clearsign** —— 把整个文本文件签名后输出为「clearsigned message」格式（`-----BEGIN PGP SIGNED MESSAGE-----` … 包住原文，
     /// 末尾跟一段 `-----BEGIN PGP SIGNATURE-----`）。是 `.szs` 签名清单的核心格式：
     /// 一个 clearsigned `.szs` 文件就是「JSON 清单 + 内联签名」，单文件即可用 `gpg --verify` 校验。
@@ -156,7 +172,9 @@ extension GPGBackend {
         operationID: UUID? = nil
     ) async throws {
         let tool = try resolve()
-        try? FileManager.default.removeItem(at: outputURL)
+        // 安全:不先删 outputURL。写到同目录唯一临时文件,gpg 成功后再原子替换;失败 / pinentry 取消则原文件原样保留。
+        // (旧代码先 removeItem outputURL,覆盖已有 .szs 时一旦签名失败 / 取消,用户旧文件就没了 —— 用户报的数据丢失。)
+        let tempOutput = Self.atomicSignTempURL(besideOutput: outputURL)
         var arguments: [String] = ["--batch", "--yes", "--clearsign"]
         // 签名密钥在 SimpleZip 私有环时,必须用它的独立 `--homedir`,否则 `--local-user <fp>` 在 ~/.gnupg
         // 里找不到这把私钥而签名失败。私有环是独立 GNUPGHOME(非 --keyring),一次调用只能用一个 homedir。
@@ -166,8 +184,14 @@ extension GPGBackend {
         if let key = signingKeyFingerprint {
             arguments.append(contentsOf: ["--local-user", key])
         }
-        arguments.append(contentsOf: ["--output", outputURL.path, plaintextURL.path])
-        _ = try await BackendProcessRunner.runAndCapture(tool, arguments: arguments, operationID: operationID)
+        arguments.append(contentsOf: ["--output", tempOutput.path, plaintextURL.path])
+        do {
+            _ = try await BackendProcessRunner.runAndCapture(tool, arguments: arguments, operationID: operationID)
+            try Self.atomicReplaceSignatureOutput(outputURL, with: tempOutput)
+        } catch {
+            try? FileManager.default.removeItem(at: tempOutput)
+            throw error
+        }
     }
 
     /// **校验 clearsigned 文件**并返回签名状态 + 内联明文 body。
@@ -285,8 +309,8 @@ extension GPGBackend {
     ) async throws -> URL {
         let tool = try resolve()
         let signatureURL = archiveURL.appendingPathExtension("asc")
-        // 已存在 → 先删，否则 gpg 会拒绝覆盖。
-        try? FileManager.default.removeItem(at: signatureURL)
+        // 安全:不先删 signatureURL。写到同目录临时文件,成功后原子替换;失败 / 取消则已有的 `.asc` 原样保留。
+        let tempOutput = Self.atomicSignTempURL(besideOutput: signatureURL)
         var arguments: [String] = ["--batch", "--yes", "--armor", "--detach-sign"]
         // 见 clearsign 注释:私有环签名密钥要用其独立 `--homedir`,否则在 ~/.gnupg 找不到私钥。
         if useSimpleZipKeyring {
@@ -295,8 +319,14 @@ extension GPGBackend {
         if let key = signingKeyFingerprint {
             arguments.append(contentsOf: ["--local-user", key])
         }
-        arguments.append(contentsOf: ["--output", signatureURL.path, archiveURL.path])
-        _ = try await BackendProcessRunner.runAndCapture(tool, arguments: arguments, operationID: operationID)
+        arguments.append(contentsOf: ["--output", tempOutput.path, archiveURL.path])
+        do {
+            _ = try await BackendProcessRunner.runAndCapture(tool, arguments: arguments, operationID: operationID)
+            try Self.atomicReplaceSignatureOutput(signatureURL, with: tempOutput)
+        } catch {
+            try? FileManager.default.removeItem(at: tempOutput)
+            throw error
+        }
         return signatureURL
     }
 
