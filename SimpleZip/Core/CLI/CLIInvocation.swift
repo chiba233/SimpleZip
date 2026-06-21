@@ -340,8 +340,12 @@ enum SimpleZipURLCommand: Equatable {
     case compare(left: String, right: String)
     case open(path: String)
 
+    nonisolated static func isAppOwnedURL(_ url: URL) -> Bool {
+        url.scheme?.lowercased() == "simplezip"
+    }
+
     nonisolated static func parse(_ url: URL) -> SimpleZipURLCommand? {
-        guard url.scheme?.lowercased() == "simplezip",
+        guard isAppOwnedURL(url),
               let components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return nil }
         func absolutePath(_ name: String) -> String? {
             guard let value = components.queryItems?.first(where: { $0.name == name })?.value,

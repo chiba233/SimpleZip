@@ -353,6 +353,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 handleURLCommand(command)
                 continue
             }
+            if SimpleZipURLCommand.isAppOwnedURL(url) { continue }
             ExternalFileOpenQueue.shared.enqueue(url)
         }
         scheduleEnsureWindowForPendingExternalOpens()

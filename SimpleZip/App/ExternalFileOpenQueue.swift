@@ -66,6 +66,7 @@ final class ExternalFileOpenQueue {
     private init() {}
 
     func enqueue(_ url: URL) {
+        guard !SimpleZipURLCommand.isAppOwnedURL(url) else { return }
         lock.lock()
         pendingURLs.append(url)
         routingGeneration += 1

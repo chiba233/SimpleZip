@@ -26,4 +26,11 @@ struct SimpleZipURLCommandTests {
         #expect(SimpleZipURLCommand.parse(url("https://check?path=/tmp/a.zip")) == nil)
         #expect(SimpleZipURLCommand.parse(url("simplezip://finder-action?action=extract&payload=/tmp/x.json")) == nil)
     }
+
+    @Test func identifiesAppOwnedURLsEvenWhenMalformed() {
+        #expect(SimpleZipURLCommand.isAppOwnedURL(url("simplezip://finder-action?action=extract&payload=/tmp/missing.json")))
+        #expect(SimpleZipURLCommand.isAppOwnedURL(url("SimpleZip://delete?path=/tmp/a.zip")))
+        #expect(!SimpleZipURLCommand.isAppOwnedURL(url("https://check?path=/tmp/a.zip")))
+        #expect(!SimpleZipURLCommand.isAppOwnedURL(URL(fileURLWithPath: "/tmp/a.zip")))
+    }
 }

@@ -918,6 +918,7 @@ struct ContentView: View {
     /// 在「本浏览器」里浏览一个 URL（右键「在新标签 / 新窗口打开」用）——强制浏览语义，**不**走 Finder 自动解压。
     /// 文件夹 → 进入；`.siz`/`.szs` → 走各自验签流程；受支持压缩包 → 浏览。
     private func openURLInThisBrowser(_ url: URL) {
+        guard !SimpleZipURLCommand.isAppOwnedURL(url) else { return }
         var isDirectory: ObjCBool = false
         guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory) else { return }
         let ext = url.pathExtension.lowercased()
@@ -964,6 +965,7 @@ struct ContentView: View {
             FinderServiceActionQueue.shared.drain().forEach(handleFinderServiceAction)
             return
         }
+        guard !SimpleZipURLCommand.isAppOwnedURL(url) else { return }
 
         var isDirectory: ObjCBool = false
         let ext = url.pathExtension.lowercased()
