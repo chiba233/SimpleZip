@@ -33,6 +33,11 @@ documents only what the app actually ships; it does not invent commands, paramet
 
 The titles and parameters below are exactly as defined in source.
 
+> Apple registers at most **10 App Shortcuts** (the ones with pre-baked Siri phrases). The first ten actions below are
+> registered that way; the newer actions (Compute File Hash and the analysis/release tools) are **not** pre-registered, so
+> they have no built-in Siri phrase — but they appear normally in the Shortcuts app's action list under SimpleZip and work
+> exactly the same once added to a shortcut.
+
 ### Extract Archive
 
 Extracts archives the way SimpleZip's Finder auto-extract does: each archive unpacks into a uniquely named folder next to
@@ -155,6 +160,97 @@ boolean toggles can be changed; anything touching passwords, signing, or extract
 | **State** | choice | `On`, `Off`, or `Toggle`. Defaults to `Toggle`. |
 
 Returns the setting's new state in a Setting Switch snippet.
+
+### Compute File Hash
+
+Computes a checksum (CRC32, MD5, SHA-1, SHA-256 or SHA-512) for one or more files and returns the hex digests in the same
+order as the inputs — ready to chain into another action.
+
+| Parameter | Type | Notes |
+| --- | --- | --- |
+| **Files** | file (multiple) | The files to hash. |
+| **Algorithm** | choice | `CRC32`, `MD5`, `SHA-1`, `SHA-256` or `SHA-512`. Defaults to `SHA-256`. |
+
+Returns a list of hex digest strings.
+
+### Analyze Archive Space
+
+Returns a one-line disk-usage summary for an archive: original vs packed size, compression ratio, macOS junk, and the
+largest file. Read-only.
+
+| Parameter | Type | Notes |
+| --- | --- | --- |
+| **Archive** | file | The archive to analyze. |
+
+Returns a text summary.
+
+### Rescue Damaged Archive
+
+Best-effort recovery from a damaged archive into a new `(rescued)` folder next to it. Rescued files may be incomplete and
+the archive is **not** repaired; recovered output still passes the untrusted-entry safety checks. Recorded in the Activity
+Center.
+
+| Parameter | Type | Notes |
+| --- | --- | --- |
+| **Archive** | file | The damaged archive to recover from. |
+
+Returns the rescue folder as a file.
+
+### Check Up Archives
+
+Runs an integrity test across several archives and returns true only when every archive passes. Runs unattended — archives
+whose entry names need a password are counted as not-passing rather than prompting.
+
+| Parameter | Type | Notes |
+| --- | --- | --- |
+| **Archives** | file (multiple) | The archives to check. |
+
+Returns a boolean (true when all pass).
+
+### Find Duplicate Archives
+
+Finds duplicate archives among the given archives by structural fingerprint. Returns one line per duplicate group (the
+member file names). Read-only.
+
+| Parameter | Type | Notes |
+| --- | --- | --- |
+| **Archives** | file (multiple) | Two or more archives to compare. |
+
+Returns a list of duplicate-group descriptions (empty when none).
+
+### Check Reproducible Packing
+
+Packs a folder twice with reproducible settings and returns true when the two archives are byte-for-byte identical. Only
+zip and 7z are supported. Temporary archives are written to the system temp directory and cleaned up.
+
+| Parameter | Type | Notes |
+| --- | --- | --- |
+| **Folder** | file | The source folder to pack twice. Must be a directory. |
+| **Format** | choice | `ZIP` or `7-Zip` (other formats are rejected). Defaults to `ZIP`. |
+
+Returns a boolean (true when the two builds are byte-identical).
+
+### Audit Release Directory
+
+Audits a release folder by name and checksum file (no hashing): checks that every artifact is covered by SHA256SUMS.
+Returns true when coverage is complete. Read-only.
+
+| Parameter | Type | Notes |
+| --- | --- | --- |
+| **Folder** | file | The release directory to audit. Must be a directory. |
+
+Returns a boolean (true when every artifact is covered by a checksum).
+
+### Quick Verify Release Group
+
+A fast, name-only check of a release folder's composition. Returns true when a downloader could verify it (an artifact or
+signed container plus SHA256SUMS). Reads nothing.
+
+| Parameter | Type | Notes |
+| --- | --- | --- |
+| **Folder** | file | The release directory to check. Must be a directory. |
+
+Returns a boolean (true when the group is verifiable).
 
 ## Entities
 

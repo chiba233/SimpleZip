@@ -37,6 +37,47 @@ file.
 Verify the files listed in a checksum file (sha256sum / BSD tag / bare digest /
 \&.sfv). Unsafe entries (absolute paths, ..) are rejected. Exits 1 on any failure.
 .TP
+.B list \fIarchive\fR
+List an archive's entries (kind, size, name). Read-only.
+.TP
+.B inspect \fIarchive\fR
+Release-package check without extracting (counts, junk, empty dirs, executables,
+symlinks, suspicious paths). Exits 1 when suspicious paths are found.
+.TP
+.B extract \fIarchive\fR... [\fB\-\-to\fR \fIdir\fR]
+Extract each archive into a uniquely named folder via the same vetted safe path as
+Finder auto-extract. \fB\-\-to\fR sets the destination parent. Exits 1 on any failure.
+.TP
+.B hash \fIfile\fR... [\fB\-\-algo\fR \fIlist\fR]
+Compute checksums (CRC32, MD5, SHA1, SHA256, SHA512; default SHA256; or
+.B all\fR).
+BSD-tag output that \fBverify\fR can read back.
+.TP
+.B space \fIarchive\fR
+Disk-usage breakdown (original vs packed, ratio, junk, largest files/folders/extensions).
+.TP
+.B rescue \fIarchive\fR [\fB\-\-to\fR \fIdir\fR]
+Best-effort recovery from a damaged archive into a "(rescued)" folder. The archive is
+not repaired. Exits 1 if nothing could be recovered.
+.TP
+.B checkup \fIarchive\fR...
+Batch integrity test plus suspicious/junk/encrypted counts over several archives (or a
+folder). Exits 1 if any archive fails its integrity test.
+.TP
+.B duplicates \fIpath\fR...
+Find duplicate archives by structural fingerprint among the given archives (or a folder).
+.TP
+.B reproduce \fIfolder\fR [\fB\-\-format\fR \fIzip\fR|\fI7z\fR]
+Pack a folder twice and report whether the two builds are byte-for-byte identical.
+Exits 1 when they differ.
+.TP
+.B audit \fIfolder\fR
+Audit a release directory (SHA256SUMS coverage, stale entries, broken VERIFY references,
+orphans). Exits 1 when an artifact is uncovered.
+.TP
+.B verify-group \fIfolder\fR
+Fast, name-only release-group check (is it verifiable?). Exits 1 when it isn't.
+.TP
 .B doctor
 Check the CLI environment: the app bundle, the bundled 7\-Zip engine, the optional
 RAR and GPG backends, and the symlink.

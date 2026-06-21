@@ -39,11 +39,22 @@ simplezip — SimpleZip command-line companion
 
 USAGE:
   simplezip open <file>...                   Open files or archives in the SimpleZip app
+  simplezip list <archive>                   List an archive's entries (path, size, kind)
   simplezip check <archive>...               Test archive integrity (exit 1 on any failure)
+  simplezip inspect <archive>                Release-package check (no extract; exit 1 if suspicious paths)
   simplezip compare <left> <right>           Compare two archives (exit 1 when different)
   simplezip create <output> <input>... [options]
                                              Create an archive; format from the output extension
+  simplezip extract <archive>... [--to DIR]  Extract into a uniquely named folder (safe path)
   simplezip verify <checksum-file>...        Verify SHA256SUMS / checksums.txt / .sha256 / .md5 / .sfv
+  simplezip hash <file>... [--algo LIST]     Compute checksums (CRC32/MD5/SHA1/SHA256/SHA512; default SHA256)
+  simplezip space <archive>                  Disk-usage breakdown (largest files/folders/extensions, ratio)
+  simplezip rescue <archive> [--to DIR]      Best-effort data recovery from a damaged archive
+  simplezip checkup <archive>...             Batch health check (test + suspicious/junk/encrypted counts)
+  simplezip duplicates <path>...             Find duplicate archives by structural fingerprint
+  simplezip reproduce <folder> [--format F]  Pack a folder twice and check byte-identical reproducibility
+  simplezip audit <folder>                   Audit a release directory (checksum coverage, orphans, stale refs)
+  simplezip verify-group <folder>            Quick name-only release-group check (is it verifiable?)
   simplezip doctor                           Check the CLI environment (app, backends, symlink)
   simplezip completions <zsh|bash|fish>      Print a shell completion script to stdout
   simplezip version                          Print version
@@ -267,12 +278,124 @@ simplezip help [command]
 显示顶层帮助,或某条命令的详细帮助。未知命令以 `2` 退出;当它接近某条真实命令时还会给出建议——
 `unknown command: verfy (did you mean "verify"?)`。
 
+### `list`
+
+```
+simplezip list <archive> [--json] [--quiet]
+```
+
+列出归档的条目。纯文本每行 `kind  size  name`(`d` 目录、`-` 文件)。只读。加密归档会询问口令
+(或读 `SIMPLEZIP_PASSWORD`)。`--json` 时对象含 `count` 与 `entries` 数组(`{ name, size, directory }`)。
+
+### `inspect`
+
+```
+simplezip inspect <archive> [--json] [--quiet]
+```
+
+发布助手的发布包检测,不解压:文件 / 文件夹数、总大小、macOS 垃圾、空目录、可执行、符号链接,以及
+可疑条目路径(路径穿越、绝对路径……)。发现可疑路径 **exit `1`**,干净则 `0`。加密归档会询问口令。
+要做内容级校验请用 `verify`。
+
+### `space`
+
+```
+simplezip space <archive> [--json] [--quiet]
+```
+
+体积占用拆解:原始 vs 压缩后大小与压缩率、macOS 垃圾字节,以及最大文件 / 顶层目录 / 扩展名。只读;
+加密归档会询问口令。
+
+### `hash`
+
+```
+simplezip hash <file>... [--algo LIST] [--json] [--quiet]
+```
+
+计算文件(或文件夹内每个文件,递归)的校验和。`--algo`/`-a` 是逗号分隔列表,或 `all`;名称大小写 /
+连字符不敏感(`sha-256` = `SHA256`)。可选:`CRC32, MD5, SHA1, SHA256, SHA512`。默认 `SHA256`。输出为
+BSD-tag 风格 `SHA256 (path) = hex`,`verify` 能读回。任一文件读不出 **exit `1`**。
+
+```sh
+simplezip hash --algo all *.zip > SHA256SUMS && simplezip verify SHA256SUMS
+```
+
+### `duplicates`
+
+```
+simplezip duplicates <path>... [--json] [--quiet]
+```
+
+在给定归档中(给一个目录时则扫目录内所有归档)查找重复归档。先按结构指纹(路径/大小/CRC 结构一致)
+聚类,再按条目数与大小一致聚类。只读;列不出的归档会被跳过并报告。总是 exit `0`。
+
+### `extract`
+
+```
+simplezip extract <archive>... [--to DIR] [--json] [--quiet]
+```
+
+把每个归档解到唯一命名的文件夹(绝不覆盖),走与 Finder 自动解压同一条受检路径——不可信条目校验、
+staging、冲突处理都在内。`--to`/`-d` 指定目标父目录(须为已存在目录;默认归档所在目录)。加密归档会
+询问口令(先试 `SIMPLEZIP_PASSWORD`,再用预设 / 本会话口令)。任一失败 **exit `1`**。
+
+### `rescue`
+
+```
+simplezip rescue <archive> [--to DIR] [--json] [--quiet]
+```
+
+从**损坏**归档尽力救援:把还能读出来的东西救到新建的 `<名> (rescued)` 文件夹(绝不覆盖;原归档绝不
+改动)。救出的文件可能不完整,且**不**修复归档本身;救出的产物仍过不可信条目安全检查。`--to`/`-d`
+指定父目录。一个都救不出 **exit `1`**。
+
+### `checkup`
+
+```
+simplezip checkup <archive>... [--json] [--quiet]
+```
+
+对多个归档(给一个目录时则扫目录内所有归档)批量体检:逐个完整性测试,加文件数、总大小、可疑路径 /
+macOS 垃圾 / 加密条目计数,末尾汇总。无人值守——条目名需要口令的归档标为「列不出」而不弹框。任一
+完整性测试失败 **exit `1`**。
+
+### `reproduce`
+
+```
+simplezip reproduce <folder> [--format zip|7z] [--json] [--quiet]
+```
+
+用可复现设置把文件夹打包两次,报告两个归档是否逐字节一致(SHA-256),以及哪些因素被归一 / 剥离 /
+原样保留。仅 `zip` 与 `7z` 支持可复现(默认 `zip`)。临时产物写系统 temp、完事即清。两次构建不同
+**exit `1`**。
+
+### `audit`
+
+```
+simplezip audit <folder> [--json] [--quiet]
+```
+
+按文件名 + 校验文件审计发布目录(不算哈希):清点产物 / 校验文件 / 签名容器 / 公钥 / VERIFY 文档,
+再报告 SHA256SUMS 覆盖缺口与陈旧条目、`VERIFY*.md` 引用了但磁盘上不存在的文件名、孤儿文件。有产物
+未被 SHA256SUMS 覆盖 **exit `1`**。要做内容级校验请用 `verify`。
+
+### `verify-group`
+
+```
+simplezip verify-group <folder> [--json] [--quiet]
+```
+
+只按文件名快速核对发布目录组成:有无可下载产物或签名容器、SHA256SUMS、公钥、VERIFY 文档——以及
+下载者能否据此校验(产物/容器 + 校验文件)。不读取任何内容。不可校验时 **exit `1`**。
+
 ## 口令
 
 口令**绝不**作为命令行参数被接受。
 
-- `check`(以及其他读取类命令)在遇到加密归档时,会通过一个小对话框询问口令;口令直接喂给引擎,绝不
-  出现在命令行上。
+- `check`、`list`、`inspect`、`space`、`extract`、`rescue` 遇到加密归档时,先试 `SIMPLEZIP_PASSWORD`
+  (脚本场景免弹框),再弹一个不回显的小对话框(最多三次)。口令直接喂给引擎,绝不出现在命令行上。
+- `checkup` 与 `duplicates` 是对多个归档的无人值守批处理,所以**绝不**弹框——条目名需要口令的归档
+  标为「列不出」/ 跳过。
 - `create --encrypt` 从 `SIMPLEZIP_PASSWORD` 环境变量读取口令,或从一个不回显输入的交互式终端提示
   读取。两者都没有时,命令会失败,而不是在没有口令的情况下继续。
 

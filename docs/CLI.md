@@ -49,11 +49,22 @@ simplezip — SimpleZip command-line companion
 
 USAGE:
   simplezip open <file>...                   Open files or archives in the SimpleZip app
+  simplezip list <archive>                   List an archive's entries (path, size, kind)
   simplezip check <archive>...               Test archive integrity (exit 1 on any failure)
+  simplezip inspect <archive>                Release-package check (no extract; exit 1 if suspicious paths)
   simplezip compare <left> <right>           Compare two archives (exit 1 when different)
   simplezip create <output> <input>... [options]
                                              Create an archive; format from the output extension
+  simplezip extract <archive>... [--to DIR]  Extract into a uniquely named folder (safe path)
   simplezip verify <checksum-file>...        Verify SHA256SUMS / checksums.txt / .sha256 / .md5 / .sfv
+  simplezip hash <file>... [--algo LIST]     Compute checksums (CRC32/MD5/SHA1/SHA256/SHA512; default SHA256)
+  simplezip space <archive>                  Disk-usage breakdown (largest files/folders/extensions, ratio)
+  simplezip rescue <archive> [--to DIR]      Best-effort data recovery from a damaged archive
+  simplezip checkup <archive>...             Batch health check (test + suspicious/junk/encrypted counts)
+  simplezip duplicates <path>...             Find duplicate archives by structural fingerprint
+  simplezip reproduce <folder> [--format F]  Pack a folder twice and check byte-identical reproducibility
+  simplezip audit <folder>                   Audit a release directory (checksum coverage, orphans, stale refs)
+  simplezip verify-group <folder>            Quick name-only release-group check (is it verifiable?)
   simplezip doctor                           Check the CLI environment (app, backends, symlink)
   simplezip completions <zsh|bash|fish>      Print a shell completion script to stdout
   simplezip version                          Print version
@@ -289,13 +300,147 @@ simplezip help [command]
 Shows the top-level help, or detailed help for one command. An unknown command exits `2` and, when it's close to a real
 one, suggests it — `unknown command: verfy (did you mean "verify"?)`.
 
+### `list`
+
+```
+simplezip list <archive> [--json] [--quiet]
+```
+
+Lists an archive's entries. Plain-text output is one line per entry, `kind  size  name`
+(`d` for directories, `-` for files). Read-only. Encrypted archives prompt for a password
+(or read `SIMPLEZIP_PASSWORD`). With `--json` the object carries `count` and an `entries`
+array of `{ name, size, directory }`.
+
+### `inspect`
+
+```
+simplezip inspect <archive> [--json] [--quiet]
+```
+
+The Release Assistant's package check, without extracting: file/folder counts, total size,
+macOS junk, empty directories, executables, symlinks, and suspicious entry paths (path
+traversal, absolute paths, …). **Exit `1`** when suspicious paths are found, `0` when clean.
+Encrypted archives prompt for a password. For a content-level checksum check, use `verify`.
+
+### `space`
+
+```
+simplezip space <archive> [--json] [--quiet]
+```
+
+Disk-usage breakdown: original vs packed size and compression ratio, macOS-junk bytes, and
+the largest files / top-level folders / extensions. Read-only; prompts for a password on
+encrypted archives.
+
+### `hash`
+
+```
+simplezip hash <file>... [--algo LIST] [--json] [--quiet]
+```
+
+Computes checksums for files (or every file inside a folder, recursively). `--algo`/`-a`
+is a comma-separated list, or `all`; names are case- and hyphen-insensitive (`sha-256` =
+`SHA256`). Choices: `CRC32, MD5, SHA1, SHA256, SHA512`. Defaults to `SHA256`. Output is
+BSD-tag style — `SHA256 (path) = hex` — which `verify` can read back. **Exit `1`** if any
+file cannot be read.
+
+```sh
+simplezip hash --algo all *.zip > SHA256SUMS && simplezip verify SHA256SUMS
+```
+
+### `duplicates`
+
+```
+simplezip duplicates <path>... [--json] [--quiet]
+```
+
+Finds duplicate archives among the given archives (or every archive inside a folder, when
+a single directory is given). Groups by structural fingerprint (identical path/size/CRC
+structure), then by matching entry-count-and-size. Read-only; not-listable archives are
+skipped and reported. Always exits `0`.
+
+### `extract`
+
+```
+simplezip extract <archive>... [--to DIR] [--json] [--quiet]
+```
+
+Extracts each archive into a uniquely named folder (never overwriting), the same vetted
+path Finder auto-extract uses — untrusted-entry safety checks, staging and conflict
+handling included. `--to`/`-d` sets the destination parent (must be an existing folder;
+defaults to each archive's own folder). Encrypted archives prompt for a password (after
+trying `SIMPLEZIP_PASSWORD`, then your saved preset / session password). **Exit `1`** if
+any archive fails.
+
+### `rescue`
+
+```
+simplezip rescue <archive> [--to DIR] [--json] [--quiet]
+```
+
+Best-effort recovery from a **damaged** archive: pulls out whatever still reads into a new
+`<name> (rescued)` folder (never overwriting; the original is never touched). Rescued files
+may be incomplete and the archive is **not** repaired; recovered output still passes the
+untrusted-entry safety checks. `--to`/`-d` sets the parent folder. **Exit `1`** if nothing
+could be recovered.
+
+### `checkup`
+
+```
+simplezip checkup <archive>... [--json] [--quiet]
+```
+
+Batch health check across several archives (or every archive inside a folder, when a
+single directory is given): per archive an integrity test plus file count, total size, and
+suspicious-path / macOS-junk / encrypted-entry counts, then a summary line. Runs
+unattended — archives whose entry names need a password are marked *not listable* rather
+than prompting. **Exit `1`** if any archive fails its integrity test.
+
+### `reproduce`
+
+```
+simplezip reproduce <folder> [--format zip|7z] [--json] [--quiet]
+```
+
+Packs the folder twice with reproducible settings and reports whether the two archives are
+byte-for-byte identical (SHA-256), plus which factors are normalized / stripped /
+stored-as-is. Only `zip` and `7z` support reproducible output (default `zip`). Temporary
+archives are written to the system temp dir and cleaned up. **Exit `1`** when the two
+builds differ.
+
+### `audit`
+
+```
+simplezip audit <folder> [--json] [--quiet]
+```
+
+Audits a release directory by name + checksum file (no hashing): classifies artifacts /
+checksums / signed containers / public keys / VERIFY docs, then reports SHA256SUMS coverage
+gaps and stale entries, file names referenced by `VERIFY*.md` that are missing, and orphan
+files. **Exit `1`** if any artifact is left uncovered by SHA256SUMS. For a content-level
+check, use `verify`.
+
+### `verify-group`
+
+```
+simplezip verify-group <folder> [--json] [--quiet]
+```
+
+A fast, name-only snapshot of a release folder's composition: whether it has a downloadable
+artifact or signed container, a SHA256SUMS, a public key and a VERIFY doc — and whether a
+downloader could verify it (artifact/container + checksums). Reads nothing. **Exit `1`**
+when it isn't verifiable.
+
 ## Passwords
 
 Passwords are **never** accepted as command-line arguments.
 
-- `check` (and the other read commands) prompt for a password through a small dialog when
-  they hit an encrypted archive; the password is fed straight to the engine and never
-  appears on the command line.
+- `check`, `list`, `inspect`, `space`, `extract`, `rescue` handle an encrypted archive by
+  first trying `SIMPLEZIP_PASSWORD` (so scripts never see a dialog), then prompting with a
+  small no-echo dialog (up to three tries). The password is fed straight to the engine and
+  never appears on the command line.
+- `checkup` and `duplicates` run unattended over many archives, so they **never** prompt —
+  an archive whose entry names need a password is marked *not listable* / skipped instead.
 - `create --encrypt` reads the password from the `SIMPLEZIP_PASSWORD` environment
   variable, or from an interactive terminal prompt where the input is not echoed. If
   neither is available, the command fails rather than proceed without a password.
