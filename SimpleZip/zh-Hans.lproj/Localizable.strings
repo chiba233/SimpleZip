@@ -2105,6 +2105,8 @@
 "settings.defaults.usageTracking.description" = "记录你实际选的压缩选项（本地，绝不记录任何加密内容），让编辑器能给出一键「按我最常用的来」。关掉则停止记录。";
 "settings.defaults.extractionUsageTracking" = "学习我常用的解压设置";
 "settings.defaults.extractionUsageTracking.description" = "记录你实际选择的解压行为开关（仅本地，绝不记录密码或目标位置），好让解压对话框给出一键「用你常用的设置」按钮。关闭即停止记录。";
+"settings.defaults.toolbarUsageTracking" = "学习我的工具栏习惯";
+"settings.defaults.toolbarUsageTracking.description" = "记录你实际点过的工具栏推荐动作（仅本地，绝不记录文件内容），好让工具栏按你最常用的把动作排在前面（按选择类型区分）。关闭即停止记录。";
 "settings.defaults.add" = "添加格式…";
 "settings.defaults.noOptions" = "未启用任何选项";
 "settings.defaults.optionCount" = "已启用 %@ 项";

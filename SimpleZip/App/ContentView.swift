@@ -1462,46 +1462,17 @@ private struct ContextualToolbarButtons: View {
     @ObservedObject var model: ArchiveBrowserModel
 
     var body: some View {
-        ForEach(ContextualToolbarActionProvider.actions(for: snapshot)) { action in
+        // 候选池 = 右键菜单白名单(FileActionCatalog);AI 关 → 习惯排序,AI 开 → 习惯权重(Phase 2)。
+        let snapshot = model.contextualToolbarSnapshot()
+        let actions = FileActionCatalog.actions(for: snapshot,
+                                                usage: ToolbarActionUsageStore.shared.usageSignals(for: snapshot))
+        ForEach(actions) { action in
             toolbarButton(action.titleKey, systemImage: action.systemImage) {
+                model.recordToolbarActionHabit(action.id)
                 perform(action)
             }
             .disabled(!action.isEnabled)
         }
-    }
-
-    private var snapshot: ContextualToolbarSnapshot {
-        ContextualToolbarSnapshot(
-            mode: snapshotMode,
-            selectedArchiveItemCount: model.selectedArchiveItems.count,
-            canEditArchiveComment: model.canEditArchiveComment,
-            canDropIntoOpenArchive: model.canDropIntoOpenArchive,
-            selectedFiles: model.selectedFileItems.map { item in
-                ContextualToolbarSnapshot.SelectedFile(
-                    name: item.url.lastPathComponent,
-                    pathExtension: item.url.pathExtension.lowercased(),
-                    isDirectory: item.isDirectory,
-                    isSupportedArchive: !item.isDirectory && ArchiveService.isSupportedArchive(item.url))
-            },
-            clipboardHasFiles: model.fileClipboard?.urls.isEmpty == false,
-            gpgUIAvailable: gpgUIAvailable)
-    }
-
-    private var snapshotMode: ContextualToolbarSnapshot.Mode {
-        switch model.mode {
-        case .archive:
-            return .archive
-        case .folder:
-            return .folder
-        case .tag:
-            return .tag
-        case .aiWorkspace:
-            return .aiWorkspace
-        }
-    }
-
-    private var gpgUIAvailable: Bool {
-        AppPreferences.gpgEnabled && GPGBackend.isAvailable()
     }
 
     private func perform(_ action: ContextualToolbarAction) {
@@ -1512,6 +1483,10 @@ private struct ContextualToolbarButtons: View {
             model.showsArchiveCommentEditor = true
         case .archiveSecurityReport:
             model.showsArchiveSecurityReport = true
+        case .archiveContentSearch:
+            model.promptContentSearch()
+        case .archiveMetadataReport:
+            model.showArchiveMetadataReport()
         case .archiveBatchRename:
             model.requestBatchRename()
         case .archiveDeleteEntries:
@@ -1548,6 +1523,26 @@ private struct ContextualToolbarButtons: View {
             model.duplicateSelectedFiles()
         case .splitFile:
             model.splitSelectedFile()
+        case .openAsArchive:
+            if let url = model.selectedFileItems.first?.url { model.openAsArchive(url) }
+        case .findDuplicateArchivesInFolder:
+            model.findDuplicateArchivesInFolder()
+        case .checkupArchives:
+            model.checkupSelectedArchives()
+        case .salvageArchive:
+            model.salvageSelectedArchive()
+        case .analyzeSpace:
+            model.analyzeSelectedArchiveSpace()
+        case .quickVerifyReleaseGroup:
+            model.quickVerifyReleaseGroup()
+        case .auditReleaseDirectory:
+            model.auditSelectedReleaseDirectory()
+        case .checkReproducibility:
+            model.runReproducibilityCheck()
+        case .generateChecksumFile:
+            model.generateChecksumFileForSelection()
+        case .verifyChecksumFile:
+            if let item = model.selectedFileItems.first { model.verifyChecksumFile(item) }
         }
     }
 

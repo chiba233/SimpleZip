@@ -1403,6 +1403,8 @@
 "settings.defaults.usageTracking.description" = "Enregistre les options de compression que vous choisissez (localement, jamais rien de chiffré) pour que l’éditeur puisse proposer un bouton « utiliser mes plus fréquents ». Désactivez pour arrêter l’enregistrement.";
 "settings.defaults.extractionUsageTracking" = "Apprendre mes réglages d'extraction habituels";
 "settings.defaults.extractionUsageTracking.description" = "Enregistre les commutateurs de comportement d'extraction que vous choisissez (localement, jamais un mot de passe ni une destination) afin que la fenêtre d'extraction puisse proposer un bouton « utiliser vos réglages habituels » en un clic. Désactivez pour arrêter l'enregistrement.";
+"settings.defaults.toolbarUsageTracking" = "Apprendre mes habitudes de barre d'outils";
+"settings.defaults.toolbarUsageTracking.description" = "Enregistre les suggestions de la barre d'outils que vous utilisez réellement (localement, jamais le contenu des fichiers) afin que la barre place en premier vos actions les plus utilisées selon le type de sélection. Désactivez pour arrêter l'enregistrement.";
 "settings.defaults.add" = "Ajouter un format…";
 "settings.defaults.noOptions" = "Aucune option activée";
 "settings.defaults.optionCount" = "%@ option(s) activée(s)";

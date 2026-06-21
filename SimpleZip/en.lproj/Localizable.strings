@@ -2125,6 +2125,8 @@
 "settings.defaults.usageTracking.description" = "Records the compression options you actually pick (locally, never anything encrypted) so the editor can offer a one-click \"use my most-used\" button. Turn off to stop recording.";
 "settings.defaults.extractionUsageTracking" = "Learn my usual extraction settings";
 "settings.defaults.extractionUsageTracking.description" = "Records the extraction behavior switches you actually pick (locally, never a password or destination) so the extract dialog can offer a one-click \"use your usual settings\" button. Turn off to stop recording.";
+"settings.defaults.toolbarUsageTracking" = "Learn my toolbar habits";
+"settings.defaults.toolbarUsageTracking.description" = "Records which toolbar suggestions you actually use (locally, never any file content) so the toolbar can put your most-used actions first for each kind of selection. Turn off to stop recording.";
 "settings.defaults.add" = "Add Format…";
 "settings.defaults.noOptions" = "No options enabled";
 "settings.defaults.optionCount" = "%@ option(s) enabled";

@@ -1266,6 +1266,8 @@
 "settings.defaults.usageTracking.description" = "Zeichnet die tatsächlich gewählten Komprimierungsoptionen auf (lokal, nie etwas Verschlüsseltes), damit der Editor eine Ein-Klick-Schaltfläche „Meine häufigsten verwenden“ anbieten kann. Zum Stoppen ausschalten.";
 "settings.defaults.extractionUsageTracking" = "Meine üblichen Entpack-Einstellungen lernen";
 "settings.defaults.extractionUsageTracking.description" = "Zeichnet die Entpack-Schalter auf, die du tatsächlich wählst (lokal, niemals ein Passwort oder Ziel), damit der Entpack-Dialog eine Schaltfläche „Übliche Einstellungen verwenden“ mit einem Klick anbieten kann. Zum Beenden der Aufzeichnung ausschalten.";
+"settings.defaults.toolbarUsageTracking" = "Meine Symbolleisten-Gewohnheiten lernen";
+"settings.defaults.toolbarUsageTracking.description" = "Zeichnet auf, welche Symbolleisten-Vorschläge du tatsächlich nutzt (lokal, niemals Dateiinhalte), damit die Symbolleiste je nach Auswahl deine meistgenutzten Aktionen nach vorne stellt. Zum Beenden der Aufzeichnung ausschalten.";
 "settings.defaults.editorHint" = "Hake nur die Optionen an, die dieses Format standardmäßig nutzen soll; nicht angehakte behalten den Standard beim Erstellen und können jedes Mal geändert werden.";
 "settings.defaults.editorTitle" = "%@-Standards";
 "settings.defaults.noOptions" = "Keine Optionen aktiviert";

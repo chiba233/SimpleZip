@@ -30,6 +30,7 @@ struct GeneralPane: View {
     @AppStorage(AppPreferences.Key.finderOpenAutoExtract) private var finderOpenAutoExtract = false
     @AppStorage(AppPreferences.Key.openExternalInNewTab) private var openExternalInNewTab = true
     @AppStorage(AppPreferences.Key.extractionUsageTrackingEnabled) private var extractionUsageTracking = true
+    @AppStorage(AppPreferences.Key.toolbarActionUsageTrackingEnabled) private var toolbarActionUsageTracking = true
     @AppStorage(AppPreferences.Key.presetPasswordEnabled) private var presetPasswordEnabled = false
 
     @State private var languageMessage: String?
@@ -190,6 +191,15 @@ struct GeneralPane: View {
                     isOn: $extractionUsageTracking
                 )
                 .settingsAnchor("general.extractionUsageTracking")
+
+                // 0.4.5 #80 建议七:记录工具栏推荐动作的点击习惯,供工具栏「习惯性排序」/ AI 习惯权重。
+                SettingsToggleRow(
+                    title: L10n.text("settings.defaults.toolbarUsageTracking"),
+                    description: L10n.text("settings.defaults.toolbarUsageTracking.description"),
+                    systemImage: "slider.horizontal.3", iconTint: .purple,
+                    isOn: $toolbarActionUsageTracking
+                )
+                .settingsAnchor("general.toolbarUsageTracking")
             }
 
             Section(L10n.text("settings.finderExtension")) {

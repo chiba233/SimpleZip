@@ -410,6 +410,10 @@ enum AppPreferences {
         nonisolated static let extractionUsageStats = "extractionUsageStats"
         /// 0.4.4 #71:是否记录解压习惯(供解压对话框「用你常用的设置」)。默认 true;关 = 停止记录。
         nonisolated static let extractionUsageTrackingEnabled = "extractionUsageTrackingEnabled"
+        /// 0.4.5 #80 建议七:工具栏动作点击习惯统计(ToolbarActionUsageStore 的 JSON;派生数据,不进偏好备份)。
+        nonisolated static let toolbarActionUsageStats = "SimpleZip.toolbarActionUsageStats.v1"
+        /// 0.4.5 #80 建议七:是否记录工具栏动作点击习惯(供工具栏「习惯性排序」/ AI 习惯权重)。默认 true;关 = 停止记录。
+        nonisolated static let toolbarActionUsageTrackingEnabled = "toolbarActionUsageTrackingEnabled"
         /// 0.4.4 #34:归档清单缓存(ArchiveListingCacheStore 的 JSON Data;派生数据,不进偏好备份,恢复出厂时清掉)。
         nonisolated static let archiveListingCache = "SimpleZip.ArchiveListingCache.v1"
         /// 0.4.4 #34:是否缓存打开过的归档的非加密条目名(供「文件 X 在哪个包」搜索)。默认 true;关 → 停止缓存并清空。
@@ -554,6 +558,11 @@ enum AppPreferences {
     /// 0.4.4 #71:是否记录解压习惯(供解压对话框「用你常用的设置」)。默认 true。
     nonisolated static var extractionUsageTrackingEnabled: Bool {
         defaultTrueBool(forKey: Key.extractionUsageTrackingEnabled)
+    }
+
+    /// 0.4.5 #80 建议七:是否记录工具栏动作点击习惯(供工具栏「习惯性排序」/ AI 习惯权重)。默认 true。
+    nonisolated static var toolbarActionUsageTrackingEnabled: Bool {
+        defaultTrueBool(forKey: Key.toolbarActionUsageTrackingEnabled)
     }
 
     /// 0.4.4 #34:是否缓存打开过的归档的非加密条目名(供「文件 X 在哪个包」搜索)。默认 true。
@@ -1170,6 +1179,7 @@ enum AppPreferences {
         Key.aiAllowFolderPreindex,
         Key.compressionUsageTrackingEnabled,
         Key.extractionUsageTrackingEnabled,
+        Key.toolbarActionUsageTrackingEnabled,
         Key.archiveListingCacheEnabled,
         Key.archiveListingCacheMaxArchives,
         Key.archiveListingCacheTTLDays,
@@ -1294,6 +1304,7 @@ enum AppPreferences {
         v[Key.aiAllowFolderPreindex] = aiAllowFolderPreindex
         v[Key.compressionUsageTrackingEnabled] = compressionUsageTrackingEnabled
         v[Key.extractionUsageTrackingEnabled] = extractionUsageTrackingEnabled
+        v[Key.toolbarActionUsageTrackingEnabled] = toolbarActionUsageTrackingEnabled
         v[Key.archiveListingCacheEnabled] = archiveListingCacheEnabled
         v[Key.archiveListingCacheMaxArchives] = archiveListingCacheMaxArchives
         v[Key.archiveListingCacheTTLDays] = archiveListingCacheTTLDays

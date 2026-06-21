@@ -1846,6 +1846,7 @@ struct FileNSOutlineView: NSViewRepresentable {
         }
 
         @objc private func openSelectedAsArchive() {
+            model.recordToolbarActionHabit(.openAsArchive)
             if let item = model.selectedFileItems.first {
                 model.openAsArchive(item.url)
             }
@@ -1957,22 +1958,27 @@ struct FileNSOutlineView: NSViewRepresentable {
         }
 
         @objc private func createSignedManifestFromSelection() {
+            model.recordToolbarActionHabit(.createSignedManifest)
             model.createSignedManifest()
         }
 
         @objc private func encryptSelectedToGPG() {
+            model.recordToolbarActionHabit(.encryptGPG)
             model.encryptSelectionToGPG()
         }
 
         @objc private func batchRenameFiles() {
+            model.recordToolbarActionHabit(.fileBatchRename)
             model.requestBatchRenameFiles()
         }
 
         @objc private func compareSZSWithFolder() {
+            model.recordToolbarActionHabit(.compareSZSWithFolder)
             model.compareSelectedSZSWithFolder()
         }
 
         @objc private func silentBrowseSelectedSZS() {
+            model.recordToolbarActionHabit(.browseSZS)
             if let url = model.selectedFileItems.first?.url {
                 model.pendingSZSSilentVirtualBrowse = url
             }
@@ -2018,38 +2024,47 @@ struct FileNSOutlineView: NSViewRepresentable {
         }
 
         @objc private func batchTestArchives() {
+            model.recordToolbarActionHabit(.batchTestArchives)
             model.batchTestSelectedArchives()
         }
 
         @objc private func inspectArchiveForRelease() {
+            model.recordToolbarActionHabit(.inspectRelease)
             model.inspectSelectedArchiveForRelease()
         }
 
         @objc private func analyzeArchiveSpace() {
+            model.recordToolbarActionHabit(.analyzeSpace)
             model.analyzeSelectedArchiveSpace()
         }
 
         @objc private func quickVerifyReleaseGroup() {
+            model.recordToolbarActionHabit(.quickVerifyReleaseGroup)
             model.quickVerifyReleaseGroup()
         }
 
         @objc private func checkReproducibility() {
+            model.recordToolbarActionHabit(.checkReproducibility)
             model.runReproducibilityCheck()
         }
 
         @objc private func auditReleaseDirectory() {
+            model.recordToolbarActionHabit(.auditReleaseDirectory)
             model.auditSelectedReleaseDirectory()
         }
 
         @objc private func checkupArchives() {
+            model.recordToolbarActionHabit(.checkupArchives)
             model.checkupSelectedArchives()
         }
 
         @objc private func salvageArchive() {
+            model.recordToolbarActionHabit(.salvageArchive)
             model.salvageSelectedArchive()
         }
 
         @objc private func findDuplicateArchives() {
+            model.recordToolbarActionHabit(.findDuplicateArchivesInFolder)
             model.findDuplicateArchivesInFolder()
         }
 
@@ -2062,6 +2077,7 @@ struct FileNSOutlineView: NSViewRepresentable {
         }
 
         @objc private func compareArchivesSelected() {
+            model.recordToolbarActionHabit(.compareArchives)
             model.compareSelectedArchives()
         }
 
@@ -2077,10 +2093,12 @@ struct FileNSOutlineView: NSViewRepresentable {
         }
 
         @objc private func generateChecksumFile() {
+            model.recordToolbarActionHabit(.generateChecksumFile)
             model.generateChecksumFileForSelection()
         }
 
         @objc private func verifyChecksumFileSelected() {
+            model.recordToolbarActionHabit(.verifyChecksumFile)
             guard let item = model.selectedFileItems.first else { return }
             model.verifyChecksumFile(item)
         }
@@ -2103,14 +2121,17 @@ struct FileNSOutlineView: NSViewRepresentable {
         }
 
         @objc private func splitFileSelected() {
+            model.recordToolbarActionHabit(.splitFile)
             model.splitSelectedFile()
         }
 
         @objc private func combineVolumesSelected() {
+            model.recordToolbarActionHabit(.combineVolumes)
             model.combineSelectedVolumes()
         }
 
         @objc private func convertArchivesSelected() {
+            model.recordToolbarActionHabit(.convertArchives)
             model.requestConvertSelectedArchives()
         }
 
@@ -2124,6 +2145,7 @@ struct FileNSOutlineView: NSViewRepresentable {
         }
 
         @objc private func duplicateSelected() {
+            model.recordToolbarActionHabit(.duplicateFiles)
             model.duplicateSelectedFiles()
         }
 

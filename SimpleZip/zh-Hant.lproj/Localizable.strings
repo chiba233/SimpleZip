@@ -1267,6 +1267,8 @@
 "settings.defaults.usageTracking.description" = "記錄你實際選的壓縮選項（本地，絕不記錄任何加密內容），讓編輯器能提供一鍵「套用我最常用的」。關閉則停止記錄。";
 "settings.defaults.extractionUsageTracking" = "學習我常用的解壓縮設定";
 "settings.defaults.extractionUsageTracking.description" = "記錄你實際選擇的解壓縮行為開關（僅本機，絕不記錄密碼或目標位置），好讓解壓縮對話框提供一鍵「用你常用的設定」按鈕。關閉即停止記錄。";
+"settings.defaults.toolbarUsageTracking" = "學習我的工具列習慣";
+"settings.defaults.toolbarUsageTracking.description" = "記錄你實際點過的工具列建議動作（僅本機，絕不記錄檔案內容），好讓工具列依你最常用的把動作排在前面（依選擇類型區分）。關閉即停止記錄。";
 "settings.defaults.editorHint" = "只勾選你想讓這個格式預設的選項；未勾選的保持建立時的預設值，每次仍可更改。";
 "settings.defaults.editorTitle" = "%@ 預設值";
 "settings.defaults.noOptions" = "未啟用任何選項";

@@ -1266,6 +1266,8 @@
 "settings.defaults.usageTracking.description" = "실제로 선택한 압축 옵션을 기록하여(로컬, 암호화된 것은 절대 기록 안 함) 편집기가 원클릭 ‘자주 쓰는 설정 적용’ 버튼을 제공할 수 있게 합니다. 끄면 기록을 중지합니다.";
 "settings.defaults.extractionUsageTracking" = "자주 쓰는 압축 해제 설정 학습";
 "settings.defaults.extractionUsageTracking.description" = "실제로 선택한 압축 해제 동작 스위치를 기록해(로컬에만, 비밀번호나 대상 위치는 절대 기록하지 않음) 압축 해제 대화상자에서 한 번에 \"자주 쓰는 설정 사용\" 버튼을 제공합니다. 끄면 기록을 멈춥니다.";
+"settings.defaults.toolbarUsageTracking" = "도구 모음 습관 학습";
+"settings.defaults.toolbarUsageTracking.description" = "실제로 사용한 도구 모음 추천 동작을 기록해(로컬에만, 파일 내용은 절대 기록하지 않음) 선택 종류별로 자주 쓰는 동작을 도구 모음 앞쪽에 배치합니다. 끄면 기록을 멈춥니다.";
 "settings.defaults.editorHint" = "이 포맷의 기본값으로 쓰고 싶은 옵션만 체크하세요. 체크하지 않은 옵션은 생성 시 기본값을 유지하며 매번 변경할 수 있습니다.";
 "settings.defaults.editorTitle" = "%@ 기본값";
 "settings.defaults.noOptions" = "활성화된 옵션 없음";

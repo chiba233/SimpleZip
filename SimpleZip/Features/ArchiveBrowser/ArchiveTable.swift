@@ -673,6 +673,7 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
         }
 
         @objc private func deleteArchiveEntries() {
+            model.recordToolbarActionHabit(.archiveDeleteEntries)
             model.deleteSelectedArchiveEntries()
         }
 
@@ -703,6 +704,7 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
         }
 
         @objc private func editArchiveComment() {
+            model.recordToolbarActionHabit(.archiveEditComment)
             model.showsArchiveCommentEditor = true
         }
 
@@ -713,10 +715,12 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
         }
 
         @objc private func saveArchiveEntryCopy() {
+            model.recordToolbarActionHabit(.archiveSaveCopyAs)
             model.saveSelectedArchiveItemCopy()
         }
 
         @objc private func batchRenameEntries() {
+            model.recordToolbarActionHabit(.archiveBatchRename)
             model.requestBatchRename()
         }
 
@@ -725,14 +729,17 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
         }
 
         @objc private func findDuplicateFiles() {
+            model.recordToolbarActionHabit(.archiveFindDuplicates)
             model.findDuplicateFilesInArchive()
         }
 
         @objc private func searchArchiveContents() {
+            model.recordToolbarActionHabit(.archiveContentSearch)
             model.promptContentSearch()
         }
 
         @objc private func showMetadataReport() {
+            model.recordToolbarActionHabit(.archiveMetadataReport)
             model.showArchiveMetadataReport()
         }
 
@@ -743,6 +750,7 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
         }
 
         @objc private func showSecurityReport() {
+            model.recordToolbarActionHabit(.archiveSecurityReport)
             model.showsArchiveSecurityReport = true
         }
 
