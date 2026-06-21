@@ -336,12 +336,34 @@ extension ArchiveBrowserModel {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
 
+        // 网络归档 URL(http/https + 流式支持后缀)→ 弹独立「下载并解压」sheet,不进本地路径导航。
+        // 这里只做廉价的格式门(后缀);服务器是否真给可流式归档由 sheet 探测后门控。
+        if let webURL = streamableWebArchiveURL(trimmed) {
+            webExtractRequest = WebExtractRequest(url: webURL, destination: webExtractDestination())
+            return
+        }
+
         switch mode {
         case .archive(let archiveURL):
             openArchiveLocationText(trimmed, archiveURL: archiveURL)
         case .folder, .tag, .aiWorkspace:
             openFolder(lastExistingFolder(for: URL(fileURLWithPath: NSString(string: trimmed).expandingTildeInPath)))
         }
+    }
+
+    /// 文本是否是一个「可下载流式解压」的网络归档 URL:http/https + 路径以流式支持后缀(.zip/.tar.gz/…)结尾。
+    private func streamableWebArchiveURL(_ text: String) -> URL? {
+        guard let url = URL(string: text),
+              let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https",
+              ArchiveService.isStreamingExtractionSupported(url) else { return nil }
+        return url
+    }
+
+    /// 下载解压的默认落点:当前文件夹模式 → 当前文件夹;否则 → 系统「下载」文件夹。
+    private func webExtractDestination() -> URL {
+        if case .folder(let folder) = mode { return folder }
+        return FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first
+            ?? FileManager.default.homeDirectoryForCurrentUser
     }
 
     func locationCompletions(for text: String) -> [LocationCompletion] {

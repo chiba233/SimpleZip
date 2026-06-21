@@ -268,6 +268,9 @@ final class ArchiveBrowserModel: ObservableObject {
     @Published var gpgEncryptRequest: GPGEncryptRequest?
     @Published var extractArchiveRequest: ExtractArchiveRequest?
     @Published var extractSelectionRequest: ExtractSelectionRequest?
+    /// 地址栏输入网络归档 URL 触发的「下载并解压」请求 —— 非 nil 时 ContentView 弹 WebExtractSheet。
+    /// 只在用户提交地址栏时设置(非 FSEvents reload 路径,A17 不涉及)。
+    @Published var webExtractRequest: WebExtractRequest?
     /// 右键「权限与属主…」的待确认请求 —— 非 nil 时 ContentView 弹 FilePermissionsEditorSheet。
     @Published var permissionsEditRequest: FilePermissionsEditRequest?
     /// #111 归档比较结果 —— 非 nil 时 ContentView 弹 ArchiveDiffView。

@@ -337,6 +337,13 @@ struct ContentView: View {
                 model.extractArchiveRequest = nil
             }
         }
+        // 地址栏输入网络归档 URL → 独立「下载并解压」面板(探测服务器是否流式 + 边下边解,整包不落盘)。
+        .sheet(item: $model.webExtractRequest) { request in
+            WebExtractSheet(request: request) {
+                model.webExtractRequest = nil
+                model.refreshVisibleFolder(request.destination)
+            }
+        }
         .sheet(item: $model.permissionsEditRequest) { request in
             FilePermissionsEditorSheet(request: request) { mode, owner, recursive, urls in
                 model.permissionsEditRequest = nil
