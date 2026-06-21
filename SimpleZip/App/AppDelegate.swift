@@ -20,6 +20,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let aiForegroundLock = AIForegroundLock()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // 忽略 SIGPIPE:向「读端已关闭」的 pipe 写会触发 SIGPIPE,默认处理是**直接杀进程**。
+        // 「网络包边下边解」时若 bsdtar 提前退出(解完 / 坏包出错),其 stdin 读端关闭,URLSession 下一块
+        // 写入就会崩。忽略后 write 改为返回 EPIPE → FileHandle.write 抛错,由流式解压的 catch 接住清理。
+        signal(SIGPIPE, SIG_IGN)
         // 0.4.2 用户报：批量重命名等对话框的输入框点空白处不会失焦——SwiftUI TextField 在 macOS
         // 上没有这个原生行为,且全 app 的 sheet 都中招。应用级一次性修复:任何 mouseDown 落在
         // 「正在编辑的文本」(字段编辑器 / TextEditor)之外时,把第一响应者交还窗口 = 提交并取消焦点

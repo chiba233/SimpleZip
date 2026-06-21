@@ -21,6 +21,17 @@ struct WebArchiveProbeResult: Sendable, Equatable {
 
 enum WebArchiveStreamExtract {
 
+    /// 浏览器风格 User-Agent —— 不少服务器对空 / `CFNetwork/…` 默认 UA 会当爬虫直接不响应(用户报);
+    /// 用 Safari 风格 UA 最大化兼容(探测与下载两条请求都带)。
+    private static let userAgent =
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15"
+
+    private static func makeSession(delegate: URLSessionDelegate) -> URLSession {
+        let config = URLSessionConfiguration.ephemeral
+        config.httpAdditionalHeaders = ["User-Agent": userAgent]
+        return URLSession(configuration: config, delegate: delegate, delegateQueue: nil)
+    }
+
     // MARK: - 探测(服务器是否真给一个可流式的归档)
 
     /// 对 URL 发一个**只取响应头**的请求(收到 header 即取消,不下 body;跟随重定向 —— GitHub 的
@@ -71,7 +82,7 @@ enum WebArchiveStreamExtract {
     private static func fetchResponseHeader(_ url: URL) async -> ResponseHeader? {
         await withCheckedContinuation { continuation in
             let probe = HeaderProbe(continuation: continuation)
-            let session = URLSession(configuration: .ephemeral, delegate: probe, delegateQueue: nil)
+            let session = makeSession(delegate: probe)
             probe.session = session
             var request = URLRequest(url: url)
             request.timeoutInterval = 20
@@ -217,7 +228,7 @@ enum WebArchiveStreamExtract {
         try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
                 let streamer = DownloadStreamer(stdin: stdin, tee: tee, onProgress: onProgress, continuation: continuation)
-                let session = URLSession(configuration: .ephemeral, delegate: streamer, delegateQueue: nil)
+                let session = makeSession(delegate: streamer)
                 streamer.session = session
                 var request = URLRequest(url: url)
                 request.timeoutInterval = 60

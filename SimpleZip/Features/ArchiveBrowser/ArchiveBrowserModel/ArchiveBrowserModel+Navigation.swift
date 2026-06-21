@@ -369,6 +369,9 @@ extension ArchiveBrowserModel {
     func locationCompletions(for text: String) -> [LocationCompletion] {
         guard case .folder(let currentFolder) = mode else { return [] }
         let query = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        // 网络 URL 不做本地路径补全 —— 否则把 https://… 当文件路径补出垃圾候选框(用户报)。
+        let lowerQuery = query.lowercased()
+        if lowerQuery.hasPrefix("http://") || lowerQuery.hasPrefix("https://") { return [] }
         guard !query.isEmpty else {
             return fileBrowser.directoryCompletions(
                 in: currentFolder, matching: "",
