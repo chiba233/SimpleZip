@@ -494,10 +494,18 @@ enum SIZArchive {
 
         let verboseOutput = try await BackendProcessRunner.runAndCapture("/usr/bin/tar", arguments: ["-tvf", sizURL.path])
         let verboseLines = verboseOutput.split(separator: "\n", omittingEmptySubsequences: true).map(String.init)
-        let entries = try rawNames.map { rawName in
+        // 安全:`tar -tf` 与 `tar -tvf` 列同一归档、**逐条同序**,按**下标**对齐取类型字符(每行首字母:`-` 普通 /
+        // `l` 符号链接 / `d` 目录),而不是按名字后缀匹配 —— 后者会被「另一个以同名结尾的条目」(如『a metadata.json』
+        // 之于『metadata.json』)混淆,可能让 symlink / 设备节点冒充普通文件通过 type=="-" 检查。
+        guard verboseLines.count == rawNames.count else {
+            throw SIZError.invalidContainerEntry(rawNames.first ?? "?")
+        }
+        let entries = try rawNames.enumerated().map { index, rawName -> ContainerEntry in
             let normalized = normalizedContainerPath(rawName)
-            let type = try tarEntryType(for: rawName, verboseLines: verboseLines)
-            return ContainerEntry(rawName: rawName, normalizedName: normalized, type: type)
+            guard let typeChar = verboseLines[index].first else {
+                throw SIZError.invalidContainerEntry(rawName)
+            }
+            return ContainerEntry(rawName: rawName, normalizedName: normalized, type: typeChar)
         }
 
         let unsafeNames = entries
@@ -579,13 +587,4 @@ enum SIZArchive {
         return name == "" ? "." : name
     }
 
-    private static func tarEntryType(for rawName: String, verboseLines: [String]) throws -> Character {
-        for line in verboseLines {
-            guard let first = line.first else { continue }
-            if line.hasSuffix(" \(rawName)") || line.contains(" \(rawName) -> ") {
-                return first
-            }
-        }
-        throw SIZError.invalidContainerEntry(rawName)
-    }
 }
