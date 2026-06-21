@@ -459,7 +459,14 @@ struct FileNSOutlineView: NSViewRepresentable {
             guard renamingItem == nil else { return }
             let currentSuggestions = currentSuggestionHashes()
             guard currentSuggestions != lastSuggestionHashByPath else { return }
-            let changedPaths = Set(currentSuggestions.filter { lastSuggestionHashByPath[$0.key] != $0.value }.map(\.key))
+            // 只把「**之前就在快照里、现在哈希变了**」的行当作建议变化 → 定点刷新抽屉。
+            // **新出现的行**(展开父文件夹后才可见、lastSuggestionHashByPath 里还没有)抽屉是刚现建的、内容已最新,
+            // 绝不能再 reloadItem(reloadChildren:) —— 否则会把用户**刚展开的嵌套抽屉**(a/b 文件夹里某文件的 AI 建议)
+            // 在下一次任意 updateNSView(如点一下令选区变化)时折叠回去(用户报「展开 c 的 ai 建议一点击就自动收起」)。
+            let changedPaths = Set(currentSuggestions.filter { path, hash in
+                guard let previous = lastSuggestionHashByPath[path] else { return false }
+                return previous != hash
+            }.map(\.key))
             lastSuggestionHashByPath = currentSuggestions
             guard !changedPaths.isEmpty else { return }
             reloadSuggestionDrawers(forChangedPaths: changedPaths, in: outlineView)
@@ -550,8 +557,11 @@ struct FileNSOutlineView: NSViewRepresentable {
                     }
                     if node.volumeChildren == nil, let path = node.fileItem?.url.path,
                        changedPaths.contains(path) {
+                        let wasExpanded = outlineView.isItemExpanded(node)
                         node.suggestionChildren = nil   // 失效缓存 → reloadChildren 时按新建议重建
                         outlineView.reloadItem(node, reloadChildren: true)
+                        // 防御:reloadChildren 在个别嵌套层级会折叠已展开的抽屉 → 原样恢复展开,用户正看的抽屉不被收起。
+                        if wasExpanded, !outlineView.isItemExpanded(node) { outlineView.expandItem(node) }
                     }
                     guard outlineView.isItemExpanded(node) else { continue }
                     if let folderChildren = node.folderChildren { walk(folderChildren) }
