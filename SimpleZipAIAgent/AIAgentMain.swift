@@ -42,6 +42,8 @@ struct AIAgentMain {
         // 用法:.../Contents/MacOS/SimpleZipAIAgent --background-index
         if CommandLine.arguments.contains("--background-index") {
             let summary = AIAgentBackgroundIndex.runOnce()
+            // 每次被 launchd 拉起都记一笔运行遥测(真扫 / 跳过都算),供 App·DevTools 确认后台 agent 真跑过。
+            AIAgentRunTelemetry.recordWake(outcome: summary.note, at: Date())
             agentLog("BACKGROUND INDEX → scopes=\(summary.scopesScanned) records=\(summary.recordsWritten) · \(summary.note)")
             print("scopes=\(summary.scopesScanned) records=\(summary.recordsWritten) note=\(summary.note)")
             exit(0)

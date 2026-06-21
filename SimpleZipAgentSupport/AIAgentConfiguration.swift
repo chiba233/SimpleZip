@@ -95,3 +95,41 @@ public nonisolated struct AIAgentConfiguration: Codable, Sendable, Equatable {
         return decoded(from: data)
     }
 }
+
+/// 后台 agent **运行遥测**:agent 每次被 launchd 拉起跑 `--background-index` 都记一笔(无论真扫还是因间隔/让位跳过),
+/// 这样 App / DevTools 能确认「后台 agent 到底有没有真被拉起过、几次、最近何时、结果如何」——光有「上次成功索引」时间戳
+/// 看不出 launchd 是否在按计划唤醒。偏好域 = App bundle id(A19):agent 用 suiteName 写,App 同域可读。
+public enum AIAgentRunTelemetry {
+    public static let runCountKey = "SimpleZip.ai.agent.bgRunCount.v1"
+    public static let lastWakeKey = "SimpleZip.ai.agent.bgLastWake.v1"
+    public static let lastOutcomeKey = "SimpleZip.ai.agent.bgLastOutcome.v1"
+
+    public struct Snapshot: Sendable {
+        public let runCount: Int
+        public let lastWake: Date?
+        public let lastOutcome: String?
+        public init(runCount: Int, lastWake: Date?, lastOutcome: String?) {
+            self.runCount = runCount
+            self.lastWake = lastWake
+            self.lastOutcome = lastOutcome
+        }
+    }
+
+    /// agent 侧:每次 `--background-index` 唤醒后记一笔(计数++、最近唤醒时刻、最近结果说明)。
+    public static func recordWake(outcome: String, at date: Date) {
+        guard let defaults = UserDefaults(suiteName: AIAgentConfiguration.appBundleID) else { return }
+        defaults.set(defaults.integer(forKey: runCountKey) + 1, forKey: runCountKey)
+        defaults.set(date.timeIntervalSince1970, forKey: lastWakeKey)
+        defaults.set(outcome, forKey: lastOutcomeKey)
+    }
+
+    /// App 侧:读运行遥测。
+    public static func read() -> Snapshot {
+        let defaults = UserDefaults(suiteName: AIAgentConfiguration.appBundleID) ?? .standard
+        let epoch = defaults.double(forKey: lastWakeKey)
+        return Snapshot(
+            runCount: defaults.integer(forKey: runCountKey),
+            lastWake: epoch > 0 ? Date(timeIntervalSince1970: epoch) : nil,
+            lastOutcome: defaults.string(forKey: lastOutcomeKey))
+    }
+}

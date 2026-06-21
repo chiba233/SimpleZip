@@ -34,6 +34,8 @@ struct DevToolsView: View {
     @State private var aiArchiveMemoryStatus = "…"
     @State private var aiSpotlightStatus = "…"
     @State private var aiBackgroundIndexStatus = "…"
+    /// 后台 agent 运行遥测:launchd 拉起 --background-index 的累计次数 / 上次 / 结果(确认后台是否真跑过)。
+    @State private var agentRunStatus = "…"
     /// AI 建议各 pass 的产物计数(摘要 / 打开方式 / 装App / 活动 / 包内),让「pass 到底有没有生效」可查。
     @State private var aiSuggestionStatus = "…"
     /// #8 跨表面反馈 / 兴趣信号事件计数(「我不喜欢」/ 点击学兴趣),让软降权学习数据可查。
@@ -190,6 +192,7 @@ struct DevToolsView: View {
                         infoRow("archivebox", L10n.text("devtools.aiData.archiveMemory"), aiArchiveMemoryStatus)
                         infoRow("magnifyingglass", L10n.text("devtools.aiData.spotlight"), aiSpotlightStatus)
                         infoRow("folder.badge.gearshape", L10n.text("devtools.aiData.backgroundIndex"), aiBackgroundIndexStatus)
+                        infoRow("bolt.horizontal.circle", "后台 agent 运行(launchd 拉起计数)", agentRunStatus)
                         infoRow("bolt.horizontal", "后台运行 / 门控", aiGateStatus)
                         Toggle(isOn: $aiInteractionExempt) {
                             VStack(alignment: .leading, spacing: 1) {
@@ -722,6 +725,11 @@ struct DevToolsView: View {
             )
             // 建议七:工具栏习惯统计(工具栏 + 右键菜单点击,按选择上下文桶聚合;验右键学习有没有进数据)。
             toolbarUsageStatus = Self.formatToolbarUsage(ToolbarActionUsageStore.shared.debugAllCounts())
+            // 后台 agent 运行遥测:launchd 是否真把 --background-index 拉起过(累计次数 / 上次 / 结果)。
+            let tel = AIAgentRunTelemetry.read()
+            agentRunStatus = tel.runCount == 0
+                ? "从未被拉起(launchd 还没唤醒过后台索引;或静默后台索引未开)"
+                : "拉起 \(tel.runCount) 次 · 上次 \(rel(tel.lastWake)) · 结果:\(tel.lastOutcome ?? "—")"
         }
     }
 
