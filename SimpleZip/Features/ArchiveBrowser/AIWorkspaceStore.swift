@@ -104,7 +104,7 @@ final class AIWorkspaceStore: ObservableObject {
         let members: [AIVirtualNodeCandidate]
     }
 
-    private let defaults: UserDefaults
+    private let defaults: KeyValueDataStore
     private static let storageKey = "SimpleZip.ai.workspaces.v1"
     private static let suppressionKey = "SimpleZip.ai.themeSuppression.v1"
     private static let feedbackKey = "SimpleZip.ai.nodeFeedback.v1"
@@ -114,8 +114,15 @@ final class AIWorkspaceStore: ObservableObject {
     private static let treeSnapshotKey = "SimpleZip.ai.treeSnapshots.v1"
     private static let autoExcludedKey = "SimpleZip.ai.autoExcluded.v1"
 
-    init(defaults: UserDefaults = .standard) {
+    /// 这 8 个 key 历史上写在 `UserDefaults.standard`;现统一迁到独立文件存储(避免大对象——尤其 treeSnapshots
+    /// (实测 0.66 MB,且随工作区增长)——撑大主偏好域、拖垮启动)。供一次性防丢迁移用。
+    private static let allStorageKeys = [
+        storageKey, suppressionKey, feedbackKey, structureKey, seedsKey, learningKey, treeSnapshotKey, autoExcludedKey
+    ]
+
+    init(defaults: KeyValueDataStore = AIDerivedDataStore(subdirectory: "DerivedData")) {
         self.defaults = defaults
+        AIWorkspaceStore.migrateFromStandardIfNeeded(to: defaults)
         var loaded = AIWorkspaceStore.load(from: defaults)
         // #89:删掉被打回的固定系统工作区(失败任务 / 校验 / 最近归档 = 活动中心换皮)残留。
         loaded.workspaces.removeAll { $0.origin == .system }
@@ -1171,7 +1178,21 @@ final class AIWorkspaceStore: ObservableObject {
         persist()
     }
 
-    // MARK: - 持久化(UserDefaults JSON;只存元数据 + 抑制账本,绝不存绝对路径)
+    // MARK: - 持久化(独立文件存储 JSON;只存元数据 + 抑制账本,绝不存绝对路径)
+
+    /// 一次性防丢迁移:这 8 个 key 历史上写在 `UserDefaults.standard`,现统一迁到独立文件存储 —— 大 value(尤其
+    /// treeSnapshots)会撑爆 CFPreferences 的 4 MB 单值上限,之后该 domain 的任何写都 fault + 整体重序列化,拖垮
+    /// 启动(App Intents 后台 helper 因此连接超时 → Shortcuts「Couldn't communicate…」)。照 `migrateDerivedDataIfNeeded`
+    /// 范式:文件已有以文件为准(不拿旧偏好覆盖更新数据),确认文件落盘后才清偏好,写盘失败保留偏好下次重试。幂等。
+    /// (假设 `to` 是文件后端、≠ standard;`AIWorkspaceStore.shared` 默认即文件后端,无其他注入。)
+    private static func migrateFromStandardIfNeeded(to store: KeyValueDataStore) {
+        let std = UserDefaults.standard
+        for key in allStorageKeys {
+            guard let data = std.data(forKey: key) else { continue }
+            if store.data(forKey: key) == nil { store.set(data, forKey: key) }
+            if store.data(forKey: key) != nil { std.removeObject(forKey: key) }
+        }
+    }
 
     private func persist() {
         if let data = try? JSONEncoder().encode(collection) { defaults.set(data, forKey: Self.storageKey) }
@@ -1242,19 +1263,19 @@ final class AIWorkspaceStore: ObservableObject {
         }
     }
 
-    private static func decode<T: Decodable>(_ type: T.Type, key: String, from defaults: UserDefaults) -> T? {
+    private static func decode<T: Decodable>(_ type: T.Type, key: String, from defaults: KeyValueDataStore) -> T? {
         guard let data = defaults.data(forKey: key) else { return nil }
         return try? JSONDecoder().decode(T.self, from: data)
     }
 
-    private static func load(from defaults: UserDefaults) -> AIWorkspaceCollection {
+    private static func load(from defaults: KeyValueDataStore) -> AIWorkspaceCollection {
         guard let data = defaults.data(forKey: storageKey),
               let decoded = try? JSONDecoder().decode(AIWorkspaceCollection.self, from: data)
         else { return AIWorkspaceCollection() }
         return decoded
     }
 
-    private static func loadSuppression(from defaults: UserDefaults) -> AIThemeSuppressionLedger {
+    private static func loadSuppression(from defaults: KeyValueDataStore) -> AIThemeSuppressionLedger {
         guard let data = defaults.data(forKey: suppressionKey),
               let decoded = try? JSONDecoder().decode(AIThemeSuppressionLedger.self, from: data)
         else { return AIThemeSuppressionLedger() }
