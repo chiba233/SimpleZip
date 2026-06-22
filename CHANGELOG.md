@@ -14,6 +14,7 @@
 
 **User-facing**
 
+- **Shortcuts actions no longer fail with "Couldn't communicate with a helper application."** Running a SimpleZip Shortcuts action launches the app in the background as an App Intents helper. The app's opt-in background AI pre-baking — which, among other things, asks LaunchServices for the default app of every indexed file — could fire inside that headless helper and tie it up long enough that it missed the App Intents connection window, so Shortcuts reported a communication failure. Background AI work now starts only after the app has actually come to the foreground, so the headless helper stays responsive and the actions run.
 - **Shortcuts and Siri now appear in your language, not just English.** Every Shortcuts action — its name, its parameter labels, its one-line summary and its Siri trigger phrases — was previously English-only, for both the 1.0.0 archive actions and the older ones. All of it is now localized across all 10 supported languages, so the action list, summaries like "Rescue [archive]" or "Quick-verify the release group in [folder]", and the spoken phrases now read in your language too.
 
 ### improvements

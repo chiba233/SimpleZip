@@ -157,6 +157,19 @@ final class AIBackgroundIndexer {
             devToolsExempt: devToolsInteractionExempt)
     }
 
+    /// App **是否曾真正进入前台活跃**(plain var,绝不 @Published —— A17:reload/启动路径禁发布)。
+    /// 由 `AppDelegate.applicationDidBecomeActive` 置位(只赋值,不起任何活、不碰布局)。
+    /// 用途:App Intents 把本 app 当 helper 在**后台**拉起跑 intent 时,SwiftUI 照样实例化 ContentView、
+    /// onAppear 照跑 `runIfEnabled` —— 但 helper **从不 becomeActive**,故此处恒为 false,实际扫描永不启动,
+    /// 不会用 `nonDefaultOpenApps` 的 LaunchServices 风暴占住 helper 进程(那会让它没能在 App Intents 的 XPC
+    /// 超时窗口内响应 → Shortcuts 报「Couldn't communicate with a helper application」)。
+    private var hasEnteredForeground = false
+
+    /// 标记 app 已首次进入前台活跃。**只置一个普通 bool**,不触发 SwiftUI 更新 / 不碰窗口布局 ——
+    /// 可安全在 `applicationDidBecomeActive`(可能正处窗口布局周期)调用。心跳已在 onAppear 装好,
+    /// 置位后的下一跳即自然跑起扫描,无需在此主动触发任何后台工作。
+    func markForegroundEntered() { hasEnteredForeground = true }
+
     /// 跑一轮预索引(门控未过则直接返回 —— 默认 opt-in 关闭即什么都不做)。完成后通知发现编排者刷新。
     func runIfEnabled() {
         let store = AIBackgroundIndexStore.shared
@@ -164,6 +177,12 @@ final class AIBackgroundIndexer {
         // P0 修复:确保心跳在跑。`runIfEnabled` 原本只被启动 activate() 调一次、又卡在 launch-silence 空跑,之后再无
         // 触发。心跳按活跃度档周期重评门控,门控未过则下面廉价返回,过了就跑一轮预算化渐进覆盖(多轮把全部覆盖到)。
         ensureHeartbeat()
+        // App Intents helper(后台拉起跑 intent)从不 becomeActive → hasEnteredForeground 恒 false:心跳照装但
+        // 实际扫描永不启动,helper 进程不会被 nonDefaultOpenApps 的 LaunchServices 风暴占住(修 Shortcuts
+        // 「Couldn't communicate with a helper application」)。正常用户启动必经 becomeActive,置位后的下一跳
+        // 心跳自然跑起扫描。注意:启动旗标只在 becomeActive 里纯赋值,不在那里起任何活(避免诱发 SwiftUI
+        // ScrollView 在窗口布局周期内重入崩溃)。
+        guard hasEnteredForeground else { return }
         // AI 电源规范③:启动静默 60s + 无重归档任务 + 活跃度非关。低电 / 省电也可(只读索引不耗模型)。
         guard !running,
               AIBackgroundSchedulingRules.canRunDeterministicIndexing(currentRuntimeContext()) else { return }

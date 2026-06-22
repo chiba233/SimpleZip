@@ -151,6 +151,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         SpotlightStartupCoordinator.reindexAllOnLaunch()
     }
 
+    /// App 进入前台活跃。**只做一件事**:给后台 AI 索引置「已进前台」旗标(幂等、纯 bool 赋值)。
+    ///
+    /// 刻意不在这里启动任何后台工作:`becomeActive` 发生在 app 启动瞬间,与「窗口状态恢复 resize」同处一个
+    /// 窗口布局 / 显示提交周期;实测在此起后台活会改变启动时序,诱发 SwiftUI(macOS 27 beta)ScrollView 在
+    /// 布局周期内重入请求约束更新的崩溃(`_postWindowNeedsUpdateConstraints` 抛 NSException → abort)。
+    /// 后台 AI 的实际启动**仍由 `ContentView.onAppear` 触发**(实测安全);这里只立 helper 判定旗标:
+    /// App Intents 后台 helper 从不 becomeActive,旗标恒 false → `runIfEnabled` 跳过扫描,不会用 LaunchServices
+    /// 风暴占住 helper(那会让它没能在 XPC 超时内响应 intent → Shortcuts 报「Couldn't communicate…」)。
+    func applicationDidBecomeActive(_ notification: Notification) {
+        AIBackgroundIndexer.shared.markForegroundEntered()
+    }
+
     /// 去掉列顺序偏好里的重复 identifier（修复历史污染，幂等）。
     private static func sanitizeColumnOrderPreferences() {
         for key in [AppPreferences.Key.fileColumnOrder, AppPreferences.Key.archiveColumnOrder] {
