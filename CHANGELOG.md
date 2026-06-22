@@ -10,6 +10,12 @@
 
 - **Shortcuts and Siri now appear in your language, not just English.** Every Shortcuts action — its name, its parameter labels, its one-line summary and its Siri trigger phrases — was previously English-only, for both the 1.0.0 archive actions and the older ones. All of it is now localized across all 10 supported languages, so the action list, summaries like "Rescue [archive]" or "Quick-verify the release group in [folder]", and the spoken phrases now read in your language too.
 
+### improvements
+
+**Developer-facing**
+
+- **Removed unwired AI scaffolding from the codebase.** Several on-device AI capabilities were built as Core scaffolding for an earlier, far more ambitious AI design but never wired into the app. The dead pieces — a multi-engine capability-negotiation layer (superseded by the simpler availability gate the app actually uses), a unified AI intent router, an AI command-rehearsal / batch planner, and a virtual-folder dynamic-theme refresher — were deleted along with their unit tests. They had zero references; nothing user-facing changes.
+
 ## 1.0.0
 
 ### feat
