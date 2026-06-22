@@ -17,18 +17,6 @@
                 type="application/octet-stream"/>
         </item>
         <item>
-            <title>SimpleZip 0.4.5-beta.7</title>
-            <sparkle:channel>beta</sparkle:channel>
-            <link>https://github.com/chiba233/SimpleZip/releases/tag/v0.4.5-beta.7</link>
-            <pubDate>Sun, 21 Jun 2026 17:51:42 +0000</pubDate>
-            <enclosure
-                url="https://github.com/chiba233/SimpleZip/releases/download/v0.4.5-beta.7/SimpleZip-0.4.5-beta.7.dmg"
-                sparkle:version="40"
-                sparkle:shortVersionString="0.4.5-beta.7"
-                sparkle:edSignature="B/iqbz/pXSWy35X9gvs+HndobJqpOW3K2yi1WpmkIbAQ4VVXUgw1arUYFtVGcEla1dgqOgBTOjRA0KWoWFFYDw==" length="32505202"
-                type="application/octet-stream"/>
-        </item>
-        <item>
             <title>SimpleZip 1.0.0</title>
             <link>https://github.com/chiba233/SimpleZip/releases/tag/v1.0.0</link>
             <pubDate>Sun, 21 Jun 2026 21:06:43 +0000</pubDate>
@@ -37,6 +25,18 @@
                 sparkle:version="41"
                 sparkle:shortVersionString="1.0.0"
                 sparkle:edSignature="EevyAqqcWtnL9vXg6/ThNyeBFJNhPKn1T67gPf3h8pG6EhHOGvbIvk7llfzGu8xQZaQ0bPDeMhDS3RXrfgKSCA==" length="32912672"
+                type="application/octet-stream"/>
+        </item>
+        <item>
+            <title>SimpleZip 1.0.1-beta.1</title>
+            <sparkle:channel>beta</sparkle:channel>
+            <link>https://github.com/chiba233/SimpleZip/releases/tag/v1.0.1-beta.1</link>
+            <pubDate>Mon, 22 Jun 2026 20:56:20 +0000</pubDate>
+            <enclosure
+                url="https://github.com/chiba233/SimpleZip/releases/download/v1.0.1-beta.1/SimpleZip-1.0.1-beta.1.dmg"
+                sparkle:version="42"
+                sparkle:shortVersionString="1.0.1-beta.1"
+                sparkle:edSignature="DKVx64E3rT1151hGJ+GArFkZKL+S7SMuWYr9VOl6bVIJF6/dUPS3NNSgCt75aLO5XlL+NiEwxg0DKrUA4lbpBQ==" length="33029881"
                 type="application/octet-stream"/>
         </item>
     </channel>
