@@ -6,6 +6,16 @@ SimpleZip is a native macOS archive manager written in Swift and SwiftUI. Treat 
 temporary extraction, backend command construction, app associations, and CLI/app bundle behavior as security- and
 data-safety-sensitive.
 
+## Response Language (回复语言)
+
+**Always reply to the user in Chinese (简体中文).** This applies to every conversational turn — explanations, status
+updates, questions, summaries — regardless of the language of the code, file contents, logs, tool output, or this
+document. This rule survives context compaction: after any summary or `/compact`, keep replying in Chinese; do **not**
+revert to English. (Code, identifiers, commit messages, CHANGELOG entries, and `L10n` keys still follow their existing
+per-file conventions — this rule governs only the chat replies to the user.)
+
+始终用简体中文回复用户。这条在 compact / 上下文摘要之后依然有效,绝不因为总结过就切回英文。
+
 ## Start Here
 
 Before changing files:
