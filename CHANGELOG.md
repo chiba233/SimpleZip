@@ -14,7 +14,7 @@
 
 **Developer-facing**
 
-- **Removed unwired AI scaffolding from the codebase.** Several on-device AI capabilities were built as Core scaffolding for an earlier, far more ambitious AI design but never wired into the app. The dead pieces — a multi-engine capability-negotiation layer (superseded by the simpler availability gate the app actually uses), a unified AI intent router, an AI command-rehearsal / batch planner, and a virtual-folder dynamic-theme refresher — were deleted along with their unit tests. They had zero references; nothing user-facing changes.
+- **Removed unwired AI scaffolding from the codebase.** Several on-device AI capabilities were built as Core scaffolding for an earlier, far more ambitious AI design but never wired into the app. The dead pieces — a multi-engine capability-negotiation layer (superseded by the simpler availability gate the app actually uses), a unified AI intent router, an AI command-rehearsal / batch planner, a virtual-folder dynamic-theme refresher, an operation-advice-card layer (superseded by the inline one-line advisory + preset recommendation the app actually uses), and several natural-language helpers (archive-diff explanation, search rewrite, free-text selection) that a small on-device model can't do reliably — were deleted along with their unit tests. They had zero references; nothing user-facing changes.
 
 ## 1.0.0
 
