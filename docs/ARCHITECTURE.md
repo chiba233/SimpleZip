@@ -114,6 +114,9 @@ call; the engine that actually imports `FoundationModels`, builds the prompt, ru
 never the app. The app binary therefore creates no `LanguageModelSession`; only a read-only "is the model available"
 check (`AIReportAssistant.isReady`, via `SystemLanguageModel.isAvailable`) still touches `FoundationModels`.
 
+> **Reference:** [`AI-AGENT.md`](./AI-AGENT.md) documents the helper processes in full — the two delivery channels, the
+> `SimpleZipAIAgent` command-line flags, the XPC contract, the config-sync payload, and launchd / `SMAppService` registration.
+
 - **Two delivery channels, one engine.** A bundled **XPC Service** serves foreground requests on demand (launched when
   the app connects; not a Login Item, not gated by "allow in background"). A dedicated **agent** (a launchd LaunchAgent)
   runs the background index on a schedule even when the app is closed. Both link `SimpleZip/Core` as a synced source

@@ -11,6 +11,7 @@
 > - [`CONTRIBUTING.md`](../CONTRIBUTING.md)：对外贡献者的精简版上手。
 > - [`CLAUDE.md`](../CLAUDE.md) / `AGENTS.md` / `gemini.md`：**强约束规则**（A1–A22）。改代码前必须遵守，本文不重复抄，只指路。
 > - [`SECURITY.md`](../SECURITY.md) / [`docs/SZS-FORMAT.md`](./SZS-FORMAT.zh-CN.md)：`.siz` / `.szs` 签名容器的密码学设计。改 wrap/unwrap/verify 前必读。
+> - [`docs/AI-AGENT.md`](./AI-AGENT.zh-CN.md)：端上 AI 辅助进程——agent 与 XPC Service、命令行参数、XPC 接口契约、配置同步,以及 launchd 注册。
 > - [`docs/release-checklist.md`](./release-checklist.zh-CN.md)：发版流程。
 
 ---

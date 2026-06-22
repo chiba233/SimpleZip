@@ -32,7 +32,11 @@ SimpleZip 是一款原生 macOS 应用，由 SwiftUI/AppKit 的 UI 外壳和命�
 - `Features/AI/` 承载 macOS 26 的端上助手（FoundationModels）。它**严格只读、纯增量**：解释报告、给风险评级
   （`Core/ArchiveRiskScore`）、扫描敏感文件 / 近似重复（`Core/SensitiveFileScan`、`Core/ArchiveNearDuplicates`），但完全
   处在解压 / 创建 / 删除路径之外，也绝不被喂加密条目的内容或口令。确定性的评分逻辑在 `Core`（可测）；AI 只负责把它讲成
-  人话。这里的一切都受 `@available(macOS 26, *)` 门控，否则整体降级为「什么都没有」。
+  人话。这里的一切都受 `@available(macOS 26, *)` 门控，否则整体降级为「什么都没有」。所有端上模型**推理**都在主 app
+  之外的辅助进程里跑（前台 XPC Service + 后台 LaunchAgent）。
+
+> **参考：** [`AI-AGENT.md`](./AI-AGENT.zh-CN.md) 完整记录这两个辅助进程——两条投递通道、`SimpleZipAIAgent` 的命令行
+> 参数、XPC 接口契约、配置同步 payload,以及 launchd / `SMAppService` 注册。
 
 ## 所有权边界
 

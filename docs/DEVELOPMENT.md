@@ -13,6 +13,7 @@
 > - [`CONTRIBUTING.md`](../CONTRIBUTING.md): the condensed onboarding for outside contributors.
 > - [`CLAUDE.md`](../CLAUDE.md) / `AGENTS.md` / `gemini.md`: the **hard rules** (A1–A22). They must be obeyed before changing code; this doc does not copy them, it only points to them.
 > - [`SECURITY.md`](../SECURITY.md) / [`docs/SZS-FORMAT.md`](./SZS-FORMAT.md): the cryptographic design of the `.siz` / `.szs` signed containers. Required reading before changing wrap/unwrap/verify.
+> - [`docs/AI-AGENT.md`](./AI-AGENT.md): the on-device AI helper processes — the agent & XPC Service, their command-line flags, the XPC contract, config sync, and launchd registration.
 > - [`docs/release-checklist.md`](./release-checklist.md): the release process.
 
 ---
