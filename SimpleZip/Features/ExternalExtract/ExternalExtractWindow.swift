@@ -380,7 +380,7 @@ final class ExternalExtractWindowController: NSObject, NSWindowDelegate {
 
         // 用 NSWindow 而不是 NSPanel —— Panel 在 NSApp.activate 时夺焦后可能立刻 deactivate，行为不稳。
         // 0.3.3 UI 现代化：去掉 utility 小标题栏，改成隐藏标题栏 + 整窗系统材质的小任务窗
-        // （标题保留给 Mission Control / 辅助功能），内容顶上留出红绿灯位，整窗可拖。
+        // （标题保留给 Mission Control / 辅助功能），整窗可拖。内容视图自己负责内边距，避免标题栏下方空出大额头。
         let frame = NSRect(x: 0, y: 0, width: 360, height: 190)
         let window = NSWindow(
             contentRect: frame,
@@ -389,7 +389,6 @@ final class ExternalExtractWindowController: NSObject, NSWindowDelegate {
             defer: false
         )
         let rootView = content
-            .padding(.top, 16)               // 隐藏标题栏后给关闭按钮留出呼吸位
             .frame(width: 360)
             // 0.4.2 修「迷之空白」：各阶段（验签 / 进度 / 完成 / 失败）内容高度差很大，
             // 窗口不缩回时矮内容在高窗里垂直居中 → 顶部一大块空白。fixedSize 让 ideal 高 = 内容高。
