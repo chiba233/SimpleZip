@@ -282,10 +282,13 @@ extension ArchiveService {
             // Path = <绝对路径>, Type = 7z, Physical Size = ..., Headers Size = ..., Method = LZMA2:12, Solid = +, Blocks = 1
             // 这一块带 Method 字段，会通过下面的 hasEntryMetadata 检查被当成条目，
             // 把 archive 的绝对路径当 entry 名报出去，再触发 ArchiveSafety 的「绝对路径」拦截。
-            // 这里用 `Type` / `Physical Size` / `Headers Size` 三个只出现在头块的字段显式过滤掉。
-            let isArchiveHeaderBlock = values["Type"] != nil
-                || values["Physical Size"] != nil
+            // `Physical Size` / `Headers Size` 是大多数归档头独有的字段(条目块是 `Size` / `Packed Size`);
+            // 但 zstd 单流头块没有这两个字段,只能靠 `Type` 识别 —— 然而 xar 条目的 `-slt` 输出也有
+            // `Type`(file/directory/symlink),必须排除这些 entry 级别的值,否则 XIP 条目全被吞。
+            let archiveEntryTypes: Set<String> = ["file", "directory", "symlink"]
+            let isArchiveHeaderBlock = values["Physical Size"] != nil
                 || values["Headers Size"] != nil
+                || (values["Type"].map { !archiveEntryTypes.contains($0) } ?? false)
             guard !isArchiveHeaderBlock else {
                 // 记下头块的 Type + 归档文件名 —— zstd 单流条目块没有 Path,合成内层名时要用。
                 if let type = values["Type"] {
