@@ -1744,6 +1744,7 @@
 "devtools.gpg.unavailable" = "Non installé / désactivé";
 "devtools.section.paths" = "Chemins";
 "devtools.path.appSupport" = "Application Support";
+"devtools.path.dataStore" = "Stockage de données";
 "devtools.path.keyring" = "Trousseau GPG de SimpleZip";
 "devtools.path.temp" = "Dossier temporaire";
 "devtools.path.preferences" = "plist des préférences";

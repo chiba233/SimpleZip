@@ -1746,6 +1746,7 @@
 "devtools.gpg.unavailable" = "未安裝 / 已停用";
 "devtools.section.paths" = "關鍵路徑";
 "devtools.path.appSupport" = "Application Support";
+"devtools.path.dataStore" = "資料儲存目錄";
 "devtools.path.keyring" = "SimpleZip GPG 鑰匙圈";
 "devtools.path.temp" = "臨時目錄";
 "devtools.path.preferences" = "偏好 plist";

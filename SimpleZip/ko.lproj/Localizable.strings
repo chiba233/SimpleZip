@@ -1745,6 +1745,7 @@
 "devtools.gpg.unavailable" = "설치되지 않음 / 비활성화됨";
 "devtools.section.paths" = "경로";
 "devtools.path.appSupport" = "Application Support";
+"devtools.path.dataStore" = "데이터 저장소";
 "devtools.path.keyring" = "SimpleZip GPG 키링";
 "devtools.path.temp" = "임시 디렉터리";
 "devtools.path.preferences" = "환경설정 plist";

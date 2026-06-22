@@ -1745,6 +1745,7 @@
 "devtools.gpg.unavailable" = "Nicht installiert / deaktiviert";
 "devtools.section.paths" = "Pfade";
 "devtools.path.appSupport" = "Application Support";
+"devtools.path.dataStore" = "Datenspeicher";
 "devtools.path.keyring" = "SimpleZip-GPG-Schlüsselbund";
 "devtools.path.temp" = "Temporärer Ordner";
 "devtools.path.preferences" = "Einstellungen-plist";

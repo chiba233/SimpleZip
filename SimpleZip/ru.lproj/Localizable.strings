@@ -1744,6 +1744,7 @@
 "devtools.gpg.unavailable" = "Не установлен / отключен";
 "devtools.section.paths" = "Пути";
 "devtools.path.appSupport" = "Application Support";
+"devtools.path.dataStore" = "Хранилище данных";
 "devtools.path.keyring" = "Связка ключей GPG SimpleZip";
 "devtools.path.temp" = "Временная папка";
 "devtools.path.preferences" = "plist настроек";

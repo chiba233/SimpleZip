@@ -1744,6 +1744,7 @@
 "devtools.gpg.unavailable" = "ไม่ได้ติดตั้ง / ปิดใช้งาน";
 "devtools.section.paths" = "พาธ";
 "devtools.path.appSupport" = "Application Support";
+"devtools.path.dataStore" = "ที่เก็บข้อมูล";
 "devtools.path.keyring" = "keyring GPG ของ SimpleZip";
 "devtools.path.temp" = "ไดเรกทอรีชั่วคราว";
 "devtools.path.preferences" = "plist การตั้งค่า";

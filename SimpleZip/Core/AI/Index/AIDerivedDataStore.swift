@@ -16,7 +16,7 @@ import Foundation
 /// 启动加载并在每次写时整体重序列化 —— 大对象一旦塞进去,任何写都 fault + 反复重序列化,拖垮**每一次**启动
 /// (App Intents 后台 helper 因此没能在连接窗口内 ready → Shortcuts 报「Couldn't communicate…」,实测)。
 /// 生产一律走文件后端;测试可注入内存 `UserDefaults`(快、隔离),无需碰盘。
-protocol KeyValueDataStore {
+nonisolated protocol KeyValueDataStore {
     func data(forKey key: String) -> Data?
     func set(_ data: Data, forKey key: String)
     func removeObject(forKey key: String)
@@ -25,7 +25,7 @@ protocol KeyValueDataStore {
 extension UserDefaults: KeyValueDataStore {
     /// `data(forKey:)` / `removeObject(forKey:)` 已是 `UserDefaults` 原生签名;只需把「Data 专用」的 set 适配到
     /// 原生 `Any?` 版(Data 实参更具体,会优先选这个重载,语义等价)。
-    public func set(_ data: Data, forKey key: String) { set(data as Any?, forKey: key) }
+    public nonisolated func set(_ data: Data, forKey key: String) { set(data as Any?, forKey: key) }
 }
 
 /// 阶段0a:派生 AI 数据(索引本体 `AIFileMemoryIndex` + 下游预烘焙缓存 folderGroups / organize / workbench*)的
@@ -56,6 +56,15 @@ nonisolated final class AIDerivedDataStore: KeyValueDataStore {
                 .appendingPathComponent(subdirectory, isDirectory: true)
         }
         try? FileManager.default.createDirectory(at: self.directory, withIntermediateDirectories: true)
+    }
+
+    /// 文件存储**根目录**(`Application Support/<bundle id>/`,各 subdirectory —— `AIDerivedData` / `DerivedData` —— 的父)。
+    /// 与默认 init 的目录同源(同 base + 同 bundle id),只是不带 subdirectory。供 DevTools「关键路径」跳转 / 诊断用。
+    static var storeRootDirectory: URL {
+        let base = (try? FileManager.default.url(
+            for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: false))
+            ?? FileManager.default.temporaryDirectory
+        return base.appendingPathComponent(Bundle.main.bundleIdentifier ?? "SimpleZip", isDirectory: true)
     }
 
     private func fileURL(forKey key: String) -> URL {

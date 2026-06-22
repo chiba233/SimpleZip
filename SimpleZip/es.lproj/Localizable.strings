@@ -1744,6 +1744,7 @@
 "devtools.gpg.unavailable" = "No instalado / desactivado";
 "devtools.section.paths" = "Rutas";
 "devtools.path.appSupport" = "Application Support";
+"devtools.path.dataStore" = "Almacén de datos";
 "devtools.path.keyring" = "Llavero GPG de SimpleZip";
 "devtools.path.temp" = "Directorio temporal";
 "devtools.path.preferences" = "plist de preferencias";

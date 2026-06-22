@@ -2533,6 +2533,7 @@
 "devtools.gpg.unavailable" = "未安装 / 已停用";
 "devtools.section.paths" = "关键路径";
 "devtools.path.appSupport" = "Application Support";
+"devtools.path.dataStore" = "数据存储目录";
 "devtools.path.keyring" = "SimpleZip GPG 钥匙串";
 "devtools.path.temp" = "临时目录";
 "devtools.path.preferences" = "偏好 plist";

@@ -2533,6 +2533,7 @@
 "devtools.gpg.unavailable" = "Not installed / disabled";
 "devtools.section.paths" = "Paths";
 "devtools.path.appSupport" = "Application Support";
+"devtools.path.dataStore" = "Data store";
 "devtools.path.keyring" = "SimpleZip GPG keyring";
 "devtools.path.temp" = "Temporary directory";
 "devtools.path.preferences" = "Preferences plist";

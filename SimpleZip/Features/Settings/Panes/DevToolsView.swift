@@ -204,6 +204,7 @@ struct DevToolsView: View {
     private var sectionPaths: some View {
         DialogSection(L10n.text("devtools.section.paths")) {
             pathRow(L10n.text("devtools.path.appSupport"), applicationSupportURL)
+            pathRow(L10n.text("devtools.path.dataStore"), AIDerivedDataStore.storeRootDirectory)
             pathRow(L10n.text("devtools.path.keyring"), GPGBackend.simpleZipGPGHomeDirectory())
             pathRow(L10n.text("devtools.path.temp"), FileManager.default.temporaryDirectory)
             pathRow(L10n.text("devtools.path.preferences"), preferencesPlistURL)

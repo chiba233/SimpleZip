@@ -1746,6 +1746,7 @@
 "devtools.gpg.unavailable" = "未インストール / 無効";
 "devtools.section.paths" = "パス";
 "devtools.path.appSupport" = "Application Support";
+"devtools.path.dataStore" = "データストア";
 "devtools.path.keyring" = "SimpleZip GPG キーリング";
 "devtools.path.temp" = "一時ディレクトリ";
 "devtools.path.preferences" = "環境設定 plist";
