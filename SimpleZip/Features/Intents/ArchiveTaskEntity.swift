@@ -146,7 +146,7 @@ enum ArchiveTaskSpotlightIndexer {
         }
         guard SpotlightReindexGuard.shouldCheckNow(key: key, interval: SpotlightIndexingPower.current.recheckInterval) else { return }
         SpotlightReindexGuard.markChecked(key: key)
-        let fp = SpotlightReindexGuard.fingerprint(ofStandardKey: AppPreferences.Key.activityHistory)
+        let fp = SpotlightReindexGuard.fingerprint(of: TaskCenter.loadActivityHistoryData())
         guard !SpotlightReindexGuard.isUpToDate(key: key, fingerprint: fp) else { return }
         if await performReindex() {
             SpotlightReindexGuard.markIndexed(key: key, fingerprint: fp)

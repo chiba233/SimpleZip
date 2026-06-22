@@ -79,6 +79,38 @@ final class TaskCenter: ObservableObject {
         return UserDefaults(suiteName: appBundleID)
     }
 
+    /// 活动历史的**文件存储后端** —— 迁出 UserDefaults 偏好域:单条任务记录可能很大、500 条累积有撑爆 CFPreferences
+    /// 4MB 单值上限、拖垮每次启动(App Intents helper 连接超时)的隐患。落 `Application Support/<bundle id>/DerivedData/
+    /// activityHistory.json`。app / helper 用默认 init(`Bundle.main` 即 app,正确);CLI 经 PATH 符号链接时 `Bundle.main`
+    /// 不可靠(A19),按传入 `appBundleID` 显式拼目录,与历史 `defaultsForAppBundleID` 同口径定位 app 的域。
+    nonisolated static func activityHistoryStore(appBundleID: String? = nil) -> AIDerivedDataStore {
+        if let appBundleID, Bundle.main.bundleIdentifier != appBundleID {
+            let base = (try? FileManager.default.url(
+                for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true))
+                ?? FileManager.default.temporaryDirectory
+            return AIDerivedDataStore(directory: base
+                .appendingPathComponent(appBundleID, isDirectory: true)
+                .appendingPathComponent("DerivedData", isDirectory: true))
+        }
+        return AIDerivedDataStore(subdirectory: "DerivedData")
+    }
+
+    /// 读活动历史原始 Data,顺带**一次性防丢迁移**:历史版本写在 UserDefaults 偏好域,现迁到独立文件 —— 文件还没有
+    /// 但偏好域有就先搬过去(**确认落盘才清偏好**,绝不丢用户任务历史);之后一律以文件为准。所有读 activityHistory
+    /// 的入口都走它,确保迁移在任何首读(app 启动 / CLI 直写 / Spotlight 指纹)时幂等触发。
+    nonisolated static func loadActivityHistoryData(appBundleID: String? = nil) -> Data? {
+        let key = AppPreferences.Key.activityHistory
+        let store = activityHistoryStore(appBundleID: appBundleID)
+        if store.data(forKey: key) == nil {
+            let legacy = defaultsForAppBundleID(appBundleID ?? Bundle.main.bundleIdentifier ?? "")
+            if let data = legacy?.data(forKey: key) {
+                store.set(data, forKey: key)
+                if store.data(forKey: key) != nil { legacy?.removeObject(forKey: key) }
+            }
+        }
+        return store.data(forKey: key)
+    }
+
     /// app 侧:收 CLI 进程的已完成任务记录 → 插历史 + 持久化。分布式通知投递在主运行循环。
     @objc private func receiveExternalCLITaskRecord(_ notification: Notification) {
         guard let json = notification.userInfo?["record"] as? String,
@@ -137,17 +169,16 @@ final class TaskCenter: ObservableObject {
             )
             return
         }
-        guard let defaults = defaultsForAppBundleID(appBundleID) else { return }
+        let store = activityHistoryStore(appBundleID: appBundleID)
         var snapshots: [PersistedTask] = []
-        if let data = defaults.data(forKey: AppPreferences.Key.activityHistory),
+        if let data = loadActivityHistoryData(appBundleID: appBundleID),
            let existing = try? JSONDecoder().decode([LossyTask].self, from: data) {
             snapshots = existing.compactMap(\.value)
         }
         snapshots.insert(record, at: 0)
         guard let data = try? JSONEncoder().encode(snapshots) else { return }
-        defaults.set(data, forKey: AppPreferences.Key.activityHistory)
-        // CLI 进程随即 exit —— 强制把 CFPreferences 缓冲落盘,不然记录可能丢。
-        defaults.synchronize()
+        // AIDerivedDataStore 原子写(临时文件 + rename),CLI 进程随即 exit 也不丢,无需 CFPreferences synchronize。
+        store.set(data, forKey: AppPreferences.Key.activityHistory)
     }
 
     var runningCount: Int {
@@ -385,7 +416,7 @@ final class TaskCenter: ObservableObject {
         let key = AppPreferences.Key.activityHistory
         Self.persistQueue.async {
             if let data = try? JSONEncoder().encode(snapshots) {
-                UserDefaults.standard.set(data, forKey: key)
+                Self.activityHistoryStore().set(data, forKey: key)
             }
             if let aiData = try? JSONEncoder().encode(aiRecords) {
                 AIDerivedDataStore().set(aiData, forKey: AppPreferences.Key.aiTaskRecordProjection)
@@ -414,7 +445,7 @@ final class TaskCenter: ObservableObject {
     }
 
     private static func loadPersistedHistory() -> [OperationTask] {
-        guard let data = UserDefaults.standard.data(forKey: AppPreferences.Key.activityHistory),
+        guard let data = loadActivityHistoryData(),
               let lossy = try? JSONDecoder().decode([LossyTask].self, from: data)
         else { return [] }
         let snapshots = lossy.compactMap(\.value)
@@ -785,7 +816,7 @@ nonisolated enum ActivityHistoryStore {
     }
 
     static func snapshot() -> [ArchiveTaskSnapshot] {
-        guard let data = UserDefaults.standard.data(forKey: AppPreferences.Key.activityHistory),
+        guard let data = TaskCenter.loadActivityHistoryData(),
               let lossy = try? JSONDecoder().decode([LossyTask].self, from: data) else { return [] }
         return lossy.compactMap(\.value).map(makeSnapshot(_:))
     }
