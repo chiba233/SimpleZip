@@ -21,7 +21,7 @@ final class ReleaseWorkspacePresetTests {
     }
 
     @Test func roundTripUpsertAndDelete() {
-        let (store, defaults) = makeStore()
+        let (store, _) = makeStore()
 
         store.save(preset("beta"))
         store.save(preset("alpha"))
