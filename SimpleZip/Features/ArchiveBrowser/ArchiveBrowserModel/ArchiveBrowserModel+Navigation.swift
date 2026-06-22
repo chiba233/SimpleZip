@@ -723,7 +723,38 @@ extension ArchiveBrowserModel {
             openArchiveDirectory(item)
             return
         }
+        if case .archive(let archiveURL) = mode,
+           archiveURL.pathExtension.lowercased() == "xip",
+           item.name == "Content" {
+            drillIntoXIPContent(from: archiveURL)
+            return
+        }
         openArchiveItemExternally(item)
+    }
+
+    private func drillIntoXIPContent(from archiveURL: URL) {
+        startOperationTask(cancellable: true) { [weak self] operationID in
+            guard let self else { return }
+            do {
+                let destination = try TemporaryResourceManager.makeOpenedArchiveItemDirectory(
+                    fileManager: self.fileManager)
+                try await XIPBackend.extract(
+                    archiveURL,
+                    to: destination,
+                    operationID: operationID,
+                    progress: { _ in },
+                    outputObserver: nil
+                )
+                await MainActor.run {
+                    self.openedArchiveItemDirectories.append(destination)
+                    self.recordCurrentLocationForNavigation()
+                    self.openFolder(destination, recordsHistory: false)
+                }
+            } catch is CancellationError {
+            } catch {
+                await MainActor.run { self.errorMessage = error.localizedDescription }
+            }
+        }
     }
 
     func openArchiveDirectory(_ item: ArchiveItem) {
