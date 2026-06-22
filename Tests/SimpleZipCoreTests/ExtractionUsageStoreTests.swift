@@ -9,10 +9,10 @@ import Foundation
 import Testing
 @testable import SimpleZipCore
 
-@Suite struct ExtractionUsageStoreTests {
+@Suite final class ExtractionUsageStoreTests {
+    private let suiteDefaults = SuiteDefaults()
     private func makeStore() -> ExtractionUsageStore {
-        let suite = UserDefaults(suiteName: "SZExtractUsageTest-\(UUID().uuidString)")!
-        return ExtractionUsageStore(defaults: suite)
+        ExtractionUsageStore(defaults: suiteDefaults.make("SZExtractUsageTest"))
     }
 
     private func makeRequest(skipJunk: Bool = false, skipSymlinks: Bool = false,

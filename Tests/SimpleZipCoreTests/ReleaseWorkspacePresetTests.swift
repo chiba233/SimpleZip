@@ -3,12 +3,12 @@ import Testing
 @testable import SimpleZipCore
 
 /// #18 工作区预设:store CRUD round-trip + 同名覆盖 + 排序确定性。
-struct ReleaseWorkspacePresetTests {
+final class ReleaseWorkspacePresetTests {
+    private let suiteDefaults = SuiteDefaults()
 
-    private func makeStore() -> (ReleaseWorkspacePresetStore, UserDefaults, String) {
-        let suite = "SimpleZip-WorkspacePresetTests-\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suite)!
-        return (ReleaseWorkspacePresetStore(defaults: defaults), defaults, suite)
+    private func makeStore() -> (ReleaseWorkspacePresetStore, UserDefaults) {
+        let defaults = suiteDefaults.make("SimpleZip-WorkspacePresetTests")
+        return (ReleaseWorkspacePresetStore(defaults: defaults), defaults)
     }
 
     private func preset(_ name: String, fileName: String = "out") -> ReleaseWorkspacePreset {
@@ -21,8 +21,7 @@ struct ReleaseWorkspacePresetTests {
     }
 
     @Test func roundTripUpsertAndDelete() {
-        let (store, defaults, suite) = makeStore()
-        defer { defaults.removePersistentDomain(forName: suite) }
+        let (store, defaults) = makeStore()
 
         store.save(preset("beta"))
         store.save(preset("alpha"))

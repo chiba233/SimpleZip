@@ -9,12 +9,10 @@ import Foundation
 import Testing
 @testable import SimpleZipCore
 
-@Suite struct ToolbarActionUsageStoreTests {
+@Suite final class ToolbarActionUsageStoreTests {
+    private let suiteDefaults = SuiteDefaults()
     private func makeStore() -> ToolbarActionUsageStore {
-        let suite = "test.toolbarUsage.\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suite)!
-        defaults.removePersistentDomain(forName: suite)
-        return ToolbarActionUsageStore(defaults: defaults, storageKey: "stats")
+        ToolbarActionUsageStore(defaults: suiteDefaults.make("test.toolbarUsage"), storageKey: "stats")
     }
 
     private func file(_ name: String) -> ContextualToolbarSnapshot.SelectedFile {

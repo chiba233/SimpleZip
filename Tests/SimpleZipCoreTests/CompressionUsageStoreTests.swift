@@ -9,11 +9,11 @@ import Foundation
 import Testing
 @testable import SimpleZipCore
 
-@Suite struct CompressionUsageStoreTests {
+@Suite final class CompressionUsageStoreTests {
+    private let suiteDefaults = SuiteDefaults()
     private func makeStore() -> CompressionUsageStore {
-        // 独立 suite 隔离,不碰 standard 的真实数据。
-        let suite = UserDefaults(suiteName: "SZUsageTest-\(UUID().uuidString)")!
-        return CompressionUsageStore(defaults: suite)
+        // 独立 suite 隔离,不碰 standard 的真实数据;实例释放时自动清域。
+        CompressionUsageStore(defaults: suiteDefaults.make("SZUsageTest"))
     }
 
     @Test func mostUsedPicksModalValuePerField() {

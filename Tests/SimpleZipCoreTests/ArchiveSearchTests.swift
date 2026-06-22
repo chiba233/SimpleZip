@@ -221,11 +221,11 @@ struct ArchiveSearchQueryParseTests {
 }
 
 /// 0.4.2 #6:保存的过滤器 / 最近搜索 持久化,kind: token。
-struct SavedSearchFilterStoreTests {
+final class SavedSearchFilterStoreTests {
+    private let suiteDefaults = SuiteDefaults()
 
     private func makeStore() -> SavedSearchFilterStore {
-        let suite = UserDefaults(suiteName: "SavedSearchFilterStoreTests-\(UUID().uuidString)")!
-        return SavedSearchFilterStore(defaults: suite)
+        SavedSearchFilterStore(defaults: suiteDefaults.make("SavedSearchFilterStoreTests"))
     }
 
     @Test func addLoadRemoveRoundTrip() {

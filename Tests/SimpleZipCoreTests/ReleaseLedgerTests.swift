@@ -9,11 +9,10 @@ import Foundation
 import Testing
 @testable import SimpleZipCore
 
-@Suite struct ReleaseLedgerTests {
+@Suite final class ReleaseLedgerTests {
+    private let suiteDefaults = SuiteDefaults()
     private func makeStore() -> (ReleaseLedgerStore, UserDefaults) {
-        let suiteName = "ReleaseLedgerTests-\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suiteName)!
-        defaults.removePersistentDomain(forName: suiteName)
+        let defaults = suiteDefaults.make("ReleaseLedgerTests")
         return (ReleaseLedgerStore(defaults: defaults), defaults)
     }
 

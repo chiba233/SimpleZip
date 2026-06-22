@@ -3,12 +3,12 @@ import Testing
 @testable import SimpleZipCore
 
 /// #115 压缩 Presets —— 模型 sanitize + UserDefaults 持久化的回归测试。
-struct CompressionPresetTests {
+final class CompressionPresetTests {
+    private let suiteDefaults = SuiteDefaults()
 
-    /// 每个测试用独立的 in-memory UserDefaults suite，互不污染。
+    /// 每个测试用独立的 UserDefaults suite，互不污染;实例释放时自动清域。
     private func makeStore() -> (CompressionPresetStore, UserDefaults) {
-        let suite = "SimpleZipTests.presets.\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suite)!
+        let defaults = suiteDefaults.make("SimpleZipTests.presets")
         return (CompressionPresetStore(defaults: defaults), defaults)
     }
 
@@ -172,8 +172,7 @@ struct CompressionPresetTests {
     // MARK: - 按格式默认值（CompressionDefaultsStore + CompressionFormatPreset，#115 重做）
 
     private func makeDefaultsStore() -> CompressionDefaultsStore {
-        let defaults = UserDefaults(suiteName: "SimpleZipTests.defaults.\(UUID().uuidString)")!
-        return CompressionDefaultsStore(defaults: defaults)
+        CompressionDefaultsStore(defaults: suiteDefaults.make("SimpleZipTests.defaults"))
     }
 
     @Test func formatPresetSanitizesAndPinsFormat() {
@@ -226,7 +225,7 @@ struct CompressionPresetTests {
     /// 这条守住那段「Data ↔ JSON 对象」round-trip —— 也是 `exportablePayload` / `importPayload` 实际依赖的逻辑。
     @Test func formatPresetSurvivesBackupJSONRoundTrip() throws {
         let key = AppPreferences.Key.compressionFormatPresets
-        let suiteA = UserDefaults(suiteName: "SimpleZipTests.backupA.\(UUID().uuidString)")!
+        let suiteA = suiteDefaults.make("SimpleZipTests.backupA")
         let storeA = CompressionDefaultsStore(defaults: suiteA)
         var options = ArchiveCreationOptions()
         options.compressionLevel = .maximum
@@ -239,7 +238,7 @@ struct CompressionPresetTests {
 
         // 模拟备份导入:JSON 对象 → Data → 写进另一台机器的 suite。
         let reEncoded = try JSONSerialization.data(withJSONObject: jsonObject)
-        let suiteB = UserDefaults(suiteName: "SimpleZipTests.backupB.\(UUID().uuidString)")!
+        let suiteB = suiteDefaults.make("SimpleZipTests.backupB")
         suiteB.set(reEncoded, forKey: key)
 
         let storeB = CompressionDefaultsStore(defaults: suiteB)

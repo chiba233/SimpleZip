@@ -29,6 +29,15 @@
       selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
       shouldUseLaunchSchemeArgsEnv = "YES"
       shouldAutocreateTestPlan = "YES">
+      <PostActions>
+         <ExecutionAction
+            ActionType = "Xcode.IDEStandardExecutionActionsCore.ExecutionActionType.ShellScriptAction">
+            <ActionContent
+               title = "Clean leftover test UserDefaults plists (cfprefsd rebuilds empty shells on exit)"
+               scriptText = "rm -f &quot;$HOME&quot;/Library/Preferences/SimpleZipTests.*.plist &quot;$HOME&quot;/Library/Preferences/SZUsageTest-*.plist &quot;$HOME&quot;/Library/Preferences/SZExtractUsageTest-*.plist &quot;$HOME&quot;/Library/Preferences/SavedSearchFilterStoreTests-*.plist &quot;$HOME&quot;/Library/Preferences/ReleaseLedgerTests-*.plist &quot;$HOME&quot;/Library/Preferences/ArchiveListingCacheTests-*.plist &quot;$HOME&quot;/Library/Preferences/SimpleZip-WorkspacePresetTests-*.plist &quot;$HOME&quot;/Library/Preferences/test.toolbarUsage.*.plist&#10;">
+            </ActionContent>
+         </ExecutionAction>
+      </PostActions>
    </TestAction>
    <LaunchAction
       buildConfiguration = "Debug"

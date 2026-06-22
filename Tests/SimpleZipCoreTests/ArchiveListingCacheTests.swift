@@ -9,14 +9,13 @@ import Foundation
 import Testing
 @testable import SimpleZipCore
 
-@Suite struct ArchiveListingCacheTests {
+@Suite final class ArchiveListingCacheTests {
+    private let suiteDefaults = SuiteDefaults()
 
     private func makeStore(enabled: Bool = true,
                            maxArchives: Int = 50,
                            ttlDays: Int = 30) -> ArchiveListingCacheStore {
-        let suiteName = "ArchiveListingCacheTests-\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suiteName)!
-        defaults.removePersistentDomain(forName: suiteName)
+        let defaults = suiteDefaults.make("ArchiveListingCacheTests")
         let policy = ArchiveListingCachePolicy(enabled: enabled, maxArchives: maxArchives, ttlDays: ttlDays)
         return ArchiveListingCacheStore(defaults: defaults, policyProvider: { policy })
     }
@@ -130,9 +129,7 @@ import Testing
     @Test func applyCurrentLimitsTrimsToLoweredCap() {
         // 共享一个 UserDefaults:先用宽松策略(上限 5)塞 3 个,再用收紧策略(上限 1)的 store
         // 调 applyCurrentLimits —— 模拟用户在设置里把上限调小后立刻生效。
-        let suiteName = "ArchiveListingCacheTests-\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suiteName)!
-        defaults.removePersistentDomain(forName: suiteName)
+        let defaults = suiteDefaults.make("ArchiveListingCacheTests")
         let loose = ArchiveListingCacheStore(defaults: defaults,
             policyProvider: { ArchiveListingCachePolicy(enabled: true, maxArchives: 5, ttlDays: 30) })
         loose.record(archiveURL: url("a.zip"), items: [item("alpha.txt")], now: t0)
