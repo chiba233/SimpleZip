@@ -60,10 +60,10 @@ nonisolated struct ExtractionUsageRecommendation: Equatable {
 nonisolated final class ExtractionUsageStore {
     typealias Counts = [String: [String: Int]]
 
-    private let defaults: UserDefaults
+    private let defaults: KeyValueDataStore
     private let storageKey = AppPreferences.Key.extractionUsageStats
 
-    init(defaults: UserDefaults = .standard) {
+    init(defaults: KeyValueDataStore = UserDefaults.standard) {
         self.defaults = defaults
     }
 

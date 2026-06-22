@@ -19,13 +19,19 @@ import Foundation
 nonisolated protocol KeyValueDataStore {
     func data(forKey key: String) -> Data?
     func set(_ data: Data, forKey key: String)
+    func string(forKey key: String) -> String?
+    func set(_ string: String?, forKey key: String)
+    func stringArray(forKey key: String) -> [String]?
+    func set(_ array: [String], forKey key: String)
     func removeObject(forKey key: String)
 }
 
 extension UserDefaults: KeyValueDataStore {
-    /// `data(forKey:)` / `removeObject(forKey:)` 已是 `UserDefaults` 原生签名;只需把「Data 专用」的 set 适配到
-    /// 原生 `Any?` 版(Data 实参更具体,会优先选这个重载,语义等价)。
+    /// `data(forKey:)` / `string(forKey:)` / `stringArray(forKey:)` / `removeObject(forKey:)` 已是 `UserDefaults` 原生
+    /// 签名;只需把「Data / String / [String] 专用」的 set 适配到原生 `Any?` 版(更具体的实参类型会优先选这些重载,语义等价)。
     public nonisolated func set(_ data: Data, forKey key: String) { set(data as Any?, forKey: key) }
+    public nonisolated func set(_ string: String?, forKey key: String) { set(string as Any?, forKey: key) }
+    public nonisolated func set(_ array: [String], forKey key: String) { set(array as Any?, forKey: key) }
 }
 
 /// 阶段0a:派生 AI 数据(索引本体 `AIFileMemoryIndex` + 下游预烘焙缓存 folderGroups / organize / workbench*)的
@@ -76,9 +82,27 @@ nonisolated final class AIDerivedDataStore: KeyValueDataStore {
         try? Data(contentsOf: fileURL(forKey: key))
     }
 
+    /// 文件后端把 string 桥成 UTF-8 Data 存取(生产用它的 store 只存 Data;string 仅为满足协议、给注入 string 的 store 兜底)。
+    func string(forKey key: String) -> String? {
+        data(forKey: key).flatMap { String(data: $0, encoding: .utf8) }
+    }
+
     /// 原子写(写临时文件再 rename),杜绝半写文件污染下次解码。
     func set(_ data: Data, forKey key: String) {
         try? data.write(to: fileURL(forKey: key), options: .atomic)
+    }
+
+    func set(_ string: String?, forKey key: String) {
+        if let string { set(Data(string.utf8), forKey: key) } else { removeObject(forKey: key) }
+    }
+
+    /// [String] 同样桥成 JSON Data 存取(生产用它的 store 不存 [String];仅为满足协议、给注入 [String] 的 store 兜底)。
+    func stringArray(forKey key: String) -> [String]? {
+        data(forKey: key).flatMap { try? JSONDecoder().decode([String].self, from: $0) }
+    }
+
+    func set(_ array: [String], forKey key: String) {
+        if let data = try? JSONEncoder().encode(array) { set(data, forKey: key) }
     }
 
     func removeObject(forKey key: String) {

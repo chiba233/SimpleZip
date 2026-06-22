@@ -7,7 +7,7 @@ final class CompressionPresetTests {
     private let suiteDefaults = SuiteDefaults()
 
     /// 每个测试用独立的 UserDefaults suite，互不污染;实例释放时自动清域。
-    private func makeStore() -> (CompressionPresetStore, UserDefaults) {
+    private func makeStore() -> (CompressionPresetStore, KeyValueDataStore) {
         let defaults = suiteDefaults.make("SimpleZipTests.presets")
         return (CompressionPresetStore(defaults: defaults), defaults)
     }

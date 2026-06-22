@@ -25,11 +25,11 @@ nonisolated final class ToolbarActionUsageStore {
     /// 桶数量上限 —— 超了丢点击总数最少的桶(冷上下文),避免无限增长。
     private static let maxBuckets = 240
 
-    private let defaults: UserDefaults
+    private let defaults: KeyValueDataStore
     private let storageKey: String
     private var cache: Counts?
 
-    init(defaults: UserDefaults = .standard,
+    init(defaults: KeyValueDataStore = UserDefaults.standard,
          storageKey: String = AppPreferences.Key.toolbarActionUsageStats) {
         self.defaults = defaults
         self.storageKey = storageKey

@@ -115,11 +115,11 @@ nonisolated struct CompressionFormatPreset: Codable, Identifiable, Equatable {
 /// 密码 / GPG 私钥永不入库（见 `sanitizedForStorage()`）。
 /// `nonisolated`:UserDefaults 线程安全,CLI companion 也要在非主隔离上下文读它。
 nonisolated final class CompressionDefaultsStore {
-    private let defaults: UserDefaults
+    private let defaults: KeyValueDataStore
     /// 与 `AppPreferences.Key.compressionFormatPresets` 同一个 key —— 备份导出 / 导入 / 恢复默认据此覆盖。
     private let storageKey = AppPreferences.Key.compressionFormatPresets
 
-    init(defaults: UserDefaults = .standard) {
+    init(defaults: KeyValueDataStore = UserDefaults.standard) {
         self.defaults = defaults
     }
 
@@ -170,12 +170,12 @@ nonisolated final class CompressionDefaultsStore {
 
 /// 预设的持久化仓库。UserDefaults 注入，方便测试用独立 suite。无 UI、无副作用（除写 defaults）。
 final class CompressionPresetStore {
-    private let defaults: UserDefaults
+    private let defaults: KeyValueDataStore
     private let storageKey = "SimpleZip.CompressionPresets.v1"
     /// 「默认预设」id —— Finder / NSService 一键「简化压缩」自动套用它的等级 / 方法 / 加密设置（格式仍由各入口决定）。
     private let defaultIDKey = "SimpleZip.CompressionPresets.defaultID.v1"
 
-    init(defaults: UserDefaults = .standard) {
+    init(defaults: KeyValueDataStore = UserDefaults.standard) {
         self.defaults = defaults
     }
 

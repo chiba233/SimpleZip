@@ -11,7 +11,7 @@ import Testing
 
 @Suite final class ReleaseLedgerTests {
     private let suiteDefaults = SuiteDefaults()
-    private func makeStore() -> (ReleaseLedgerStore, UserDefaults) {
+    private func makeStore() -> (ReleaseLedgerStore, KeyValueDataStore) {
         let defaults = suiteDefaults.make("ReleaseLedgerTests")
         return (ReleaseLedgerStore(defaults: defaults), defaults)
     }

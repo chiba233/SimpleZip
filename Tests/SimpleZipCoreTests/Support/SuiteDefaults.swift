@@ -2,43 +2,22 @@
 //  SuiteDefaults.swift
 //  SimpleZipCoreTests
 //
-//  测试用隔离 UserDefaults 工厂。每个临时域用唯一 suiteName(UUID),持有者(测试 suite 实例)
-//  释放时自动 removePersistentDomain —— 测试不再往真实 ~/Library/Preferences 堆 plist。
+//  测试用隔离键值存储工厂。每个 `make()` 产出一个独立的**内存** store(`InMemoryKeyValueStore`)——
+//  **不落 ~/Library/Preferences**,根治 CLI `swift test` 退出时 cfprefsd 重建空壳 plist 的顽疾。
 //
-//  背景:`UserDefaults(suiteName:)` 一建就在 ~/Library/Preferences 落一个 plist。此前各 store
-//  测试虽用唯一 suiteName 做并行隔离(对),却没在测试结束清理(漏),每跑一次就堆数百个 plist。
+//  历史:曾用 `UserDefaults(suiteName:)` + deinit 三连(removePersistentDomain / removeSuite / 删文件),但 cfprefsd
+//  在进程退出 flush 时仍把每个临时域重建成 42 字节空壳,in-process 拦不住(实测一次 swift test 堆上百个)。各 store
+//  的 `defaults` 现已协议化为 `KeyValueDataStore`,测试直接注入内存实现 → 零落盘、cfprefsd 无从重建。
 //
-//  用法:测试 suite 改 `final class`(才有 deinit),持有 `private let suiteDefaults = SuiteDefaults()`,
-//  用 `suiteDefaults.make("Label")` 取隔离的 UserDefaults。Swift Testing 为每个 @Test 新建 suite
-//  实例 → 测试结束实例释放 → deinit 清掉本测试建过的所有临时域。一个测试内可多次 make(各自独立域)。
+//  用法:测试持有 `private let suiteDefaults = SuiteDefaults()`,用 `suiteDefaults.make("Label")` 取隔离 store。
+//  (测试 suite 不必再为 deinit 改 `final class` —— 已无需任何清理;改了也无妨。)
 //
 import Foundation
+@testable import SimpleZipCore
 
 final class SuiteDefaults {
-    private var suiteNames: [String] = []
-
-    /// 取一个隔离的、起始为空的 UserDefaults;其域会在本工具实例释放时自动清理。
-    func make(_ label: String) -> UserDefaults {
-        let name = "\(label).\(UUID().uuidString)"
-        suiteNames.append(name)
-        let defaults = UserDefaults(suiteName: name)!
-        defaults.removePersistentDomain(forName: name)   // 起始干净(防御,正常新域本就空)
-        return defaults
-    }
-
-    deinit {
-        let prefsDir = FileManager.default
-            .urls(for: .libraryDirectory, in: .userDomainMask).first?
-            .appendingPathComponent("Preferences", isDirectory: true)
-        for name in suiteNames {
-            // ① 清 cfprefsd 内存域。
-            UserDefaults.standard.removePersistentDomain(forName: name)
-            // ② 注销 suite —— 让 cfprefsd 不再持有它,否则进程退出 flush 时会把它重建成 42 字节空壳。
-            UserDefaults.standard.removeSuite(named: name)
-            // ③ 删掉可能残留的空壳文件兜底。
-            if let file = prefsDir?.appendingPathComponent("\(name).plist") {
-                try? FileManager.default.removeItem(at: file)
-            }
-        }
+    /// 取一个隔离的、起始为空的内存键值存储。`label` 仅作可读标识(不再生成 suiteName、不落盘)。
+    func make(_ label: String) -> KeyValueDataStore {
+        InMemoryKeyValueStore()
     }
 }

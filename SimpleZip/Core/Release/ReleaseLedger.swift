@@ -49,10 +49,10 @@ nonisolated struct ReleaseLedgerEntry: Codable, Identifiable, Equatable {
 nonisolated final class ReleaseLedgerStore {
     static let maxEntries = 100
 
-    private let defaults: UserDefaults
+    private let defaults: KeyValueDataStore
     private let storageKey = AppPreferences.Key.releaseLedger
 
-    init(defaults: UserDefaults = .standard) {
+    init(defaults: KeyValueDataStore = UserDefaults.standard) {
         self.defaults = defaults
     }
 

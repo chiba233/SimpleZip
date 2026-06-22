@@ -6,7 +6,7 @@ import Testing
 final class ReleaseWorkspacePresetTests {
     private let suiteDefaults = SuiteDefaults()
 
-    private func makeStore() -> (ReleaseWorkspacePresetStore, UserDefaults) {
+    private func makeStore() -> (ReleaseWorkspacePresetStore, KeyValueDataStore) {
         let defaults = suiteDefaults.make("SimpleZip-WorkspacePresetTests")
         return (ReleaseWorkspacePresetStore(defaults: defaults), defaults)
     }

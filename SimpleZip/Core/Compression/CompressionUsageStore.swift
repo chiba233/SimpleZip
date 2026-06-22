@@ -16,10 +16,10 @@ import Foundation
 nonisolated final class CompressionUsageStore {
     typealias Counts = [String: [String: [String: Int]]]
 
-    private let defaults: UserDefaults
+    private let defaults: KeyValueDataStore
     private let storageKey = AppPreferences.Key.compressionUsageStats
 
-    init(defaults: UserDefaults = .standard) {
+    init(defaults: KeyValueDataStore = UserDefaults.standard) {
         self.defaults = defaults
     }
 

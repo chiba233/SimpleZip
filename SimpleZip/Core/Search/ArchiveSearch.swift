@@ -311,13 +311,13 @@ struct SavedSearchFilter: Codable, Equatable, Identifiable {
 /// 保存的过滤器 + 最近搜索 的持久化仓库。UserDefaults 注入，方便测试用独立 suite。
 /// 体例对齐 `CompressionPresetStore`。
 final class SavedSearchFilterStore {
-    private let defaults: UserDefaults
+    private let defaults: KeyValueDataStore
     private let filtersKey = "SimpleZip.SavedSearchFilters.v1"
     private let recentsKey = "SimpleZip.RecentSearchQueries.v1"
     /// 最近搜索保留条数。
     static let recentsLimit = 8
 
-    init(defaults: UserDefaults = .standard) {
+    init(defaults: KeyValueDataStore = UserDefaults.standard) {
         self.defaults = defaults
     }
 
