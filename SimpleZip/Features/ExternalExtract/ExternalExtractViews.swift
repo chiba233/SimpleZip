@@ -27,6 +27,27 @@ private struct FloatIconTile: View {
     }
 }
 
+/// 运行中的逐文件进度行。后端还没吐出文件名时也占住一行，避免底部按钮上下跳。
+private struct CurrentFileLine: View {
+    let fileName: String?
+
+    private var hasFileName: Bool {
+        guard let fileName else { return false }
+        return !fileName.isEmpty
+    }
+
+    var body: some View {
+        Text(hasFileName ? fileName ?? "" : " ")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+            .truncationMode(.middle)
+            .opacity(hasFileName ? 1 : 0)
+            .accessibilityHidden(!hasFileName)
+            .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
 /// 单任务浮窗内容：固定 360 宽，VStack 包标题 / 进度条 / 当前文件 / 状态行。
 struct ExternalExtractView: View {
     @ObservedObject var session: ExternalExtractSession
@@ -55,12 +76,8 @@ struct ExternalExtractView: View {
                     .progressViewStyle(.linear)
             }
 
-            if let currentFile = session.currentFileName, session.status == .running {
-                Text(currentFile)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
+            if session.status == .running {
+                CurrentFileLine(fileName: session.currentFileName)
             }
 
             HStack {
@@ -145,13 +162,7 @@ struct ExternalExtractBatchView: View {
                 } else {
                     ProgressView().progressViewStyle(.linear)
                 }
-                if let currentFile = session.currentFileName {
-                    Text(currentFile)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                }
+                CurrentFileLine(fileName: session.currentFileName)
                 HStack {
                     Button {
                         ActivityWindowController.shared.show(category: .archive)
@@ -279,12 +290,8 @@ struct ExternalCreateView: View {
                     .progressViewStyle(.linear)
             }
 
-            if let currentFile = session.currentFileName, session.status == .running {
-                Text(currentFile)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
+            if session.status == .running {
+                CurrentFileLine(fileName: session.currentFileName)
             }
 
             HStack {

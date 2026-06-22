@@ -379,12 +379,12 @@ final class ExternalExtractWindowController: NSObject, NSWindowDelegate {
         cancelActive = cancel
 
         // 用 NSWindow 而不是 NSPanel —— Panel 在 NSApp.activate 时夺焦后可能立刻 deactivate，行为不稳。
-        // 0.3.3 UI 现代化：去掉 utility 小标题栏，改成隐藏标题栏 + 整窗系统材质的浮动卡片
+        // 0.3.3 UI 现代化：去掉 utility 小标题栏，改成隐藏标题栏 + 整窗系统材质的小任务窗
         // （标题保留给 Mission Control / 辅助功能），内容顶上留出红绿灯位，整窗可拖。
         let frame = NSRect(x: 0, y: 0, width: 360, height: 190)
         let window = NSWindow(
             contentRect: frame,
-            styleMask: [.titled, .closable, .fullSizeContentView],
+            styleMask: [.titled, .closable, .miniaturizable, .fullSizeContentView],
             backing: .buffered,
             defer: false
         )
@@ -404,7 +404,7 @@ final class ExternalExtractWindowController: NSObject, NSWindowDelegate {
         window.titlebarAppearsTransparent = true
         window.isMovableByWindowBackground = true
         window.isReleasedWhenClosed = false
-        window.level = .floating
+        window.level = .normal
         window.delegate = self   // 用户点关闭按钮 → windowWillClose 取消正在跑的任务(否则后台隐身续写盘)
         window.center()
         window.makeKeyAndOrderFront(nil)

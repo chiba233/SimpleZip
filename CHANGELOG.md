@@ -4,6 +4,12 @@
 
 ## 1.0.1
 
+### UX
+
+**User-facing**
+
+- **Finder task windows behave like normal windows.** Finder auto-extract and right-click "Compress as..." progress windows no longer stay above everything; they can be minimized, and their current-file line reserves space while running so action buttons do not jump when the backend reports a file name.
+
 ### bugfix
 
 **User-facing**
