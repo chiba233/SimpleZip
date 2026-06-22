@@ -104,11 +104,23 @@ nonisolated final class ArchiveListingCacheStore {
     /// 单个归档最多缓存这么多条目名,封顶单包存储体积。超出则截断并把 `truncated` 标 true。
     static let maxEntriesPerArchive = 10_000
 
-    private let defaults: UserDefaults
+    /// 持久化体积上限(字节)。清单缓存改存独立文件后已无 CFPreferences 的 4 MB 单值硬上限,但仍设上限防单个缓存
+    /// 文件无限膨胀(读 / 解码成本);persist 超限即从最旧归档起驱逐。
+    static let maxPersistedByteCount = 2_500_000
+
+    /// 清单缓存落盘的子目录(见 `AIDerivedDataStore` 的 `subdirectory`):与 AI 派生数据(`AIDerivedData`)分目录隔离。
+    static let storeSubdirectory = "DerivedData"
+
+    /// 持久化后端。**默认走文件存储**(`AIDerivedDataStore`,落盘 `Application Support/<bundle>/DerivedData/`),
+    /// 绝不再进 `UserDefaults` 偏好域 —— 清单数据体量大(大包上万条目),进偏好会撑破 CFPreferences 的 4 MB 单值
+    /// 硬上限、且整份 domain 随每次启动加载 / 每次写重序列化,拖垮启动(App Intents 后台 helper 因此连接超时 →
+    /// Shortcuts 报「Couldn't communicate…」,实测 measure 钉死)。测试可注入内存 `UserDefaults`(也 conform
+    /// `KeyValueDataStore`),无需碰盘。
+    private let defaults: KeyValueDataStore
     private let storageKey = AppPreferences.Key.archiveListingCache
     private let policyProvider: @Sendable () -> ArchiveListingCachePolicy
 
-    init(defaults: UserDefaults = .standard,
+    init(defaults: KeyValueDataStore = AIDerivedDataStore(subdirectory: ArchiveListingCacheStore.storeSubdirectory),
          policyProvider: @escaping @Sendable () -> ArchiveListingCachePolicy = { .current }) {
         self.defaults = defaults
         self.policyProvider = policyProvider
@@ -195,6 +207,16 @@ nonisolated final class ArchiveListingCacheStore {
         defaults.removeObject(forKey: storageKey)
     }
 
+    /// 一次性迁移清理:历史版本把清单缓存写进了 `UserDefaults.standard`(无字节上限,实测撑到 4 MB+),撑爆
+    /// CFPreferences 的 4 MB 单值硬上限后,主 domain 的任何写都 fault 并反复整体重序列化,拖垮每次启动 ——
+    /// App Intents 后台 helper 因此没能在连接窗口内 ready,Shortcuts 报「Couldn't communicate with a helper
+    /// application」(实测 measure 钉死:失败 helper 启动 0.9s 即被这坨拖到连接超时)。缓存现改存独立文件(见
+    /// `defaults` 默认后端);**启动最早期**把遗留在 standard 的旧 key 删掉,主 domain plist 立刻缩回正常体积。
+    /// 清单缓存可重建(下次打开归档自动重列),丢弃无害。幂等(无旧 key 则空操作)。
+    static func purgeLegacyStandardStorage() {
+        UserDefaults.standard.removeObject(forKey: AppPreferences.Key.archiveListingCache)
+    }
+
     func count() -> Int { loadAll().count }
 
     /// 当前缓存占用的近似字节数(设置页展示用)。
@@ -232,7 +254,16 @@ nonisolated final class ArchiveListingCacheStore {
     }
 
     private func persist(_ all: [ArchiveListingCacheEntry]) {
-        guard let data = try? JSONEncoder().encode(all) else { return }
-        defaults.set(data, forKey: storageKey)
+        // 字节上限治理:编码后若超 `maxPersistedByteCount`,从最旧归档(数组尾)起逐个驱逐再重编码,直到落在上限内
+        // —— 归档「条数」上限管不住「一个上万条目的大包单独撑大」,这里补「字节」上限兜底。
+        var entries = all
+        while true {
+            guard let data = try? JSONEncoder().encode(entries) else { return }
+            if data.count <= Self.maxPersistedByteCount || entries.count <= 1 {
+                defaults.set(data, forKey: storageKey)
+                return
+            }
+            entries.removeLast()
+        }
     }
 }

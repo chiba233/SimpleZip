@@ -27,4 +27,9 @@ if CLIInvocation.isCLIInvocation(
     }
     RunLoop.main.run()
 }
+// 启动最早期清理:历史版本把归档清单缓存写进了主 UserDefaults domain,撑爆 CFPreferences 的 4 MB 单值上限后,
+// 该 domain 的任何写都 fault + 反复整体重序列化,拖垮启动 —— App Intents 后台 helper 因此连接超时,Shortcuts
+// 报「Couldn't communicate…」(实测)。缓存已改存独立文件,在 NSApplication 起来前把遗留 key 删掉,主 domain
+// 立刻恢复小而快(本次 helper 启动即受益)。
+ArchiveListingCacheStore.purgeLegacyStandardStorage()
 SimpleZipApp.main()

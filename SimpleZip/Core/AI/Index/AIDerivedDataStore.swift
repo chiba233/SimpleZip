@@ -10,6 +10,24 @@
 
 import Foundation
 
+/// 大对象的**键值持久化后端抽象** —— `data / set / removeObject(forKey:)`。`UserDefaults` 与 `AIDerivedDataStore`
+/// (文件后端)都 conform,让"体量大、非偏好"的数据(AI 派生缓存、归档清单缓存、活动历史、AI 工作区快照…)能把
+/// 持久化后端从偏好域换成文件:偏好域(plist)有 CFPreferences 的 **4 MB 单值硬上限**,且整份 domain 随每次进程
+/// 启动加载并在每次写时整体重序列化 —— 大对象一旦塞进去,任何写都 fault + 反复重序列化,拖垮**每一次**启动
+/// (App Intents 后台 helper 因此没能在连接窗口内 ready → Shortcuts 报「Couldn't communicate…」,实测)。
+/// 生产一律走文件后端;测试可注入内存 `UserDefaults`(快、隔离),无需碰盘。
+protocol KeyValueDataStore {
+    func data(forKey key: String) -> Data?
+    func set(_ data: Data, forKey key: String)
+    func removeObject(forKey key: String)
+}
+
+extension UserDefaults: KeyValueDataStore {
+    /// `data(forKey:)` / `removeObject(forKey:)` 已是 `UserDefaults` 原生签名;只需把「Data 专用」的 set 适配到
+    /// 原生 `Any?` 版(Data 实参更具体,会优先选这个重载,语义等价)。
+    public func set(_ data: Data, forKey key: String) { set(data as Any?, forKey: key) }
+}
+
 /// 阶段0a:派生 AI 数据(索引本体 `AIFileMemoryIndex` + 下游预烘焙缓存 folderGroups / organize / workbench*)的
 /// **独立文件存储**,从 UserDefaults(偏好域)解耦出来 —— 这些是体量可能很大、且**不是用户偏好**的派生数据,
 /// 不该塞进偏好、也不该进偏好备份(白皮书迁移清单:这批 key 迁出偏好)。每个 key 一份 JSON 文件,放
@@ -20,10 +38,12 @@ import Foundation
 /// 互不污染。**agent 进程必须传显式 `directory:`**(A19:agent 的 `Bundle.main` 指向符号链接母目录、不可信,
 /// 默认 init 的 `Bundle.main.bundleIdentifier` 会落错域)—— App 共享路径 = `Application Support/<App bundle id>/AIDerivedData`,
 /// 由 agent 侧据约定 App bundle id 显式拼出后传入。App 进程继续用默认 init(`Bundle.main` 即 App 自身,正确)。
-nonisolated final class AIDerivedDataStore {
+nonisolated final class AIDerivedDataStore: KeyValueDataStore {
     private let directory: URL
 
-    init(directory: URL? = nil) {
+    /// `subdirectory` 决定落盘子目录(`Application Support/<bundle id>/<subdirectory>/`):AI 派生数据沿用默认
+    /// `AIDerivedData`;归档清单缓存等"非 AI 的通用大对象"传各自的子目录(如 `DerivedData`),分目录隔离、互不混淆。
+    init(directory: URL? = nil, subdirectory: String = "AIDerivedData") {
         if let directory {
             self.directory = directory
         } else {
@@ -33,7 +53,7 @@ nonisolated final class AIDerivedDataStore {
             let bundleID = Bundle.main.bundleIdentifier ?? "SimpleZip"
             self.directory = base
                 .appendingPathComponent(bundleID, isDirectory: true)
-                .appendingPathComponent("AIDerivedData", isDirectory: true)
+                .appendingPathComponent(subdirectory, isDirectory: true)
         }
         try? FileManager.default.createDirectory(at: self.directory, withIntermediateDirectories: true)
     }
