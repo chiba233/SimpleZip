@@ -90,14 +90,23 @@ enum SevenZipBackend {
         let tool = try toolPath()
         let inputStrategy: ProcessInputStrategy = password.isEmpty ? .none : .passwordPrompts([password])
         let parser = ArchiveService.SevenZipListStreamParser()
-        _ = try await BackendProcessRunner.runAndCapture(
-            tool,
-            arguments: ["l", "-slt", archive.path],
-            inputStrategy: inputStrategy,
-            outputObserver: { parser.consume($0) },
-            operationID: operationID,
-            outputRetentionLimit: BackendProcessRunner.diagnosticsOutputRetentionLimit
-        )
+        do {
+            _ = try await BackendProcessRunner.runAndCapture(
+                tool,
+                arguments: ["l", "-slt", archive.path],
+                inputStrategy: inputStrategy,
+                outputObserver: { parser.consume($0) },
+                operationID: operationID,
+                outputRetentionLimit: BackendProcessRunner.diagnosticsOutputRetentionLimit
+            )
+        } catch {
+            // 7zz 在部分归档(如 XIP/xar)上列出内容成功但尾部报非致命错误(exit code 2),
+            // outputObserver 已经把条目喂给了 parser。只要有条目就返回;确实没有条目才上抛。
+            let items = parser.finish()
+            if items.isEmpty { throw error }
+            ArchiveService.recordHeaderComment(parser.headerComment, for: archive)
+            return items
+        }
         ArchiveService.recordHeaderComment(parser.headerComment, for: archive)
         return parser.finish()
     }
