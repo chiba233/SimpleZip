@@ -643,4 +643,14 @@ struct RemoveJunkTests {
         #expect(ArchiveService.singleStreamInnerName(forArchiveNamed: "sample.tar.zst") == "sample.tar")
         #expect(ArchiveService.singleStreamInnerName(forArchiveNamed: "foo.tzst") == "foo.tar")
     }
+
+    /// 用真实 7zz 对 Xcode xip 的 `-slt` 输出文件验证(全量,含嵌套 xz 块和尾部 Warnings/Errors)。
+    @Test func xipXarRealSevenZipOutput() throws {
+        let output = try String(contentsOf: URL(fileURLWithPath: "/tmp/xip_slt.txt"))
+        let items = ArchiveService.parseSevenZipList(output)
+        #expect(items.count == 1)
+        #expect(items.first?.name == "Content")
+        #expect(items.first?.isDirectory == false)
+        #expect(items.first?.size == 1_966_091_760)
+    }
 }
