@@ -224,6 +224,14 @@ nonisolated final class ArchiveListingCacheStore {
         defaults.data(forKey: storageKey)?.count ?? 0
     }
 
+    /// Spotlight 索引「指纹没变就跳过」守卫的指纹源:文件后端里这份缓存的**原始持久化字节**。
+    /// 清单缓存已迁出 `UserDefaults.standard`(见 `purgeLegacyStandardStorage`),且启动最早期就把遗留的
+    /// standard key 删掉 —— 指纹必须读**文件后端**,否则永远 `"empty"`(缓存再怎么变 Spotlight 也不重建)。
+    /// 对标活动历史指纹源 `TaskCenter.loadActivityHistoryData()`。
+    func persistedFingerprintData() -> Data? {
+        defaults.data(forKey: storageKey)
+    }
+
     /// 把已过 TTL 的项落地清掉。读取入口顺手调,避免缓存无限留旧。
     func pruneExpiredInPlace(now: Date = Date()) {
         let all = loadAll()

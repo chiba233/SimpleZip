@@ -217,8 +217,9 @@ nonisolated enum ArchiveFileSpotlightIndexer {
         // 电源档时间闸:间隔内不重查(省电一天一次)→ 后台占用低,慢点没事。
         guard SpotlightReindexGuard.shouldCheckNow(key: key, interval: SpotlightIndexingPower.current.recheckInterval) else { return }
         SpotlightReindexGuard.markChecked(key: key)
-        // 指纹 = 归档缓存原始数据 + 单包封顶(影响条目数);没变 → 跳过(不解码、不建项、不打 IPC)。
-        let fp = SpotlightReindexGuard.fingerprint(ofStandardKey: AppPreferences.Key.archiveListingCache)
+        // 指纹 = 归档缓存原始数据(读文件后端,已迁出 UserDefaults.standard)+ 单包封顶(影响条目数);
+        // 没变 → 跳过(不解码、不建项、不打 IPC)。
+        let fp = SpotlightReindexGuard.fingerprint(of: ArchiveListingCacheStore().persistedFingerprintData())
             + ":\(perArchiveLimit)"
         guard !SpotlightReindexGuard.isUpToDate(key: key, fingerprint: fp) else { return }
         if await performReindex() {

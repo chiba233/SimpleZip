@@ -1553,7 +1553,10 @@ enum AppPreferences {
         defaults.removeObject(forKey: Key.releaseLedger)
         // AI 后台索引白名单目录(用户配置,恢复出厂应清掉 —— A21)。
         defaults.removeObject(forKey: Key.aiBackgroundIndexScopes)
-        // #34 归档清单缓存是派生数据(不在白名单),恢复出厂时一并清掉。
+        // #34 归档清单缓存是派生数据(不在白名单),恢复出厂时一并清掉。缓存已迁文件后端(0.4.5,见
+        // ArchiveListingCacheStore)—— 必须清**文件后端**(`clear()`),再顺手抹掉遗留在 standard 的旧 key;
+        // 只删 standard 会让含非加密条目名的缓存文件在恢复出厂后残留。
+        ArchiveListingCacheStore().clear()
         defaults.removeObject(forKey: Key.archiveListingCache)
         defaults.removeObject(forKey: Key.finderFavoritesDirectoryBookmarkData)
         defaults.removeObject(forKey: Key.finderFavoritesSyncEnabled)

@@ -200,7 +200,8 @@ nonisolated enum CachedArchiveSpotlightIndexer {
         }
         guard SpotlightReindexGuard.shouldCheckNow(key: key, interval: SpotlightIndexingPower.current.recheckInterval) else { return }
         SpotlightReindexGuard.markChecked(key: key)
-        let fp = SpotlightReindexGuard.fingerprint(ofStandardKey: AppPreferences.Key.archiveListingCache)
+        // 指纹源 = 文件后端里清单缓存的原始字节(已迁出 UserDefaults.standard,不能再读 standard key)。
+        let fp = SpotlightReindexGuard.fingerprint(of: ArchiveListingCacheStore().persistedFingerprintData())
         guard !SpotlightReindexGuard.isUpToDate(key: key, fingerprint: fp) else { return }
         if await performReindex() {
             SpotlightReindexGuard.markIndexed(key: key, fingerprint: fp)
