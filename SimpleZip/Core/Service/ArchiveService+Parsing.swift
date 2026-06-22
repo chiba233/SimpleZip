@@ -226,7 +226,10 @@ extension ArchiveService {
                     headerBuffer += line + "\n"
                 }
             }
-            if line.isEmpty {
+            // 标准 `-slt` 输出用空行分隔条目,flush 在这里触发。但 XIP/xar 的条目间没有空行,
+            // 只用 `--` / `----` / `----------` 作块分隔 —— 这些纯 dash 行也触发 flush,
+            // 否则 xar 条目会被后续嵌套块的字段覆盖、永远形不成条目(打开空列表)。
+            if line.isEmpty || line.allSatisfy({ $0 == "-" }) {
                 flush()
                 return
             }
