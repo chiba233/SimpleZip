@@ -2,6 +2,14 @@
 
 # Changelog
 
+## 1.0.1
+
+### bugfix
+
+**User-facing**
+
+- **Shortcuts and Siri now appear in your language, not just English.** Every Shortcuts action — its name, its parameter labels, its one-line summary and its Siri trigger phrases — was previously English-only, for both the 1.0.0 archive actions and the older ones. All of it is now localized across all 10 supported languages, so the action list, summaries like "Rescue [archive]" or "Quick-verify the release group in [folder]", and the spoken phrases now read in your language too.
+
 ## 1.0.0
 
 ### feat
@@ -40,7 +48,6 @@
 **User-facing**
 
 - **Shortcuts & Siri are clearly marked unavailable when the app isn't signed with an Apple Developer ID.** On macOS 26 the App Intents execution path requires a validated bundle (a code signature with a Team Identifier), so an ad-hoc / unsigned build can never run a SimpleZip action — the system rejects the connection and Shortcuts reports "couldn't communicate with the app." The actions still get registered with the system and keep showing up in the Shortcuts app (the app can't remove them from there), so instead of hiding the in-app section, Settings → Automation now shows it with a clear "unavailable" notice, and the Health pane flags Shortcuts & Siri with a yellow warning explaining why. Everything returns to normal automatically on a properly signed build. The CLI, URL scheme, Finder services and Spotlight channels are unaffected.
-- **Shortcuts and Siri now appear in your language, not just English.** Every Shortcuts action — its name, its parameter labels, its one-line summary and its Siri trigger phrases — was previously English-only, for both the new 1.0.0 archive actions and the older ones. All of it is now localized across all 10 supported languages, so the action list, summaries like "Rescue [archive]" or "Quick-verify the release group in [folder]", and the spoken phrases now read in your language too.
 - **Turning the AI assistant off now hides its buttons right away.** AI entry points — the inline advisories in the create/extract dialogs, the "explain this" buttons on reports and failed tasks, and the AI search fields — used to re-check the master switch only when their view happened to rebuild, so toggling it in Settings didn't make them appear or disappear until something else redrew. They now react to the switch the instant it changes.
 - **AI/Spotlight indexing is less likely to freeze startup.** Persistent Spotlight indexing now skips unchanged work, runs serially, honors the power profile and keeps encrypted-volume work off the main thread.
 - **AI background work no longer stalls after the first pass.** The background index heartbeat keeps running and rotates scopes progressively, so cached suggestions and diagnostics can continue updating.
