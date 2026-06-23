@@ -439,10 +439,19 @@ extension ArchiveBrowserModel {
         // 切换到文件夹模式 → 一般情况清掉 `.siz` 残留的「显示路径覆盖」，避免老覆盖泄漏到下次 archive 打开。
         // **例外**：`.szs` 虚拟目录模式正在生效时（manifestVirtualMode != nil）保留 archiveDisplayOverride，
         // 让地址栏继续显示 `.szs` 路径。退出虚拟模式由 `exitManifestVirtualMode()` 显式清；这里不能误清。
-        if manifestVirtualMode == nil {
+        // **XIP 例外同理**:目标仍在展开载荷树内(进 Xcode.app 等子目录)时保留 xip 覆盖,否则一进子目录
+        // 地址栏就暴露 `/var/folders`、go-up 也回不到 `.xip`。离开载荷树(回真实文件夹)才清。
+        let stayingInXIP = xipDrillDownTempURL.map {
+            let root = $0.standardizedFileURL.path
+            let here = url.standardizedFileURL.path
+            return here == root || here.hasPrefix(root + "/")
+        } ?? false
+        if manifestVirtualMode == nil, !stayingInXIP {
             archiveDisplayOverride = nil
         }
-        xipDrillDownTempURL = nil
+        if !stayingInXIP {
+            xipDrillDownTempURL = nil
+        }
         openFolder(url, recordsHistory: true)
     }
 

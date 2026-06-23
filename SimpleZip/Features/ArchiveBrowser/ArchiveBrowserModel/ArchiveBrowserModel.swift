@@ -481,6 +481,11 @@ final class ArchiveBrowserModel: ObservableObject {
             if let virtual = manifestVirtualMode, url.standardizedFileURL.path == virtual.payloadRoot.path {
                 return virtual.manifestURL.lastPathComponent
             }
+            // XIP 下钻:载荷根显示 `.xip` 名(而非临时 UUID 目录名);子目录用末段(自然正确)。
+            if let temp = xipDrillDownTempURL, let override = archiveDisplayOverride,
+               url.standardizedFileURL.path == temp.standardizedFileURL.path {
+                return override.lastPathComponent
+            }
             return url.lastPathComponent.isEmpty ? url.path : url.lastPathComponent
         case .archive(let url):
             // 嵌套档案：标题显示最内层档案名（虚拟堆叠串的末段，如 `c.zip`）。
@@ -519,18 +524,8 @@ final class ArchiveBrowserModel: ObservableObject {
             if let virtualPath = virtualizedLocationPath(realURL: url) {
                 return virtualPath
             }
-            // **XIP 下钻**:临时展开目录对外显示成原始 `.xip` 路径,并把临时根以下的相对子路径堆叠上去
-            //（如 `/Users/me/Downloads/Xcode.xip/Xcode-beta.app/Contents`)—— 既不暴露 `/var/folders`,也让
-            // 用户看清自己在载荷里的哪一层(对标 `.szs` / 嵌套档案的地址栏堆叠)。
-            if let override = archiveDisplayOverride, let temp = xipDrillDownTempURL {
-                let tempPath = temp.standardizedFileURL.path
-                let here = url.standardizedFileURL.path
-                if here == tempPath {
-                    return override.path
-                }
-                if here.hasPrefix(tempPath + "/") {
-                    return override.path + String(here.dropFirst(tempPath.count))
-                }
+            if let xipPath = xipDrillDownLocationPath(realURL: url) {
+                return xipPath
             }
             return url.path
         case .archive(let url):
@@ -554,6 +549,11 @@ final class ArchiveBrowserModel: ObservableObject {
             if let virtualPath = virtualizedLocationPath(realURL: url) {
                 return virtualPath
             }
+            // XIP 下钻同理:展开载荷对外显示成原始 `.xip` 路径(地址栏读的是 editableLocationText,不是 locationText
+            // —— 两处都得覆盖,否则地址栏暴露 /var/folders)。
+            if let xipPath = xipDrillDownLocationPath(realURL: url) {
+                return xipPath
+            }
             return url.path
         case .archive(let url):
             let base = archiveDisplayBasePath(url)
@@ -564,6 +564,19 @@ final class ArchiveBrowserModel: ObservableObject {
         case .aiWorkspace(let id):
             return aiWorkspaceBreadcrumb(id)
         }
+    }
+
+    /// XIP 下钻:把展开载荷的真实临时 URL 翻译成「原始 `.xip` 路径 + 临时根以下的相对子路径」
+    ///（如 `/Users/me/Downloads/Xcode.xip/Xcode-beta.app/Contents`)—— 地址栏 / 标题不暴露 `/var/folders`,
+    /// 也让用户看清自己在载荷里的哪一层(对标 `.szs` 虚拟路径)。仅 `xipDrillDownTempURL` + `archiveDisplayOverride`
+    /// 都在、且 `realURL` 落在临时载荷树内时返回,否则 nil(`locationText` / `editableLocationText` 共用)。
+    private func xipDrillDownLocationPath(realURL: URL) -> String? {
+        guard let override = archiveDisplayOverride, let temp = xipDrillDownTempURL else { return nil }
+        let tempPath = temp.standardizedFileURL.path
+        let here = realURL.standardizedFileURL.path
+        if here == tempPath { return override.path }
+        if here.hasPrefix(tempPath + "/") { return override.path + String(here.dropFirst(tempPath.count)) }
+        return nil
     }
 
     /// 把真实文件系统 URL 翻译成「虚拟 .szs 路径」—— 仅 `manifestVirtualMode` 非空时返回，否则 nil。

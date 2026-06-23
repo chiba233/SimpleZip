@@ -929,7 +929,18 @@ extension ArchiveBrowserModel {
         switch mode {
         case .archive(let url):
             archiveURL = url
-        case .folder, .tag, .aiWorkspace:
+        case .folder:
+            // **容器浏览态**:xip 展开载荷(`archiveDisplayOverride` 指原始 `.xip`)/ dmg 挂载卷
+            //(`mountedDiskImage.sourceURL` 指原始 `.dmg`)在 folder 模式下浏览,但「解压」的合理语义是
+            // 解压那个**原始容器**到选定位置 —— 否则 folder 模式没有选中的归档文件,会误报「请先打开压缩包」。
+            if xipDrillDownTempURL != nil, let container = archiveDisplayOverride {
+                archiveURL = container
+            } else if let mountedSource = mountedDiskImage?.sourceURL {
+                archiveURL = mountedSource
+            } else {
+                archiveURL = selectedFileItems.first(where: { ArchiveService.isSupportedArchive($0.url) })?.url
+            }
+        case .tag, .aiWorkspace:
             archiveURL = selectedFileItems.first(where: { ArchiveService.isSupportedArchive($0.url) })?.url
         }
 

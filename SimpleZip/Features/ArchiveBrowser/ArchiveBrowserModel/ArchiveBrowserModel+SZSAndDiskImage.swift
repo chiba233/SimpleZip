@@ -106,6 +106,10 @@ extension ArchiveBrowserModel {
         archiveDisplayOverride = nil
         xipDrillDownTempURL = nil
         session.clearArchive()
+        // 进 archive 模式但**不 reload**(reload 才会去 7zz 列出 Content/Metadata 那层壳)→ archiveItems 保持空。
+        // 配合 isWorking,ArchiveTable 显示「正在读取压缩包」全屏遮罩;地址栏(archive 模式)显示 .xip 路径。
+        // 展开是 GB 级慢操作,这套反馈覆盖全程,用户不会看到「上一个文件夹 + 像没反应」的弱信号。
+        mode = .archive(url)
         refreshArchiveItems()                       // 清空可见行 → 满足遮罩条件 archiveItems.isEmpty
         status = L10n.text("status.readingArchive")
         isWorking = true                            // 立即出反馈(别等子进程起来才显示,否则有空白帧)
