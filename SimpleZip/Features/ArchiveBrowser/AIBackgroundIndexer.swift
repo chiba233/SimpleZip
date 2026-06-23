@@ -182,7 +182,15 @@ final class AIBackgroundIndexer {
         // 「Couldn't communicate with a helper application」)。正常用户启动必经 becomeActive,置位后的下一跳
         // 心跳自然跑起扫描。注意:启动旗标只在 becomeActive 里纯赋值,不在那里起任何活(避免诱发 SwiftUI
         // ScrollView 在窗口布局周期内重入崩溃)。
-        guard hasEnteredForeground else { return }
+        //
+        // 🔴 helper 死因(2026-06-23 实测采样+日志钉死):App Intents 后台 helper 会因**窗口状态恢复**
+        //(日志 `restoreWindowWithIdentifier SimpleZip.Main`)触发 becomeActive → `hasEnteredForeground` 被误置 true
+        // → 启动 AI 后台索引 → `nonDefaultOpenApps` 的**同步 LaunchServices** 占满 Swift cooperative 线程池 →
+        // **饿死 App Intents 的异步 XPC 回复 → NSCocoaError 4101「Couldn't communicate with a helper application」**。
+        // 「helper 永不 becomeActive」的旧假设是错的;但 helper 恢复出的窗口**不可见**(`running-NotVisible`)。
+        // 故判据改为「**真有可见主窗口**」:真实用户会话必有,helper 没有 → AI 后台索引永不在 helper 里启动。
+        guard hasEnteredForeground,
+              NSApp.windows.contains(where: { $0.isVisible && $0.canBecomeMain }) else { return }
         // AI 电源规范③:启动静默 60s + 无重归档任务 + 活跃度非关。低电 / 省电也可(只读索引不耗模型)。
         guard !running,
               AIBackgroundSchedulingRules.canRunDeterministicIndexing(currentRuntimeContext()) else { return }
