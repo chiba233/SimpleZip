@@ -91,6 +91,47 @@ extension ArchiveBrowserModel {
         }
     }
 
+    /// 打开 `.xip`。xip 是 xar 容器,但那层 `Content` / `Metadata` xar 成员对用户是**实现细节**,
+    /// 绝不该露出来 —— 完全等同 `tar.zst` 打开后自动下钻进内层 `tar`、`.siz` 打开不露 `metadata.json` / 签名。
+    /// 所以打开 `.xip` = 在「正在读取压缩包」加载态里直接用系统 `/usr/bin/xip --expand` 展开**真实载荷**
+    /// (如 `Xcode-beta.app`,顺带由系统校验 Apple 签名),再以文件夹浏览;用户全程只见「正在读取压缩包」,
+    /// 看不到 Content / Metadata,也不必去双击什么(双击慢操作再假死正是要消灭的错误信号)。
+    ///
+    /// 复用 DMG 挂载同款骨架:`archiveItems` 保持空 + `isWorking` → `ArchiveTable` 显示 readingArchive 全屏遮罩;
+    /// 展开成功后 `archiveDisplayOverride = .xip`(地址栏显示原始 `.xip` 路径而非 `/var/folders`)、
+    /// `xipDrillDownTempURL = 载荷临时目录`(「上一级」据此回 `.xip` 所在真实文件夹,壳层不进任何栈)。
+    /// `xip --expand` 在 Xcode 上是 GB 级、很慢 → 走**可取消**的 `startOperationTask`(传 operationID,取消即杀子进程)。
+    func openXIP(_ url: URL) {
+        cleanupMountedDiskImageIfNeeded(for: nil)
+        archiveDisplayOverride = nil
+        xipDrillDownTempURL = nil
+        session.clearArchive()
+        refreshArchiveItems()                       // 清空可见行 → 满足遮罩条件 archiveItems.isEmpty
+        status = L10n.text("status.readingArchive")
+        isWorking = true                            // 立即出反馈(别等子进程起来才显示,否则有空白帧)
+        startOperationTask(cancellable: true) { [weak self] operationID in
+            guard let self else { return }
+            do {
+                let destination = try TemporaryResourceManager.makeOpenedArchiveItemDirectory(
+                    fileManager: self.fileManager)
+                self.openedArchiveItemDirectories.append(destination)
+                try await XIPBackend.extract(
+                    url, to: destination, operationID: operationID,
+                    progress: { _ in }, outputObserver: nil)
+                self.xipDrillDownTempURL = destination
+                self.archiveDisplayOverride = url
+                self.session.clearArchive()
+                self.openFolder(destination, recordsHistory: false)
+            } catch is CancellationError {
+                // 取消:回到 `.xip` 所在真实文件夹,不停在空的 xar 视图。
+                self.openFolder(url.deletingLastPathComponent())
+            } catch {
+                self.errorMessage = error.localizedDescription
+                self.openFolder(url.deletingLastPathComponent())
+            }
+        }
+    }
+
     func cleanupMountedDiskImageIfNeeded(for targetURL: URL?) {
         guard let mountedDiskImage else { return }
         if let targetURL, targetURL.standardizedFileURL.path.hasPrefix(mountedDiskImage.mountPoint.standardizedFileURL.path) {

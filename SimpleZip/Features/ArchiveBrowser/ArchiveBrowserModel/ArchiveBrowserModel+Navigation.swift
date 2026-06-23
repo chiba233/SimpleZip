@@ -442,6 +442,7 @@ extension ArchiveBrowserModel {
         if manifestVirtualMode == nil {
             archiveDisplayOverride = nil
         }
+        xipDrillDownTempURL = nil
         openFolder(url, recordsHistory: true)
     }
 
@@ -523,6 +524,7 @@ extension ArchiveBrowserModel {
 
     func openArchive(_ url: URL) {
         archiveDisplayOverride = nil
+        xipDrillDownTempURL = nil
         openArchive(url, recordsHistory: true)
     }
 
@@ -530,6 +532,7 @@ extension ArchiveBrowserModel {
     /// 走侧信道 `PendingArchiveReveal`:openArchive 异步加载,loadArchive 收尾时按 url 取出待定路径执行 reveal。
     func openArchive(_ url: URL, revealEntryPath: String) {
         archiveDisplayOverride = nil
+        xipDrillDownTempURL = nil
         PendingArchiveReveal.set(entryPath: revealEntryPath, for: url)
         openArchive(url, recordsHistory: true)
     }
@@ -661,6 +664,15 @@ extension ArchiveBrowserModel {
             openDiskImage(supportedURL)
             return
         }
+        // `.xip`:xar 外壳(Content / Metadata)是实现细节,不让用户停在那层 —— 同 DMG 走「容器 → 文件夹」专用
+        // 路径,直接展开真实载荷浏览(见 openXIP),用户永不见 xar 成员。先记下当前位置(回退 / 上一级回得去)。
+        if supportedURL.pathExtension.lowercased() == "xip" {
+            if recordsHistory {
+                recordCurrentLocationForNavigation()
+            }
+            openXIP(supportedURL)
+            return
+        }
         let destination = NavigationLocation.archive(supportedURL.standardizedFileURL, "")
         if recordsHistory, currentNavigationLocation != destination {
             recordCurrentLocationForNavigation()
@@ -723,38 +735,9 @@ extension ArchiveBrowserModel {
             openArchiveDirectory(item)
             return
         }
-        if case .archive(let archiveURL) = mode,
-           archiveURL.pathExtension.lowercased() == "xip",
-           item.name == "Content" {
-            drillIntoXIPContent(from: archiveURL)
-            return
-        }
+        // 注意:`.xip` 现在打开即自动展开真实载荷(见 openXIP),用户根本看不到 `Content` / `Metadata` xar 成员,
+        // 所以这里不再有「双击 Content 下钻」的特判(那会让用户先看到不该看到的壳层)。
         openArchiveItemExternally(item)
-    }
-
-    private func drillIntoXIPContent(from archiveURL: URL) {
-        startOperationTask(cancellable: true) { [weak self] operationID in
-            guard let self else { return }
-            do {
-                let destination = try TemporaryResourceManager.makeOpenedArchiveItemDirectory(
-                    fileManager: self.fileManager)
-                try await XIPBackend.extract(
-                    archiveURL,
-                    to: destination,
-                    operationID: operationID,
-                    progress: { _ in },
-                    outputObserver: nil
-                )
-                await MainActor.run {
-                    self.openedArchiveItemDirectories.append(destination)
-                    self.recordCurrentLocationForNavigation()
-                    self.openFolder(destination, recordsHistory: false)
-                }
-            } catch is CancellationError {
-            } catch {
-                await MainActor.run { self.errorMessage = error.localizedDescription }
-            }
-        }
     }
 
     func openArchiveDirectory(_ item: ArchiveItem) {
@@ -827,6 +810,16 @@ extension ArchiveBrowserModel {
                 let upURL = (archiveDisplayOverride ?? url).deletingLastPathComponent()
                 exitManifestVirtualMode()
                 openFolder(upURL)
+                return
+            }
+            // XIP 载荷根:从展开的真实载荷「上一级」回到 `.xip` 所在的**真实文件夹**(xar 壳层用户从来看不到、
+            // 不进任何栈 —— 同 tar.zst 上一级直接回真实文件夹)。绝不回去重开 `.xip`(否则又 expand 一遍)。
+            if let temp = xipDrillDownTempURL,
+               url.standardizedFileURL.path == temp.standardizedFileURL.path {
+                let containingFolder = (archiveDisplayOverride ?? url).deletingLastPathComponent()
+                xipDrillDownTempURL = nil
+                archiveDisplayOverride = nil
+                openFolder(containingFolder)
                 return
             }
             openFolder(url.deletingLastPathComponent())

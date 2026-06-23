@@ -305,6 +305,10 @@ final class ArchiveBrowserModel: ObservableObject {
     /// 切换到其它 mode（folder / tag）或非 SIZ archive 时由 `openArchive` 自动清空。
     @Published var archiveDisplayOverride: URL?
 
+    // XIP 下钻:双击 Content 后 xip --expand 到的临时目录。非 nil 时地址栏显示原始 XIP 路径,
+    // goUp 从临时根回到 XIP xar 视图。离开时清空(goUp/goBack/purgeOpenedArchiveTempsIfLeaving)。
+    var xipDrillDownTempURL: URL?
+
     /// **嵌套档案的虚拟堆叠路径**（档案里套档案）。仅用于地址栏 / 标题**显示**，让用户看懂自己在第几层嵌套，
     /// 例如 `/Users/me/Desktop/xx.zip/xa/a.zip/b.zip/c.zip`。这些中间段是**虚拟目录**，不要求真的可点进 / 可访问。
     /// 进一层嵌套档案压一段（见 `openNestedArchive`）；任何「真实」打开（核心 `openArchive` / `openFolder`）都清空它。
@@ -514,6 +518,19 @@ final class ArchiveBrowserModel: ObservableObject {
             // （`/Users/yumeka/Desktop`），让用户在地址栏看到「我现在在 .szs 里」。子目录拼相对路径。
             if let virtualPath = virtualizedLocationPath(realURL: url) {
                 return virtualPath
+            }
+            // **XIP 下钻**:临时展开目录对外显示成原始 `.xip` 路径,并把临时根以下的相对子路径堆叠上去
+            //（如 `/Users/me/Downloads/Xcode.xip/Xcode-beta.app/Contents`)—— 既不暴露 `/var/folders`,也让
+            // 用户看清自己在载荷里的哪一层(对标 `.szs` / 嵌套档案的地址栏堆叠)。
+            if let override = archiveDisplayOverride, let temp = xipDrillDownTempURL {
+                let tempPath = temp.standardizedFileURL.path
+                let here = url.standardizedFileURL.path
+                if here == tempPath {
+                    return override.path
+                }
+                if here.hasPrefix(tempPath + "/") {
+                    return override.path + String(here.dropFirst(tempPath.count))
+                }
             }
             return url.path
         case .archive(let url):
