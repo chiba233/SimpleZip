@@ -143,6 +143,14 @@
 			);
 			target = 0846B96F2FB350EF0095DC1D /* SimpleZip */;
 		};
+		EC9A2F429E58C10B1E129AF8 /* Exceptions for "SimpleZipIntentsExtension" folder in "SimpleZipIntentsExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+				SimpleZipIntentsExtension.entitlements,
+			);
+			target = F5CFD89C9C7F8024B284542E /* SimpleZipIntentsExtension */;
+		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -164,6 +172,7 @@
 		43628150F29D8F80C7200FCB /* SimpleZipIntentsExtension */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
+				EC9A2F429E58C10B1E129AF8 /* Exceptions for "SimpleZipIntentsExtension" folder in "SimpleZipIntentsExtension" target */,
 			);
 			path = SimpleZipIntentsExtension;
 			sourceTree = "<group>";
