@@ -437,6 +437,15 @@ enum ArchiveService {
         outputObserver: (@Sendable (String) -> Void)? = nil
     ) async throws {
         let resolved = try resolvedInput(for: archive, force: force)
+        // `.xip`:`7zz t` 会把 xar 成员 `Content` 当嵌套档案测,因 Content 尾部有数据(xip 封装的**正常**结构)
+        // 报「There are some data after the end of the payload」+「Sub items Errors: 1」非零退出 = **假损坏报告**。
+        // xip 真正的完整性是 **Apple 签名**(在 `xip --expand` 时由系统校验),7zz 无从验证。所以这里把 xip 的
+        // 「测试」定义为「能否完整读出 xar 容器」—— `list` 成功(xar 头 / 校验和可读)即通过(`list` 已对该良性
+        // 尾部错误容错),绝不跑会向用户释放假错的 `7zz t`。xar 容器真损坏(头 / 校验和读不出)时 list 仍会抛。
+        if resolved.backend == .xip {
+            _ = try await list(resolved.url, operationID: operationID, force: force)
+            return
+        }
         // 0.4.3 #6:带口令的完整性测试只有 7zz 路径支持(`t` + PTY 应答,口令绝不进可见 argv)。
         // 有口令时强制走 7zz —— 调用方只在「错误表明需要口令」后才带口令重试,zip/7z 都可被 7zz 测。
         if !password.isEmpty {

@@ -644,9 +644,68 @@ struct RemoveJunkTests {
         #expect(ArchiveService.singleStreamInnerName(forArchiveNamed: "foo.tzst") == "foo.tar")
     }
 
-    /// 用真实 7zz 对 Xcode xip 的 `-slt` 输出文件验证(全量,含嵌套 xz 块和尾部 Warnings/Errors)。
+    /// 真实 7zz 26.01 对 `Xcode_27_beta_2.xip` 的 `l -slt` 输出(**内联** fixture,绝不依赖本机 `/tmp` 文件 ——
+    /// 旧版读 `/tmp/xip_slt.txt`,在 CI / 别的机器 / 重启后必失败)。验证四点:① xar 头块(`Type = Xar` +
+    /// `Physical Size`)被识别为头、不当条目;② 唯一真实条目 `Content`(`Type = file`)被保留;③ 嵌套 xz 块
+    /// (`Type = xz` + `Physical Size`)与尾部 `----------` 子块、`Warnings` / `Errors` 都不产出多余条目;
+    /// ④ 条目间只用 `--` / `----` / `----------`(无空行)分隔也能正确 flush。
     @Test func xipXarRealSevenZipOutput() throws {
-        let output = try String(contentsOf: URL(fileURLWithPath: "/tmp/xip_slt.txt"))
+        let output = """
+
+7-Zip (z) 26.01 (arm64) : Copyright (c) 1999-2026 Igor Pavlov : 2026-04-27
+ 64-bit arm_v:8.5-A locale=C.UTF-8 Threads:10 OPEN_MAX:1048575, ASM
+
+Scanning the drive for archives:
+1 file, 1966096310 bytes (1876 MiB)
+
+Listing archive: /Users/yumeka/Downloads/Xcode_27_beta_2.xip
+
+--
+Path = /Users/yumeka/Downloads/Xcode_27_beta_2.xip
+Type = Xar
+Physical Size = 1966096310
+Method = SHA1
+Created = 2026-06-18T23:31:38
+----
+Path = Content
+Size = 1966091760
+Packed Size = 1966091760
+Modified = 2026-06-19 06:30:28.0000000
+Created = 2026-06-19 06:30:28.0000000
+Accessed = 2026-06-19 06:03:06.0000000
+Mode = -rw-r--r--
+Type = file
+User = root
+Group = admin
+User ID = 0
+Group ID = 80
+iNode = 0-203007
+Method = octet-stream sha1 sha1
+ID = 1
+Offset = 4252
+--
+Path = Content
+Type = xz
+ERRORS:
+There are data after the end of archive
+Offset = 28
+Physical Size = 5331636
+Tail Size = 1960760096
+Method = LZMA2:23
+Streams = 1
+Blocks = 1
+Characteristics = BlockPackSize BlockUnpackSize
+
+----------
+Size = 16777216
+Packed Size = 5331636
+Method = LZMA2:23
+
+
+Warnings: 1
+
+Errors: 1
+"""
         let items = ArchiveService.parseSevenZipList(output)
         #expect(items.count == 1)
         #expect(items.first?.name == "Content")

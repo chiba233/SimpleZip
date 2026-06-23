@@ -99,13 +99,19 @@ enum SevenZipBackend {
                 operationID: operationID,
                 outputRetentionLimit: BackendProcessRunner.diagnosticsOutputRetentionLimit
             )
+        } catch let error as CancellationError {
+            throw error   // 用户取消:绝不能把「已喂出部分条目」当成功列出而吞掉取消。
         } catch {
-            // 7zz 在部分归档(如 XIP/xar)上列出内容成功但尾部报非致命错误(exit code 2),
-            // outputObserver 已经把条目喂给了 parser。只要有条目就返回;确实没有条目才上抛。
+            // 7zz 在部分归档(如 XIP/xar)上列出内容成功,但因尾部「数据多于归档」之类**非致命**问题以
+            // 非零退出码(2)结束 —— 即 `ArchiveError.commandFailed`,此时条目已通过 outputObserver 喂进 parser。
+            // **仅**这种「命令非零退出 + 确有条目」才返回已解析条目;`passwordPromptExhausted` 等其它错误一律
+            // 上抛(否则需要口令、或真正损坏的归档会被当成「成功列出 0/部分条目」,吞掉该弹的口令框 / 该报的错)。
             let items = parser.finish()
-            if items.isEmpty { throw error }
-            ArchiveService.recordHeaderComment(parser.headerComment, for: archive)
-            return items
+            if case ArchiveError.commandFailed = error, !items.isEmpty {
+                ArchiveService.recordHeaderComment(parser.headerComment, for: archive)
+                return items
+            }
+            throw error
         }
         ArchiveService.recordHeaderComment(parser.headerComment, for: archive)
         return parser.finish()
