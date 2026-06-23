@@ -1021,14 +1021,14 @@ extension ArchiveBrowserModel {
 
     /// 执行虚拟导出 / 容器内容导出:逐个复制(唯一名,绝不覆盖;`copyItem` 对目录递归),任一失败立即停
     ///(已成功的保留)。**后台跑**(可取消):.szs/.gpg 是小文件,xip/dmg 载荷可能 GB 级、含目录,
-    /// 主线程同步拷会冻 UI。完成后在 Finder 选中第一个产物。
+    /// 主线程同步拷会冻 UI。**不自动拉起 Finder**:标准压缩包(zip/7z)解压默认也不 reveal,只在用户在解压
+    /// 对话框里勾了「完成后在 Finder 显示」才弹 —— 这里是简单导出,完成只更新状态栏,不打断用户。
     func performVirtualExport(_ request: VirtualExportRequest) {
         status = L10n.format("status.extractingSelected", request.files.count)
         isWorking = true
         startOperationTask(cancellable: true) { [weak self] _ in
             guard let self else { return }
             var exported = 0
-            var firstTarget: URL?
             var failure: String?
             for file in request.files {
                 if Task.isCancelled { break }
@@ -1041,7 +1041,6 @@ extension ArchiveBrowserModel {
                     try await Task.detached(priority: .userInitiated) {
                         try FileManager.default.copyItem(at: file, to: target)
                     }.value
-                    if firstTarget == nil { firstTarget = target }
                     exported += 1
                 } catch is CancellationError {
                     break
@@ -1054,9 +1053,6 @@ extension ArchiveBrowserModel {
             if let failure { self.errorMessage = failure }
             if exported > 0 {
                 self.status = L10n.format("virtual.export.done", "\(exported)")
-                if let firstTarget {
-                    NSWorkspace.shared.activateFileViewerSelecting([firstTarget])
-                }
             }
         }
     }
