@@ -99,6 +99,9 @@ fi
 # (`.dev.aixpc` 只存在于本地 Debug 构建,不进 Release 产物)。断言它的 bundle id 是正式的,兜底防 dev 的
 # .xpc 误入发布(对照上面对 app bundle id / dev LaunchAgent plist 的处理)。XPC Service 是构建产物,Release
 # 配置本就只产 .aixpc 一个,所以这里只需断言、无需像 dev plist 那样 rm。
+# App Intents 扩展(ExtensionKit,在 Contents/Extensions —— **非** `--deep` 覆盖的标准嵌套位置,必须显式签,
+# 否则它保持 build 期的 ad-hoc 签名 → 公证 Invalid → staple 找不到票,见 1.0.1-beta.4 实测)。
+INTENTS_EXTENSION_BUNDLE="$APP_PATH/Contents/Extensions/SimpleZipIntentsExtension.appex"
 XPC_SERVICE_BUNDLE="$APP_PATH/Contents/XPCServices/SimpleZipAIXPCService.xpc"
 if [[ -d "$XPC_SERVICE_BUNDLE" ]]; then
   XPC_BUNDLE_ID="$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$XPC_SERVICE_BUNDLE/Contents/Info.plist")"
@@ -174,6 +177,14 @@ if [[ -n "${SIGN_IDENTITY:-}" ]]; then
     codesign --force --options runtime --timestamp --sign "$SIGN_IDENTITY" "$XPC_SERVICE_BUNDLE"
   fi
 
+  # App Intents 扩展:`Contents/Extensions/*.appex` 不在 `--deep` 的标准嵌套位置,**必须先显式签**
+  # (--options runtime + --timestamp,同 Developer ID),否则保持 ad-hoc 签名 → 公证 Invalid。
+  # 嵌套必须先于外层 app 签(下面的 --deep 签 app),故放在这里。
+  if [[ -d "$INTENTS_EXTENSION_BUNDLE" ]]; then
+    echo "  signing embedded App Intents extension: ${INTENTS_EXTENSION_BUNDLE#"$APP_PATH"/}"
+    codesign --force --options runtime --timestamp --sign "$SIGN_IDENTITY" "$INTENTS_EXTENSION_BUNDLE"
+  fi
+
   # --deep 处理 Sparkle.framework 及其内部 XPC / Autoupdate / Updater.app 等嵌套代码。
   codesign --force --options runtime --timestamp --deep --sign "$SIGN_IDENTITY" "$APP_PATH"
   codesign --verify --deep --strict --verbose=2 "$APP_PATH"
@@ -181,7 +192,7 @@ if [[ -n "${SIGN_IDENTITY:-}" ]]; then
   # App 主体 + 内嵌 AI agent + 内嵌前台 XPC Service 都要查 —— agent 在 Contents/MacOS(非标准嵌套位置),
   # `--deep` 不保证重签到它;XPC Service 在标准位置但一并复核。**故意放在最终 --deep 之后复核**:断言的是
   # 真正装船的产物状态,而非签名中途的中间态(对 .xpc bundle,--display 查的是其主可执行的 flags)。
-  for signed_bin in "$APP_PATH" "$AGENT_BIN" "$XPC_SERVICE_BUNDLE"; do
+  for signed_bin in "$APP_PATH" "$AGENT_BIN" "$XPC_SERVICE_BUNDLE" "$INTENTS_EXTENSION_BUNDLE"; do
     [[ -e "$signed_bin" ]] || continue
     if ! codesign --display --verbose=4 "$signed_bin" 2>&1 | grep -Eq 'flags=.*runtime'; then
       echo "ERROR: hardened runtime flag missing after signing $signed_bin" >&2
