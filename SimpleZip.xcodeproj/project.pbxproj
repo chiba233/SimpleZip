@@ -21,27 +21,36 @@
 /* End PBXAggregateTarget section */
 
 /* Begin PBXBuildFile section */
-		08663E6FC929E328731D49F9 /* SimpleZipAgentSupport/AIAgentXPCProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E00D7E0BEB89C9F0BB75AD0 /* SimpleZipAgentSupport/AIAgentXPCProtocol.swift */; };
-		1E8387CC7E6DC99D6D5E6BC2 /* SimpleZipAgentSupport/yumeka.SimpleZip-in-mac.aiagent.index.plist in Embed LaunchAgent */ = {isa = PBXBuildFile; fileRef = E2BCE4100CF6DD6585CD73A9 /* SimpleZipAgentSupport/yumeka.SimpleZip-in-mac.aiagent.index.plist */; };
-		24A28DD5CFCF4AAAC4DB85A8 /* SimpleZipAgentSupport/AIAgentConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88CF371C260BE403D359B938 /* SimpleZipAgentSupport/AIAgentConfiguration.swift */; };
-		24FE5B44428405893119DDDC /* SimpleZipAgentSupport/yumeka.SimpleZip-in-mac.dev.aiagent.plist in Embed LaunchAgent */ = {isa = PBXBuildFile; fileRef = E0474B6A74E638D6D57948EE /* SimpleZipAgentSupport/yumeka.SimpleZip-in-mac.dev.aiagent.plist */; };
-		2860DEE7F77571699EF84C55 /* SimpleZipAgentSupport/AIAgentConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88CF371C260BE403D359B938 /* SimpleZipAgentSupport/AIAgentConfiguration.swift */; };
-		3B69C9B44598F9AD6EE090F5 /* SimpleZipAgentSupport/yumeka.SimpleZip-in-mac.aiagent.plist in Embed LaunchAgent */ = {isa = PBXBuildFile; fileRef = D2366AE7E99F003E085208B1 /* SimpleZipAgentSupport/yumeka.SimpleZip-in-mac.aiagent.plist */; };
+		08663E6FC929E328731D49F9 /* AIAgentXPCProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E00D7E0BEB89C9F0BB75AD0 /* AIAgentXPCProtocol.swift */; };
+		1A88A4A84AFEF37009CDBA16 /* SimpleZipIntentsExtension.appex in Embed App Intents Extension */ = {isa = PBXBuildFile; fileRef = 44462330044205E59043BB7B /* SimpleZipIntentsExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, CodeSignOnCopy, ); }; };
+		1E8387CC7E6DC99D6D5E6BC2 /* yumeka.SimpleZip-in-mac.aiagent.index.plist in Embed LaunchAgent */ = {isa = PBXBuildFile; fileRef = E2BCE4100CF6DD6585CD73A9 /* yumeka.SimpleZip-in-mac.aiagent.index.plist */; };
+		24A28DD5CFCF4AAAC4DB85A8 /* AIAgentConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88CF371C260BE403D359B938 /* AIAgentConfiguration.swift */; };
+		24FE5B44428405893119DDDC /* yumeka.SimpleZip-in-mac.dev.aiagent.plist in Embed LaunchAgent */ = {isa = PBXBuildFile; fileRef = E0474B6A74E638D6D57948EE /* yumeka.SimpleZip-in-mac.dev.aiagent.plist */; };
+		2860DEE7F77571699EF84C55 /* AIAgentConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88CF371C260BE403D359B938 /* AIAgentConfiguration.swift */; };
+		3B69C9B44598F9AD6EE090F5 /* yumeka.SimpleZip-in-mac.aiagent.plist in Embed LaunchAgent */ = {isa = PBXBuildFile; fileRef = D2366AE7E99F003E085208B1 /* yumeka.SimpleZip-in-mac.aiagent.plist */; };
 		6D9C5149A76F170AFBEDEA6D /* SimpleZipAIXPCService.xpc in Embed XPC Services */ = {isa = PBXBuildFile; fileRef = B0BED9549EFEBE106302CF14 /* SimpleZipAIXPCService.xpc */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
-		745A2A4A5D7CDF439819EA0C /* SimpleZipAgentSupport/AIAgentXPCProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E00D7E0BEB89C9F0BB75AD0 /* SimpleZipAgentSupport/AIAgentXPCProtocol.swift */; };
-		771815289BB6CE063CEE34B0 /* SimpleZipAgentSupport/AIPassPayloads.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64183CC654E51ED24F0827A2 /* SimpleZipAgentSupport/AIPassPayloads.swift */; };
-		B5CB83030AA4D7977FB24D61 /* SimpleZipAgentSupport/AIPassPayloads.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64183CC654E51ED24F0827A2 /* SimpleZipAgentSupport/AIPassPayloads.swift */; };
-		C4A66994125BA6CEEEC981C0 /* SimpleZipAgentSupport/AIAgentXPCProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E00D7E0BEB89C9F0BB75AD0 /* SimpleZipAgentSupport/AIAgentXPCProtocol.swift */; };
-		DD6D4B0E4F818DA5BECECD9F /* SimpleZipAgentSupport/AIAgentConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88CF371C260BE403D359B938 /* SimpleZipAgentSupport/AIAgentConfiguration.swift */; };
-		E1B740E8FE1B855A7D240DA0 /* SimpleZipAgentSupport/AIAgentService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1A320C68B6CB0753846C45 /* SimpleZipAgentSupport/AIAgentService.swift */; };
+		745A2A4A5D7CDF439819EA0C /* AIAgentXPCProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E00D7E0BEB89C9F0BB75AD0 /* AIAgentXPCProtocol.swift */; };
+		771815289BB6CE063CEE34B0 /* AIPassPayloads.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64183CC654E51ED24F0827A2 /* AIPassPayloads.swift */; };
+		B5CB83030AA4D7977FB24D61 /* AIPassPayloads.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64183CC654E51ED24F0827A2 /* AIPassPayloads.swift */; };
+		C4A66994125BA6CEEEC981C0 /* AIAgentXPCProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E00D7E0BEB89C9F0BB75AD0 /* AIAgentXPCProtocol.swift */; };
+		DD6D4B0E4F818DA5BECECD9F /* AIAgentConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88CF371C260BE403D359B938 /* AIAgentConfiguration.swift */; };
+		E1B740E8FE1B855A7D240DA0 /* AIAgentService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1A320C68B6CB0753846C45 /* AIAgentService.swift */; };
 		E319336F0A2FCDCDB7A10BE3 /* SimpleZipAIAgent in Embed Helper */ = {isa = PBXBuildFile; fileRef = EDF9E86D1F6AC7CE4DF39EB2 /* SimpleZipAIAgent */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
-		E37E29566334519194956344 /* SimpleZipAgentSupport/yumeka.SimpleZip-in-mac.dev.aiagent.index.plist in Embed LaunchAgent */ = {isa = PBXBuildFile; fileRef = 2375904B94209FDA0B5CDF90 /* SimpleZipAgentSupport/yumeka.SimpleZip-in-mac.dev.aiagent.index.plist */; };
-		F869FF2C984002354D1D331D /* SimpleZipAgentSupport/AIPassPayloads.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64183CC654E51ED24F0827A2 /* SimpleZipAgentSupport/AIPassPayloads.swift */; };
-		FFF34D8099EA1C7AD31AF566 /* SimpleZipAgentSupport/AIAgentService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1A320C68B6CB0753846C45 /* SimpleZipAgentSupport/AIAgentService.swift */; };
+		E37E29566334519194956344 /* yumeka.SimpleZip-in-mac.dev.aiagent.index.plist in Embed LaunchAgent */ = {isa = PBXBuildFile; fileRef = 2375904B94209FDA0B5CDF90 /* yumeka.SimpleZip-in-mac.dev.aiagent.index.plist */; };
+		F869FF2C984002354D1D331D /* AIPassPayloads.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64183CC654E51ED24F0827A2 /* AIPassPayloads.swift */; };
+		FD3CB74F528B782FBCA371DA /* AppIntents.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BCA55DE5FEE3FC143B0DF3D4 /* AppIntents.framework */; };
+		FFF34D8099EA1C7AD31AF566 /* AIAgentService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1A320C68B6CB0753846C45 /* AIAgentService.swift */; };
 		SP11A0000000000000000A1 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = SP11B0000000000000000B1 /* Sparkle */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		3127119B74FBF182AE7103BE /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 0846B9682FB350EF0095DC1D /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = F5CFD89C9C7F8024B284542E;
+			remoteInfo = SimpleZipIntentsExtension;
+		};
 		57E51B2E48A5D86F3535D30E /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 0846B9682FB350EF0095DC1D /* Project object */;
@@ -76,12 +85,23 @@
 			dstPath = Contents/Library/LaunchAgents;
 			dstSubfolderSpec = 1;
 			files = (
-				24FE5B44428405893119DDDC /* SimpleZipAgentSupport/yumeka.SimpleZip-in-mac.dev.aiagent.plist in Embed LaunchAgent */,
-				3B69C9B44598F9AD6EE090F5 /* SimpleZipAgentSupport/yumeka.SimpleZip-in-mac.aiagent.plist in Embed LaunchAgent */,
-				1E8387CC7E6DC99D6D5E6BC2 /* SimpleZipAgentSupport/yumeka.SimpleZip-in-mac.aiagent.index.plist in Embed LaunchAgent */,
-				E37E29566334519194956344 /* SimpleZipAgentSupport/yumeka.SimpleZip-in-mac.dev.aiagent.index.plist in Embed LaunchAgent */,
+				24FE5B44428405893119DDDC /* yumeka.SimpleZip-in-mac.dev.aiagent.plist in Embed LaunchAgent */,
+				3B69C9B44598F9AD6EE090F5 /* yumeka.SimpleZip-in-mac.aiagent.plist in Embed LaunchAgent */,
+				1E8387CC7E6DC99D6D5E6BC2 /* yumeka.SimpleZip-in-mac.aiagent.index.plist in Embed LaunchAgent */,
+				E37E29566334519194956344 /* yumeka.SimpleZip-in-mac.dev.aiagent.index.plist in Embed LaunchAgent */,
 			);
 			name = "Embed LaunchAgent";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		86CA91C8AEE50AC346845415 /* Embed App Intents Extension */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = Contents/Extensions;
+			dstSubfolderSpec = 1;
+			files = (
+				1A88A4A84AFEF37009CDBA16 /* SimpleZipIntentsExtension.appex in Embed App Intents Extension */,
+			);
+			name = "Embed App Intents Extension";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		EC4CF125541B60DE99D6F73C /* Embed XPC Services */ = {
@@ -99,15 +119,17 @@
 
 /* Begin PBXFileReference section */
 		0846B9702FB350EF0095DC1D /* SimpleZip-dev.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "SimpleZip-dev.app"; sourceTree = BUILT_PRODUCTS_DIR; };
-		2375904B94209FDA0B5CDF90 /* SimpleZipAgentSupport/yumeka.SimpleZip-in-mac.dev.aiagent.index.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "SimpleZipAgentSupport/yumeka.SimpleZip-in-mac.dev.aiagent.index.plist"; sourceTree = SOURCE_ROOT; };
-		64183CC654E51ED24F0827A2 /* SimpleZipAgentSupport/AIPassPayloads.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimpleZipAgentSupport/AIPassPayloads.swift; sourceTree = SOURCE_ROOT; };
-		7A1A320C68B6CB0753846C45 /* SimpleZipAgentSupport/AIAgentService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimpleZipAgentSupport/AIAgentService.swift; sourceTree = SOURCE_ROOT; };
-		88CF371C260BE403D359B938 /* SimpleZipAgentSupport/AIAgentConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimpleZipAgentSupport/AIAgentConfiguration.swift; sourceTree = SOURCE_ROOT; };
-		9E00D7E0BEB89C9F0BB75AD0 /* SimpleZipAgentSupport/AIAgentXPCProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimpleZipAgentSupport/AIAgentXPCProtocol.swift; sourceTree = SOURCE_ROOT; };
+		2375904B94209FDA0B5CDF90 /* yumeka.SimpleZip-in-mac.dev.aiagent.index.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "SimpleZipAgentSupport/yumeka.SimpleZip-in-mac.dev.aiagent.index.plist"; sourceTree = SOURCE_ROOT; };
+		44462330044205E59043BB7B /* SimpleZipIntentsExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = SimpleZipIntentsExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		64183CC654E51ED24F0827A2 /* AIPassPayloads.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimpleZipAgentSupport/AIPassPayloads.swift; sourceTree = SOURCE_ROOT; };
+		7A1A320C68B6CB0753846C45 /* AIAgentService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimpleZipAgentSupport/AIAgentService.swift; sourceTree = SOURCE_ROOT; };
+		88CF371C260BE403D359B938 /* AIAgentConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimpleZipAgentSupport/AIAgentConfiguration.swift; sourceTree = SOURCE_ROOT; };
+		9E00D7E0BEB89C9F0BB75AD0 /* AIAgentXPCProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimpleZipAgentSupport/AIAgentXPCProtocol.swift; sourceTree = SOURCE_ROOT; };
 		B0BED9549EFEBE106302CF14 /* SimpleZipAIXPCService.xpc */ = {isa = PBXFileReference; explicitFileType = "wrapper.xpc-service"; includeInIndex = 0; path = SimpleZipAIXPCService.xpc; sourceTree = BUILT_PRODUCTS_DIR; };
-		D2366AE7E99F003E085208B1 /* SimpleZipAgentSupport/yumeka.SimpleZip-in-mac.aiagent.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "SimpleZipAgentSupport/yumeka.SimpleZip-in-mac.aiagent.plist"; sourceTree = SOURCE_ROOT; };
-		E0474B6A74E638D6D57948EE /* SimpleZipAgentSupport/yumeka.SimpleZip-in-mac.dev.aiagent.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "SimpleZipAgentSupport/yumeka.SimpleZip-in-mac.dev.aiagent.plist"; sourceTree = SOURCE_ROOT; };
-		E2BCE4100CF6DD6585CD73A9 /* SimpleZipAgentSupport/yumeka.SimpleZip-in-mac.aiagent.index.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "SimpleZipAgentSupport/yumeka.SimpleZip-in-mac.aiagent.index.plist"; sourceTree = SOURCE_ROOT; };
+		BCA55DE5FEE3FC143B0DF3D4 /* AppIntents.framework */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = wrapper.framework; name = AppIntents.framework; path = System/Library/Frameworks/AppIntents.framework; sourceTree = SDKROOT; };
+		D2366AE7E99F003E085208B1 /* yumeka.SimpleZip-in-mac.aiagent.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "SimpleZipAgentSupport/yumeka.SimpleZip-in-mac.aiagent.plist"; sourceTree = SOURCE_ROOT; };
+		E0474B6A74E638D6D57948EE /* yumeka.SimpleZip-in-mac.dev.aiagent.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "SimpleZipAgentSupport/yumeka.SimpleZip-in-mac.dev.aiagent.plist"; sourceTree = SOURCE_ROOT; };
+		E2BCE4100CF6DD6585CD73A9 /* yumeka.SimpleZip-in-mac.aiagent.index.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "SimpleZipAgentSupport/yumeka.SimpleZip-in-mac.aiagent.index.plist"; sourceTree = SOURCE_ROOT; };
 		EDF9E86D1F6AC7CE4DF39EB2 /* SimpleZipAIAgent */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = SimpleZipAIAgent; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -134,16 +156,29 @@
 		};
 		0878FB37A2D6C4EE59680726 /* SimpleZipAIXPCService */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
 			path = SimpleZipAIXPCService;
+			sourceTree = "<group>";
+		};
+		43628150F29D8F80C7200FCB /* SimpleZipIntentsExtension */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
+			path = SimpleZipIntentsExtension;
 			sourceTree = "<group>";
 		};
 		73BD34CC957FE43B8736704F /* SimpleZipAIAgent */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
 			path = SimpleZipAIAgent;
 			sourceTree = "<group>";
 		};
 		DD8EF9DE6DA93CE020AFD97C /* SimpleZip/Core */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
 			path = SimpleZip/Core;
 			sourceTree = "<group>";
 		};
@@ -172,6 +207,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		E568F2052143F0B22B71DD25 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				FD3CB74F528B782FBCA371DA /* AppIntents.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -184,6 +227,8 @@
 				DD8EF9DE6DA93CE020AFD97C /* SimpleZip/Core */,
 				E274F6D3FCA63EE823D79129 /* SimpleZipAgentSupport */,
 				0846B9712FB350EF0095DC1D /* Products */,
+				43628150F29D8F80C7200FCB /* SimpleZipIntentsExtension */,
+				34E2BCEB8BE25825494DAC8C /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -193,21 +238,30 @@
 				0846B9702FB350EF0095DC1D /* SimpleZip-dev.app */,
 				EDF9E86D1F6AC7CE4DF39EB2 /* SimpleZipAIAgent */,
 				B0BED9549EFEBE106302CF14 /* SimpleZipAIXPCService.xpc */,
+				44462330044205E59043BB7B /* SimpleZipIntentsExtension.appex */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		34E2BCEB8BE25825494DAC8C /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				BCA55DE5FEE3FC143B0DF3D4 /* AppIntents.framework */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 		E274F6D3FCA63EE823D79129 /* SimpleZipAgentSupport */ = {
 			isa = PBXGroup;
 			children = (
-				9E00D7E0BEB89C9F0BB75AD0 /* SimpleZipAgentSupport/AIAgentXPCProtocol.swift */,
-				7A1A320C68B6CB0753846C45 /* SimpleZipAgentSupport/AIAgentService.swift */,
-				88CF371C260BE403D359B938 /* SimpleZipAgentSupport/AIAgentConfiguration.swift */,
-				64183CC654E51ED24F0827A2 /* SimpleZipAgentSupport/AIPassPayloads.swift */,
-				E0474B6A74E638D6D57948EE /* SimpleZipAgentSupport/yumeka.SimpleZip-in-mac.dev.aiagent.plist */,
-				D2366AE7E99F003E085208B1 /* SimpleZipAgentSupport/yumeka.SimpleZip-in-mac.aiagent.plist */,
-				2375904B94209FDA0B5CDF90 /* SimpleZipAgentSupport/yumeka.SimpleZip-in-mac.dev.aiagent.index.plist */,
-				E2BCE4100CF6DD6585CD73A9 /* SimpleZipAgentSupport/yumeka.SimpleZip-in-mac.aiagent.index.plist */,
+				9E00D7E0BEB89C9F0BB75AD0 /* AIAgentXPCProtocol.swift */,
+				7A1A320C68B6CB0753846C45 /* AIAgentService.swift */,
+				88CF371C260BE403D359B938 /* AIAgentConfiguration.swift */,
+				64183CC654E51ED24F0827A2 /* AIPassPayloads.swift */,
+				E0474B6A74E638D6D57948EE /* yumeka.SimpleZip-in-mac.dev.aiagent.plist */,
+				D2366AE7E99F003E085208B1 /* yumeka.SimpleZip-in-mac.aiagent.plist */,
+				2375904B94209FDA0B5CDF90 /* yumeka.SimpleZip-in-mac.dev.aiagent.index.plist */,
+				E2BCE4100CF6DD6585CD73A9 /* yumeka.SimpleZip-in-mac.aiagent.index.plist */,
 			);
 			name = SimpleZipAgentSupport;
 			sourceTree = "<group>";
@@ -225,12 +279,14 @@
 				0D6AC5B27E7B12E303740A4F /* Embed Helper */,
 				2F8791EC944F7780ECA4CE85 /* Embed LaunchAgent */,
 				EC4CF125541B60DE99D6F73C /* Embed XPC Services */,
+				86CA91C8AEE50AC346845415 /* Embed App Intents Extension */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 				89CCD9464FBC839112293F64 /* PBXTargetDependency */,
 				04EC52668AFF268797DE4BA7 /* PBXTargetDependency */,
+				D0FD56A868CF699328FE3293 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				0846B9722FB350EF0095DC1D /* SimpleZip */,
@@ -259,8 +315,6 @@
 				DD8EF9DE6DA93CE020AFD97C /* SimpleZip/Core */,
 			);
 			name = SimpleZipAIAgent;
-			packageProductDependencies = (
-			);
 			productName = SimpleZipAIAgent;
 			productReference = EDF9E86D1F6AC7CE4DF39EB2 /* SimpleZipAIAgent */;
 			productType = "com.apple.product-type.tool";
@@ -281,11 +335,29 @@
 				DD8EF9DE6DA93CE020AFD97C /* SimpleZip/Core */,
 			);
 			name = SimpleZipAIXPCService;
-			packageProductDependencies = (
-			);
 			productName = SimpleZipAIXPCService;
 			productReference = B0BED9549EFEBE106302CF14 /* SimpleZipAIXPCService.xpc */;
 			productType = "com.apple.product-type.xpc-service";
+		};
+		F5CFD89C9C7F8024B284542E /* SimpleZipIntentsExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 9A2FBE82A091B18865A26CF8 /* Build configuration list for PBXNativeTarget "SimpleZipIntentsExtension" */;
+			buildPhases = (
+				3BE7CE26D2CB58A2CB4D9BE9 /* Sources */,
+				E568F2052143F0B22B71DD25 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				43628150F29D8F80C7200FCB /* SimpleZipIntentsExtension */,
+				DD8EF9DE6DA93CE020AFD97C /* SimpleZip/Core */,
+			);
+			name = SimpleZipIntentsExtension;
+			productName = SimpleZipIntentsExtension;
+			productReference = 44462330044205E59043BB7B /* SimpleZipIntentsExtension.appex */;
+			productType = "com.apple.product-type.extensionkit-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -341,6 +413,7 @@
 				156308F98084E3CA8D9C9541 /* SimpleZipAIAgent */,
 				D098EA6DED7B92784FBBCB16 /* SimpleZipAIXPCService */,
 				0846B9802FB350F10095DC1D /* SimpleZipCoreTests */,
+				F5CFD89C9C7F8024B284542E /* SimpleZipIntentsExtension */,
 			);
 		};
 /* End PBXProject section */
@@ -382,9 +455,16 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				745A2A4A5D7CDF439819EA0C /* SimpleZipAgentSupport/AIAgentXPCProtocol.swift in Sources */,
-				24A28DD5CFCF4AAAC4DB85A8 /* SimpleZipAgentSupport/AIAgentConfiguration.swift in Sources */,
-				771815289BB6CE063CEE34B0 /* SimpleZipAgentSupport/AIPassPayloads.swift in Sources */,
+				745A2A4A5D7CDF439819EA0C /* AIAgentXPCProtocol.swift in Sources */,
+				24A28DD5CFCF4AAAC4DB85A8 /* AIAgentConfiguration.swift in Sources */,
+				771815289BB6CE063CEE34B0 /* AIPassPayloads.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		3BE7CE26D2CB58A2CB4D9BE9 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -392,10 +472,10 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				08663E6FC929E328731D49F9 /* SimpleZipAgentSupport/AIAgentXPCProtocol.swift in Sources */,
-				E1B740E8FE1B855A7D240DA0 /* SimpleZipAgentSupport/AIAgentService.swift in Sources */,
-				2860DEE7F77571699EF84C55 /* SimpleZipAgentSupport/AIAgentConfiguration.swift in Sources */,
-				F869FF2C984002354D1D331D /* SimpleZipAgentSupport/AIPassPayloads.swift in Sources */,
+				08663E6FC929E328731D49F9 /* AIAgentXPCProtocol.swift in Sources */,
+				E1B740E8FE1B855A7D240DA0 /* AIAgentService.swift in Sources */,
+				2860DEE7F77571699EF84C55 /* AIAgentConfiguration.swift in Sources */,
+				F869FF2C984002354D1D331D /* AIPassPayloads.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -403,10 +483,10 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				C4A66994125BA6CEEEC981C0 /* SimpleZipAgentSupport/AIAgentXPCProtocol.swift in Sources */,
-				FFF34D8099EA1C7AD31AF566 /* SimpleZipAgentSupport/AIAgentService.swift in Sources */,
-				DD6D4B0E4F818DA5BECECD9F /* SimpleZipAgentSupport/AIAgentConfiguration.swift in Sources */,
-				B5CB83030AA4D7977FB24D61 /* SimpleZipAgentSupport/AIPassPayloads.swift in Sources */,
+				C4A66994125BA6CEEEC981C0 /* AIAgentXPCProtocol.swift in Sources */,
+				FFF34D8099EA1C7AD31AF566 /* AIAgentService.swift in Sources */,
+				DD6D4B0E4F818DA5BECECD9F /* AIAgentConfiguration.swift in Sources */,
+				B5CB83030AA4D7977FB24D61 /* AIPassPayloads.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -423,9 +503,38 @@
 			target = 156308F98084E3CA8D9C9541 /* SimpleZipAIAgent */;
 			targetProxy = 57E51B2E48A5D86F3535D30E /* PBXContainerItemProxy */;
 		};
+		D0FD56A868CF699328FE3293 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = SimpleZipIntentsExtension;
+			target = F5CFD89C9C7F8024B284542E /* SimpleZipIntentsExtension */;
+			targetProxy = 3127119B74FBF182AE7103BE /* PBXContainerItemProxy */;
+		};
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		012F1C401BCBAA5216E87E4A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "SimpleZip Dev";
+				CODE_SIGN_STYLE = Manual;
+				CURRENT_PROJECT_VERSION = 9999;
+				DEAD_CODE_STRIPPING = YES;
+				ENABLE_APP_SANDBOX = NO;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = SimpleZipIntentsExtension/Info.plist;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				MARKETING_VERSION = 99.9.9;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = "yumeka.SimpleZip-in-mac.dev.intents";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
 		0846B9792FB350F10095DC1D /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -723,6 +832,27 @@
 			};
 			name = Release;
 		};
+		ED3C7EA45D9806FD8D769829 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
+				CURRENT_PROJECT_VERSION = 9999;
+				DEAD_CODE_STRIPPING = YES;
+				ENABLE_APP_SANDBOX = NO;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = SimpleZipIntentsExtension/Info.plist;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				MARKETING_VERSION = 99.9.9;
+				PRODUCT_BUNDLE_IDENTIFIER = "yumeka.SimpleZip-in-mac.intents";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -767,6 +897,15 @@
 			buildConfigurations = (
 				32337E5B63A4AE1B2F9C3FF9 /* Debug */,
 				E99EB6D2AF82E42A553C6DDE /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		9A2FBE82A091B18865A26CF8 /* Build configuration list for PBXNativeTarget "SimpleZipIntentsExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				012F1C401BCBAA5216E87E4A /* Debug */,
+				ED3C7EA45D9806FD8D769829 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

@@ -437,36 +437,10 @@ struct ComputeFileHashIntent: AppIntent {
 
 // MARK: - 分析与发布工具(0.4.5:与 CLI space/rescue/checkup/duplicates/reproduce/audit/verify-group 对应)
 
-/// 空间分析:返回一段可读的体积占用摘要(只读;加密名归档列不出 → 报错,同 inspect/search 口径,不弹框)。
-struct AnalyzeArchiveSpaceIntent: AppIntent {
-    static let title: LocalizedStringResource = "Analyze Archive Space"
-    static let description = IntentDescription(
-        "Returns a disk-usage summary for an archive: original vs packed size, compression ratio, macOS junk and the largest file.")
-
-    @Parameter(title: "Archive")
-    var archive: IntentFile
-
-    static var parameterSummary: some ParameterSummary { Summary("Analyze the space used by \(\.$archive)") }
-
-    @MainActor
-    func perform() async throws -> some IntentResult & ReturnsValue<String> {
-        let url = try intentFileURL(archive)
-        do {
-            let items = try await SignedContainerService.withToolAdaptedArchive(url) { target in
-                try await ArchiveService.list(target)
-            }
-            let a = ArchiveSpaceAnalysis.analyze(items)
-            func bytes(_ value: Int64) -> String { ByteCountFormatter.string(fromByteCount: value, countStyle: .file) }
-            var parts = ["\(a.fileCount) files", "original \(bytes(a.totalBytes))", "packed \(bytes(a.packedBytes))"]
-            if let ratio = a.compressionRatio { parts.append(String(format: "ratio %.0f%%", ratio * 100)) }
-            if a.junkCount > 0 { parts.append("junk \(bytes(a.junkBytes))") }
-            if let largest = a.largestFiles.first { parts.append("largest \(largest.name) (\(bytes(largest.bytes)))") }
-            return .result(value: parts.joined(separator: ", "))
-        } catch {
-            throw SimpleZipIntentError(message: error.localizedDescription)
-        }
-    }
-}
+// 注:`AnalyzeArchiveSpaceIntent` 已迁入 **App Intents 扩展**(`SimpleZipIntentsExtension`)—— 在轻量扩展进程里
+// 跑,不拉起完整 app(根治 Shortcuts「Couldn't communicate with a helper application」超时)。app target 不再
+// vend 它(否则与扩展重复)。后续其余「干活」intent 逐个迁过去(依赖 ExternalExtractRunner / TaskCenter 的要先在
+// 扩展里 Core-only 重写)。
 
 /// 数据救援:损坏归档尽力救援到「(rescued)」文件夹,返回该文件夹。写盘 → 记活动中心。
 struct RescueArchiveIntent: AppIntent {
