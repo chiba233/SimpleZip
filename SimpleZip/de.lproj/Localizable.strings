@@ -1731,10 +1731,10 @@
 "gpgExtract.product" = "Entschlüsselte Datei";
 "gpgExtract.note" = "Die Entschlüsselung wird auf dem verschlüsselten Scratch-Volume vorbereitet; Klartext landet erst bei Erfolg im gewählten Ordner — ohne vorhandene Dateien zu überschreiben. gpg-agent / pinentry kann nach der Passphrase Ihres Schlüssels fragen.";
 "virtual.export.panelMessage" = "Wählen Sie aus, wo die entschlüsselten Dateien gespeichert werden sollen";
-"virtual.export.done" = "%1$@ Dateien gespeichert";
-"virtual.export.title" = "Entschlüsselte Dateien speichern";
-"virtual.export.subtitle" = "%1$@ Dateien";
-"virtual.export.filesSection" = "Zu speichernde Dateien";
+"virtual.export.done" = "%1$@ Objekte exportiert";
+"virtual.export.title" = "Objekte exportieren";
+"virtual.export.subtitle" = "%1$@ Objekte";
+"virtual.export.filesSection" = "Zu exportierende Objekte";
 "virtual.export.note" = "Dateien werden mit kollisionssicheren Namen kopiert — im Ziel wird nie etwas überschrieben.";
 "welcome.completion.highlight.search" = "Suche mit starken Token: *.swift size:>1MB encrypted:true";
 "welcome.completion.highlight.compare" = "Archive vergleichen — oder einen Ordner mit einem Archiv — und den Diff exportieren";

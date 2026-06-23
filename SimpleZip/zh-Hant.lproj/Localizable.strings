@@ -1732,10 +1732,10 @@
 "gpgExtract.product" = "解密產物";
 "gpgExtract.note" = "解密在加密臨時卷上進行，成功後明文才落到所選目錄——絕不覆寫已有檔案。gpg-agent / pinentry 可能彈出私鑰密碼輸入。";
 "virtual.export.panelMessage" = "選擇解密檔案的儲存位置";
-"virtual.export.done" = "已儲存 %1$@ 個檔案";
-"virtual.export.title" = "儲存解密檔案";
-"virtual.export.subtitle" = "%1$@ 個檔案";
-"virtual.export.filesSection" = "將儲存的檔案";
+"virtual.export.done" = "已匯出 %1$@ 項";
+"virtual.export.title" = "匯出項目";
+"virtual.export.subtitle" = "%1$@ 項";
+"virtual.export.filesSection" = "將匯出的項目";
 "virtual.export.note" = "複製時重名自動編號——目標目錄裡的任何檔案都不會被覆寫。";
 "welcome.completion.highlight.search" = "搜尋框認進階 token：*.swift size:>1MB encrypted:true";
 "welcome.completion.highlight.compare" = "比較兩個壓縮檔——或拿資料夾跟壓縮檔比——差異可匯出";

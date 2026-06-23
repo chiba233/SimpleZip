@@ -1731,10 +1731,10 @@
 "gpgExtract.product" = "복호화된 파일";
 "gpgExtract.note" = "복호화는 암호화된 스크래치 볼륨에서 준비됩니다. 성공한 경우에만 평문이 선택한 폴더에 저장되며 기존 파일을 절대 덮어쓰지 않습니다. gpg-agent / pinentry가 키 암호문을 요청할 수 있습니다.";
 "virtual.export.panelMessage" = "복호화된 파일을 저장할 위치 선택";
-"virtual.export.done" = "파일 %1$@개 저장됨";
-"virtual.export.title" = "복호화된 파일 저장";
-"virtual.export.subtitle" = "파일 %1$@개";
-"virtual.export.filesSection" = "저장할 파일";
+"virtual.export.done" = "%1$@개 항목 내보냄";
+"virtual.export.title" = "항목 내보내기";
+"virtual.export.subtitle" = "%1$@개 항목";
+"virtual.export.filesSection" = "내보낼 항목";
 "virtual.export.note" = "파일은 충돌 안전 이름으로 복사됩니다 — 대상의 어떤 것도 덮어쓰지 않습니다.";
 "welcome.completion.highlight.search" = "강력한 토큰으로 검색: *.swift size:>1MB encrypted:true";
 "welcome.completion.highlight.compare" = "아카이브 또는 폴더와 아카이브를 비교하고 차이 내보내기";

@@ -1730,10 +1730,10 @@
 "gpgExtract.product" = "Расшифрованный файл";
 "gpgExtract.note" = "Расшифровка выполняется на зашифрованном рабочем томе; открытый текст попадает в выбранную папку только при успехе и никогда не перезаписывает существующие файлы. gpg-agent / pinentry может запросить парольную фразу ключа.";
 "virtual.export.panelMessage" = "Выберите, куда сохранить расшифрованные файлы";
-"virtual.export.done" = "Сохранено файлов: %1$@";
-"virtual.export.title" = "Сохранить расшифрованные файлы";
-"virtual.export.subtitle" = "Файлов: %1$@";
-"virtual.export.filesSection" = "Файлы для сохранения";
+"virtual.export.done" = "Экспортировано объектов: %1$@";
+"virtual.export.title" = "Экспортировать объекты";
+"virtual.export.subtitle" = "%1$@ объектов";
+"virtual.export.filesSection" = "Объекты для экспорта";
 "virtual.export.note" = "Файлы копируются с именами, безопасными при конфликтах — в месте назначения ничего не перезаписывается.";
 "welcome.completion.highlight.search" = "Поиск с мощными токенами: *.swift size:>1MB encrypted:true";
 "welcome.completion.highlight.compare" = "Сравните архивы — или папку с архивом — и экспортируйте различия";

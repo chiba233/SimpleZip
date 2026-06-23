@@ -1730,10 +1730,10 @@
 "gpgExtract.product" = "Archivo descifrado";
 "gpgExtract.note" = "El descifrado se prepara en el volumen temporal cifrado; el texto claro solo llega a la carpeta elegida si todo va bien, sin sobrescribir archivos existentes. gpg-agent / pinentry puede pedir la frase de contraseña de tu clave.";
 "virtual.export.panelMessage" = "Elige dónde guardar los archivos descifrados";
-"virtual.export.done" = "%1$@ archivos guardados";
-"virtual.export.title" = "Guardar archivos descifrados";
-"virtual.export.subtitle" = "%1$@ archivos";
-"virtual.export.filesSection" = "Archivos para guardar";
+"virtual.export.done" = "%1$@ elementos exportados";
+"virtual.export.title" = "Exportar elementos";
+"virtual.export.subtitle" = "%1$@ elementos";
+"virtual.export.filesSection" = "Elementos a exportar";
 "virtual.export.note" = "Los archivos se copian con nombres seguros ante colisiones — nunca se sobrescribe nada en el destino.";
 "welcome.completion.highlight.search" = "Busca con tokens potentes: *.swift size:>1MB encrypted:true";
 "welcome.completion.highlight.compare" = "Compara archivos — o una carpeta contra un archivo — y exporta la diferencia";

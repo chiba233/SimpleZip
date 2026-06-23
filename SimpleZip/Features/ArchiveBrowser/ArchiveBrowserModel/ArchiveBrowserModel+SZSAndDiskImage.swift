@@ -133,6 +133,10 @@ extension ArchiveBrowserModel {
                 self.errorMessage = error.localizedDescription
                 self.openFolder(url.deletingLastPathComponent())
             }
+            // **必须手动关菊花**:isWorking 是 openXIP 自己开的(为展开期遮罩),而 operationRunner 不管 isWorking、
+            // loadFolder 也不管(只有 archive/tag 加载走 begin/endAsyncLoad)→ 不在这里置回 false 会永久转(同
+            // openDiskImage 的收尾)。openFolder 已切到 folder 模式,folder 列表很快,不需要 isWorking 续命。
+            self.isWorking = false
         }
     }
 

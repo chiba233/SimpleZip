@@ -917,6 +917,14 @@ extension ArchiveBrowserModel {
             exportVirtualModeFiles()
             return
         }
+        // **xip 展开载荷 / dmg 挂载卷**在 folder 模式浏览:「解压」= 把**已经在本地的内容**(临时载荷目录 /
+        // 挂载点)整棵拷到用户选的位置 —— **复用**已展开 / 已挂载内容,绝不重跑 `xip --expand`、绝不重挂 `.dmg`
+        //(重挂会因 hdiutil 对已挂载的 dmg 返回**现有**挂载点,导出结束 / 取消 detach 时把用户正浏览的卷一起卸掉)。
+        // 走和 `.szs`/`.gpg` 同款的导出 sheet(选目的地),取消只置 nil、无任何副作用。
+        if case .folder = mode, browsedContainerContentRoot != nil {
+            exportContainerContents()
+            return
+        }
         // 0.4.2 用户点名：`.gpg`/`.pgp`/`.asc` 的「解压」要真的能用 —— 弹确认对话框（产物名 / 目标目录），
         // 走完整任务管线（活动中心 / 可重跑）。钥匙串材料则引去导入。
         if case .folder = mode,
@@ -929,18 +937,7 @@ extension ArchiveBrowserModel {
         switch mode {
         case .archive(let url):
             archiveURL = url
-        case .folder:
-            // **容器浏览态**:xip 展开载荷(`archiveDisplayOverride` 指原始 `.xip`)/ dmg 挂载卷
-            //(`mountedDiskImage.sourceURL` 指原始 `.dmg`)在 folder 模式下浏览,但「解压」的合理语义是
-            // 解压那个**原始容器**到选定位置 —— 否则 folder 模式没有选中的归档文件,会误报「请先打开压缩包」。
-            if xipDrillDownTempURL != nil, let container = archiveDisplayOverride {
-                archiveURL = container
-            } else if let mountedSource = mountedDiskImage?.sourceURL {
-                archiveURL = mountedSource
-            } else {
-                archiveURL = selectedFileItems.first(where: { ArchiveService.isSupportedArchive($0.url) })?.url
-            }
-        case .tag, .aiWorkspace:
+        case .folder, .tag, .aiWorkspace:
             archiveURL = selectedFileItems.first(where: { ArchiveService.isSupportedArchive($0.url) })?.url
         }
 
@@ -973,6 +970,41 @@ extension ArchiveBrowserModel {
 
     /// 虚拟浏览（.gpg/.szs 解密临时内容）的「解压」= 导出。选中的文件优先,没选就全部；
     /// 弹专用对话框（文件清单 + 可改目标目录）。
+    /// 当前是否在浏览「容器展开/挂载内容」—— xip 展开载荷(`xipDrillDownTempURL`)或 dmg 挂载卷
+    ///(`mountedDiskImage.mountPoint`)。是则返回内容根、否则 nil;进了子目录也算(当前位置仍在内容根内)。
+    private var browsedContainerContentRoot: URL? {
+        guard case .folder(let current) = mode else { return nil }
+        let here = current.standardizedFileURL.path
+        if let temp = xipDrillDownTempURL {
+            let root = temp.standardizedFileURL.path
+            if here == root || here.hasPrefix(root + "/") { return temp }
+        }
+        if let mount = mountedDiskImage?.mountPoint {
+            let root = mount.standardizedFileURL.path
+            if here == root || here.hasPrefix(root + "/") { return mount }
+        }
+        return nil
+    }
+
+    /// xip / dmg 容器内容「解压」:**选中了就只导出选中项,否则导出当前文件夹的全部顶层项**(文件 + 目录,
+    /// `copyItem` 递归拷)到用户选的位置。拷的是**显示中的内容项 URL**(临时载荷 / 挂载点里的真实内容),
+    /// 绝不含临时 UUID 目录本身 —— 复用已展开 / 已挂载内容,不重跑 `xip --expand`、不重挂 `.dmg`。
+    /// 复用 `.szs`/`.gpg` 的导出 sheet(`VirtualExportRequest`)选目的地;实际拷贝在 `performVirtualExport` 后台跑。
+    /// 默认目的地 = 原始容器(`.xip` / `.dmg`)所在目录。
+    private func exportContainerContents() {
+        let candidates = selectedFileItems.isEmpty ? fileItems : selectedFileItems
+        let items = candidates.map(\.url)
+        guard !items.isEmpty else {
+            errorMessage = L10n.text("error.selectFilesToArchive")
+            return
+        }
+        let fallback = fileManager.urls(for: .downloadsDirectory, in: .userDomainMask).first
+            ?? fileManager.homeDirectoryForCurrentUser
+        let containerURL = archiveDisplayOverride ?? mountedDiskImage?.sourceURL
+        let defaultDestination = containerURL?.deletingLastPathComponent() ?? fallback
+        virtualExportRequest = VirtualExportRequest(files: items, destinationURL: defaultDestination)
+    }
+
     private func exportVirtualModeFiles() {
         let candidates = selectedFileItems.isEmpty ? fileItems : selectedFileItems
         let files = candidates.filter { !$0.isDirectory }.map(\.url)
@@ -987,24 +1019,45 @@ extension ArchiveBrowserModel {
         virtualExportRequest = VirtualExportRequest(files: files, destinationURL: defaultDestination)
     }
 
-    /// 执行虚拟导出：逐个复制（唯一名,绝不覆盖），任一失败立即停（已成功的保留）。
+    /// 执行虚拟导出 / 容器内容导出:逐个复制(唯一名,绝不覆盖;`copyItem` 对目录递归),任一失败立即停
+    ///(已成功的保留)。**后台跑**(可取消):.szs/.gpg 是小文件,xip/dmg 载荷可能 GB 级、含目录,
+    /// 主线程同步拷会冻 UI。完成后在 Finder 选中第一个产物。
     func performVirtualExport(_ request: VirtualExportRequest) {
-        var exported = 0
-        for file in request.files {
-            let desired = request.destinationURL.appendingPathComponent(file.lastPathComponent)
-            let target = fileManager.fileExists(atPath: desired.path)
-                ? UniqueFileName.suffixed(for: desired, suffix: "", exists: { self.fileManager.fileExists(atPath: $0.path) })
-                : desired
-            do {
-                try fileManager.copyItem(at: file, to: target)
-                exported += 1
-            } catch {
-                errorMessage = error.localizedDescription
-                break
+        status = L10n.format("status.extractingSelected", request.files.count)
+        isWorking = true
+        startOperationTask(cancellable: true) { [weak self] _ in
+            guard let self else { return }
+            var exported = 0
+            var firstTarget: URL?
+            var failure: String?
+            for file in request.files {
+                if Task.isCancelled { break }
+                let desired = request.destinationURL.appendingPathComponent(file.lastPathComponent)
+                let target = self.fileManager.fileExists(atPath: desired.path)
+                    ? UniqueFileName.suffixed(for: desired, suffix: "", exists: { self.fileManager.fileExists(atPath: $0.path) })
+                    : desired
+                do {
+                    // 实际拷贝丢后台线程(`copyItem` 同步、可能很大);URL 是 Sendable,用 FileManager.default。
+                    try await Task.detached(priority: .userInitiated) {
+                        try FileManager.default.copyItem(at: file, to: target)
+                    }.value
+                    if firstTarget == nil { firstTarget = target }
+                    exported += 1
+                } catch is CancellationError {
+                    break
+                } catch {
+                    failure = error.localizedDescription
+                    break
+                }
             }
-        }
-        if exported > 0 {
-            status = L10n.format("virtual.export.done", "\(exported)")
+            self.isWorking = false
+            if let failure { self.errorMessage = failure }
+            if exported > 0 {
+                self.status = L10n.format("virtual.export.done", "\(exported)")
+                if let firstTarget {
+                    NSWorkspace.shared.activateFileViewerSelecting([firstTarget])
+                }
+            }
         }
     }
 

@@ -2517,10 +2517,10 @@
 "gpgExtract.product" = "解密产物";
 "gpgExtract.note" = "解密在加密临时卷上进行，成功后明文才落到所选目录——绝不覆盖已有文件。gpg-agent / pinentry 可能弹出私钥口令输入。";
 "virtual.export.panelMessage" = "选择解密文件的保存位置";
-"virtual.export.done" = "已保存 %1$@ 个文件";
-"virtual.export.title" = "保存解密文件";
-"virtual.export.subtitle" = "%1$@ 个文件";
-"virtual.export.filesSection" = "将保存的文件";
+"virtual.export.done" = "已导出 %1$@ 项";
+"virtual.export.title" = "导出项目";
+"virtual.export.subtitle" = "%1$@ 项";
+"virtual.export.filesSection" = "将导出的项目";
 "virtual.export.note" = "复制时重名自动编号——目标目录里的任何文件都不会被覆盖。";
 "welcome.completion.highlight.search" = "搜索框认高级 token：*.swift size:>1MB encrypted:true";
 "welcome.completion.highlight.compare" = "比较两个压缩包——或拿文件夹跟压缩包比——差异可导出";

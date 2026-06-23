@@ -1732,10 +1732,10 @@
 "gpgExtract.product" = "復号されたファイル";
 "gpgExtract.note" = "復号は暗号化スクラッチボリューム上で準備されます。成功した場合だけ平文が選択フォルダに置かれ、既存ファイルは上書きしません。gpg-agent / pinentry が鍵のパスフレーズを求めることがあります。";
 "virtual.export.panelMessage" = "復号したファイルの保存先を選択";
-"virtual.export.done" = "%1$@ 個のファイルを保存しました";
-"virtual.export.title" = "復号したファイルを保存";
-"virtual.export.subtitle" = "%1$@ 個のファイル";
-"virtual.export.filesSection" = "保存するファイル";
+"virtual.export.done" = "%1$@ 項目を書き出しました";
+"virtual.export.title" = "項目を書き出す";
+"virtual.export.subtitle" = "%1$@ 項目";
+"virtual.export.filesSection" = "書き出す項目";
 "virtual.export.note" = "ファイルは衝突しない名前でコピーされます — 保存先のものは何も上書きしません。";
 "welcome.completion.highlight.search" = "強力なトークンで検索: *.swift size:>1MB encrypted:true";
 "welcome.completion.highlight.compare" = "アーカイブ同士、またはフォルダとアーカイブを比較して差分を書き出し";

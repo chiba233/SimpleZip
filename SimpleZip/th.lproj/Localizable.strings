@@ -1730,10 +1730,10 @@
 "gpgExtract.product" = "ไฟล์ที่ถอดรหัสแล้ว";
 "gpgExtract.note" = "การถอดรหัสจัดเตรียมบนโวลุ่มทำงานชั่วคราวที่เข้ารหัส ข้อความชัดจะถูกวางในโฟลเดอร์ที่เลือกเมื่อสำเร็จเท่านั้น และไม่เขียนทับไฟล์เดิม gpg-agent / pinentry อาจขอ passphrase ของกุญแจคุณ";
 "virtual.export.panelMessage" = "เลือกตำแหน่งบันทึกไฟล์ที่ถอดรหัสแล้ว";
-"virtual.export.done" = "บันทึก %1$@ ไฟล์แล้ว";
-"virtual.export.title" = "บันทึกไฟล์ที่ถอดรหัสแล้ว";
-"virtual.export.subtitle" = "%1$@ ไฟล์";
-"virtual.export.filesSection" = "ไฟล์ที่จะบันทึก";
+"virtual.export.done" = "ส่งออก %1$@ รายการแล้ว";
+"virtual.export.title" = "ส่งออกรายการ";
+"virtual.export.subtitle" = "%1$@ รายการ";
+"virtual.export.filesSection" = "รายการที่จะส่งออก";
 "virtual.export.note" = "ไฟล์จะถูกคัดลอกด้วยชื่อที่ปลอดภัยต่อชื่อชนกัน — ไม่เขียนทับสิ่งใดในปลายทาง";
 "welcome.completion.highlight.search" = "ค้นหาด้วยโทเคนขั้นสูง: *.swift size:>1MB encrypted:true";
 "welcome.completion.highlight.compare" = "เปรียบเทียบไฟล์บีบอัด — หรือโฟลเดอร์กับไฟล์บีบอัด — แล้วส่งออก diff";
