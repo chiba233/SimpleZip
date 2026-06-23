@@ -28,15 +28,15 @@
                 type="application/octet-stream"/>
         </item>
         <item>
-            <title>SimpleZip 1.0.1-beta.4</title>
+            <title>SimpleZip 1.0.1-beta.5</title>
             <sparkle:channel>beta</sparkle:channel>
-            <link>https://github.com/chiba233/SimpleZip/releases/tag/v1.0.1-beta.4</link>
-            <pubDate>Tue, 23 Jun 2026 02:51:30 +0000</pubDate>
+            <link>https://github.com/chiba233/SimpleZip/releases/tag/v1.0.1-beta.5</link>
+            <pubDate>Tue, 23 Jun 2026 04:27:39 +0000</pubDate>
             <enclosure
-                url="https://github.com/chiba233/SimpleZip/releases/download/v1.0.1-beta.4/SimpleZip-1.0.1-beta.4.dmg"
-                sparkle:version="47"
-                sparkle:shortVersionString="1.0.1-beta.4"
-                sparkle:edSignature="ThPh/N63kKJndqFMDRlz4b5MIx6+vXo5b3abNad+17Ldtc5Zpqm92o79yaYo+5vmskd5al9p/fjs9E8cb8v3Cw==" length="32170358"
+                url="https://github.com/chiba233/SimpleZip/releases/download/v1.0.1-beta.5/SimpleZip-1.0.1-beta.5.dmg"
+                sparkle:version="48"
+                sparkle:shortVersionString="1.0.1-beta.5"
+                sparkle:edSignature="YS1VExL7oGK10a4puf523l+um8+RtVUfksvodNlZmX+JWz8i+0NvtmmNs/ZxUwK3iSxj9p6elsaDQqs9iYapAw==" length="32687346"
                 type="application/octet-stream"/>
         </item>
     </channel>
