@@ -22,7 +22,7 @@
 
 /* Begin PBXBuildFile section */
 		08663E6FC929E328731D49F9 /* AIAgentXPCProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E00D7E0BEB89C9F0BB75AD0 /* AIAgentXPCProtocol.swift */; };
-		1A88A4A84AFEF37009CDBA16 /* SimpleZipIntentsExtension.appex in Embed App Intents Extension */ = {isa = PBXBuildFile; fileRef = 44462330044205E59043BB7B /* SimpleZipIntentsExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, CodeSignOnCopy, ); }; };
+		1A88A4A84AFEF37009CDBA16 /* SimpleZipIntentsExtension.appex in Embed App Intents Extension */ = {isa = PBXBuildFile; fileRef = 44462330044205E59043BB7B /* SimpleZipIntentsExtension.appex */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		1E8387CC7E6DC99D6D5E6BC2 /* yumeka.SimpleZip-in-mac.aiagent.index.plist in Embed LaunchAgent */ = {isa = PBXBuildFile; fileRef = E2BCE4100CF6DD6585CD73A9 /* yumeka.SimpleZip-in-mac.aiagent.index.plist */; };
 		24A28DD5CFCF4AAAC4DB85A8 /* AIAgentConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88CF371C260BE403D359B938 /* AIAgentConfiguration.swift */; };
 		24FE5B44428405893119DDDC /* yumeka.SimpleZip-in-mac.dev.aiagent.plist in Embed LaunchAgent */ = {isa = PBXBuildFile; fileRef = E0474B6A74E638D6D57948EE /* yumeka.SimpleZip-in-mac.dev.aiagent.plist */; };
@@ -345,6 +345,7 @@
 			buildPhases = (
 				3BE7CE26D2CB58A2CB4D9BE9 /* Sources */,
 				E568F2052143F0B22B71DD25 /* Frameworks */,
+				12657581BF24BFF88666885B /* Resources */,
 			);
 			buildRules = (
 			);
@@ -420,6 +421,13 @@
 
 /* Begin PBXResourcesBuildPhase section */
 		0846B96E2FB350EF0095DC1D /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		12657581BF24BFF88666885B /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -515,11 +523,12 @@
 		012F1C401BCBAA5216E87E4A /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = SimpleZipIntentsExtension/SimpleZipIntentsExtension.entitlements;
 				CODE_SIGN_IDENTITY = "SimpleZip Dev";
 				CODE_SIGN_STYLE = Manual;
 				CURRENT_PROJECT_VERSION = 9999;
 				DEAD_CODE_STRIPPING = YES;
-				ENABLE_APP_SANDBOX = NO;
+				ENABLE_APP_SANDBOX = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = SimpleZipIntentsExtension/Info.plist;
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
@@ -835,11 +844,12 @@
 		ED3C7EA45D9806FD8D769829 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = SimpleZipIntentsExtension/SimpleZipIntentsExtension.entitlements;
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Manual;
 				CURRENT_PROJECT_VERSION = 9999;
 				DEAD_CODE_STRIPPING = YES;
-				ENABLE_APP_SANDBOX = NO;
+				ENABLE_APP_SANDBOX = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = SimpleZipIntentsExtension/Info.plist;
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
