@@ -117,16 +117,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.ensureWindowForPendingExternalOpens()
         }
 
-        // 0.4.2 #23：异常退出检测。上次会话没走到 applicationWillTerminate（崩溃 / 强杀）→
-        // 启动后提示：残留临时卷 / 临时目录已自动清理（上面两步），可一键导出诊断报告。
-        let hadPreviousSession = UserDefaults.standard.object(forKey: Self.cleanShutdownKey) != nil
-        let previousWasClean = UserDefaults.standard.bool(forKey: Self.cleanShutdownKey)
-        UserDefaults.standard.set(false, forKey: Self.cleanShutdownKey)
-        if hadPreviousSession && !previousWasClean {
-            DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(800)) { [weak self] in
-                self?.presentUncleanExitNotice()
-            }
-        }
+        // 0.4.2 #23 异常退出检测 + 本次「干净退出」跟踪:**移到首次 becomeActive**(见
+        // `beginUncleanExitTrackingIfFirstForeground`)。**绝不在 didFinishLaunching 做** —— App Intents 后台 helper
+        // 也走 didFinishLaunching,而被杀的 helper 让每次启动都判「非正常退出」→ 弹 NSAlert;helper 无可见窗口时
+        // 走 `runModal` **阻塞主线程** → XPC 超时 → Shortcuts 报「Couldn't communicate with a helper application」
+        //(1.0.1 实测 `sample` 钉死:主线程 100% 卡在 `presentUncleanExitNotice → -[NSAlert runModal] → _doModalLoop`)。
+        // helper 从不 becomeActive,把检测挪到前台即彻底规避;顺带不再让被杀的 helper 把 cleanShutdownKey 污染成
+        // false(否则连累下次真启动误报)。
 
         // 0.4.2 用户反馈：Finder 右键服务（NSServices）在装新版后常要等系统缓存刷新才出现。
         // 每个版本首次启动时主动刷一次服务缓存（NSUpdateDynamicServices），右键菜单即刻可用，
@@ -161,7 +158,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// 风暴占住 helper(那会让它没能在 XPC 超时内响应 intent → Shortcuts 报「Couldn't communicate…」)。
     func applicationDidBecomeActive(_ notification: Notification) {
         AIBackgroundIndexer.shared.markForegroundEntered()
+        beginUncleanExitTrackingIfFirstForeground()
     }
+
+    /// 只在**首次进前台**触发一次:异常退出检测 + 本次会话「干净退出」跟踪。
+    /// App Intents 后台 helper 从不 becomeActive,于是 helper:① 绝不弹「非正常退出」NSAlert(无可见窗口时是
+    /// `runModal` 阻塞主线程 → 卡死 helper → XPC 超时 → Shortcuts「Couldn't communicate…」,实测采样钉死);
+    /// ② 绝不把 `cleanShutdownKey` 污染成 false(被杀的 helper 否则让下次真启动误报非正常退出)。
+    private func beginUncleanExitTrackingIfFirstForeground() {
+        guard !didStartUncleanExitTracking else { return }
+        didStartUncleanExitTracking = true
+        let hadPreviousSession = UserDefaults.standard.object(forKey: Self.cleanShutdownKey) != nil
+        let previousWasClean = UserDefaults.standard.bool(forKey: Self.cleanShutdownKey)
+        UserDefaults.standard.set(false, forKey: Self.cleanShutdownKey)
+        if hadPreviousSession && !previousWasClean {
+            DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(800)) { [weak self] in
+                self?.presentUncleanExitNotice()
+            }
+        }
+    }
+
+    /// 本次进程是否已作为**前台会话**启动了异常退出跟踪(helper 恒 false)。
+    private var didStartUncleanExitTracking = false
 
     /// 去掉列顺序偏好里的重复 identifier（修复历史污染，幂等）。
     private static func sanitizeColumnOrderPreferences() {
@@ -208,7 +226,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         TaskCenter.shared.flushHistoryNow()
         SecureScratchVolume.shared.teardown()
         // 0.4.2 #23：正常退出 → 落「干净关闭」标记；崩溃 / 强杀走不到这里，下次启动据此提示。
-        UserDefaults.standard.set(true, forKey: Self.cleanShutdownKey)
+        // **仅前台会话**落标记:helper(从不 becomeActive → 从不 set false)即便走到这里也不该把上一个前台
+        // 会话的状态覆盖成 clean(否则会掩盖真实崩溃)。
+        if didStartUncleanExitTracking {
+            UserDefaults.standard.set(true, forKey: Self.cleanShutdownKey)
+        }
     }
 
     /// 0.4.2 #23：异常退出标记 key（会话状态，不进偏好备份）。
@@ -221,6 +243,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// 现在:有主窗口就挂 **sheet**(不卡全局、永远贴着自己窗口可见);没窗口才回退
     /// runModal,且先显式把 app 拉到前台。
     private func presentUncleanExitNotice() {
+        // 纵深防御:只有 app 真在前台才弹。无前台会话(App Intents helper)走到这里会落进下面 `else` 的
+        // `runModal()` —— 无窗口、无用户、永不返回,直接卡死主线程(Shortcuts「Couldn't communicate…」的死因)。
+        guard NSApp.isActive else { return }
         let alert = NSAlert()
         alert.alertStyle = .warning
         alert.messageText = L10n.text("recovery.title")
