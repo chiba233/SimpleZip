@@ -36,6 +36,15 @@ struct AIAgentMain {
             }
             exit(0)
         }
+        // 🔒 进程级**硬看门狗**:从此刻起算(`--config-selftest` 已同步退出,走不到这),无论后续 Task / run loop /
+        // dispatchMain 是否卡死,到点**强制退出** —— 杜绝「launchd 拉起后跑完不退 / 单个操作(7zz 挂、模型 XPC 不回)
+        // 卡死」导致的孤儿进程长驻(用户点名:进程必须有时间锁,任何情况超时必杀)。`maxBackgroundRunSeconds` 是
+        // Task **内部**的协作式 deadline(靠 `isCancelled` 在操作间检查),阻塞操作不生效;这条看门狗在独立线程上
+        // `sleep` 到点 `exit`,**不依赖** run loop / GCD(它们可能正是卡住的那个),所以一定杀得掉。取配置预算 + 60s
+        // 余量(读不到配置则按默认 300s);各短命令(probe/query/test-backend/background-index)正常会更早 `exit(0)`,
+        // 看门狗只是兜底;默认 listener 模式被它当作最长寿命上限,到点退出由 launchd 按需重新拉起。
+        let configuredMaxRunSeconds = AIAgentConfiguration.loadPersisted()?.maxBackgroundRunSeconds ?? 300
+        armWatchdog(seconds: max(120, configuredMaxRunSeconds) + 60, label: "agent")
         // `--background-index`:**后台索引一轮**(launchd 周期拉起 agent 跑这个的本体;也供命令行直接验证数据通路)。
         // 读 App 同步的配置 + scope 白名单 → AIBackgroundIndexRun.scan(与 App 前台共用 Core 编排)→ 写回派生索引文件。
         // 纯同步元数据扫描(不调模型)→ 跑完直接 exit,无需 run loop。门控不过(opt-in 默认关等)则廉价 no-op 退出。
@@ -109,5 +118,23 @@ struct AIAgentMain {
         listener.resume()
         agentLog("listener resumed · mach=\(SimpleZipAIAgentXPCNames.machService) · pid \(ProcessInfo.processInfo.processIdentifier)")
         dispatchMain()
+    }
+
+    /// 进程级**硬看门狗**:在一条独立的 `Thread` 上 `sleep(seconds)` 后**无条件 `exit`**。
+    ///
+    /// 关键点是它**不经 run loop / GCD 队列** —— 后台 agent 卡死的典型就是主 run loop 没被泵、或某个操作(7zz 子进程
+    /// 挂、模型 XPC 不回复)永不返回,这时一切依赖 run loop / `DispatchQueue` 的定时器都不会触发。独立线程的
+    /// `Thread.sleep` 是真线程睡眠,到点必醒、必 `exit`,所以「任何情况超时必杀」。`exit(75)`(EX_TEMPFAIL)让 launchd
+    /// 按既有计划在下个周期重新拉起(自节流兜底不会乱跑)。
+    private static func armWatchdog(seconds: Int, label: String) {
+        let deadline = max(1, seconds)
+        let watchdog = Thread {
+            Thread.sleep(forTimeInterval: TimeInterval(deadline))
+            FileHandle.standardError.write(Data("SimpleZipAIAgent WATCHDOG: \(label) 超 \(deadline)s 未退出 → 强制 exit(75)\n".utf8))
+            exit(75)
+        }
+        watchdog.name = "SimpleZipAIAgent.watchdog"
+        watchdog.stackSize = 128 * 1024
+        watchdog.start()
     }
 }
