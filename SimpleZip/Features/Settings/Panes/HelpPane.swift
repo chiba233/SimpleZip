@@ -72,21 +72,12 @@ private struct HelpCategory: Identifiable {
         ]),
         HelpCategory(key: "automation", systemImage: "terminal", color: .gray, topics: [
             HelpTopic(key: "cli", systemImage: "terminal", colors: [.gray, .blue]),
-            HelpTopic(key: "tasks", systemImage: "list.bullet.rectangle", colors: [.gray, .blue]),
+            HelpTopic(key: "urlScheme", systemImage: "link", colors: [.blue, .cyan]),
             HelpTopic(key: "shortcuts", systemImage: "rectangle.stack", colors: [.pink, .purple]),
             HelpTopic(key: "spotlight", systemImage: "magnifyingglass.circle", colors: [.orange, .yellow]),
+            HelpTopic(key: "tasks", systemImage: "list.bullet.rectangle", colors: [.gray, .blue]),
             HelpTopic(key: "finderExtension", systemImage: "finder", colors: [.blue, .cyan])
         ]),
-        HelpCategory(key: "settings", systemImage: "gearshape.2", color: .teal, topics: [
-            HelpTopic(key: "settingsGeneral", systemImage: "switch.2", colors: [.gray, .blue]),
-            HelpTopic(key: "settingsCompression", systemImage: "rectangle.compress.vertical", colors: [.orange, .yellow]),
-            HelpTopic(key: "settingsBrowser", systemImage: "list.bullet", colors: [.blue, .cyan]),
-            HelpTopic(key: "settingsAssociations", systemImage: "link", colors: [.green, .mint]),
-            HelpTopic(key: "settingsGPG", systemImage: "key", colors: [.purple, .indigo]),
-            HelpTopic(key: "settingsUpdates", systemImage: "arrow.down.circle.dotted", colors: [.teal, .green]),
-            HelpTopic(key: "settingsHealth", systemImage: "stethoscope", colors: [.red, .pink]),
-            HelpTopic(key: "settingsBackup", systemImage: "arrow.triangle.pull", colors: [.brown, .orange])
-        ])
     ]
 }
 
