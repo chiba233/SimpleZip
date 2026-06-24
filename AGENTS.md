@@ -434,29 +434,21 @@ in-app. `~` and `_` are escaped outside backtick code spans to avoid cross-line 
   "here's everything I did — want me to keep going?". Report, then immediately do the next thing.
 - Applies with full force to #80 and to anything the maintainer frames as "不能停 / 一次性做完 / 做完才能停".
 
-### A24. Committed text is desensitized — comments and commit/PR messages describe the code/change only, never the conversation, the debugging journey, or the user. **Binds every agent, including background / spawned ones.**
+### A24. Comments and commit/PR messages describe the code and the change only — never the conversation that produced them. **Binds every agent, including background / spawned ones.**
 
-- Maintainer notes: 「你还喜欢将内部沟通越狱到注释和 git commit 日志」 and 「后台 agent 都是擦屁股,把一堆隐私放到注释」.
-  Background and sub-agents write code and commits that land in a public repo, so this rule is theirs too — not just the
-  main loop's.
-- A comment states what the code does (plus, when non-obvious, a terse technical reason for the design). A commit / PR
-  message states the change technically (what + why). Stop there.
-- NEVER let any of this reach a comment, commit message, CHANGELOG, or any committed file:
-  - conversation content / the back-and-forth in chat;
-  - debugging-journey narrative — 实测 / 打 log / 逐跳 / 钉死 / 认不出 / 还弹 / 换了 N 种方案 / measured / sampled;
-  - the user's reactions or emotions — 用户骂 / 用户拍板 / 把用户当小宝宝 / 自作多情 / 维护者决定;
-  - process / orchestration meta — which model or how many agents ran it (4 个 Sonnet agent 并行 / 派给 agent / ultrathink);
-  - references to private memory (`~/.claude`) or this chat.
-- Technical vocabulary is fine and expected (App Intents, UserDefaults, XPC, symlink, a 4101 code, a CVE) — it describes the
-  code, not the conversation. The ban is on internal-communication **narrative**, not on technical terms. (In-app
-  user-facing strings are stricter still — A9 / the L10n rules forbid internals there entirely.)
-- Bad → Good: commit `进程身份认不了…逐步实测钉死` → `改用 URL 密钥判定可信来源(发起进程身份不可靠)`; comment
-  `// 为什么不认进程:运行器发完事件即退出,事后查不到(实测)` →
-  `// 按密钥而非发起进程身份:GURL 发起方是转瞬即逝的系统运行器,事后不可靠`.
-- **Spawning an agent that may write code / comments / commits → put this rule in its prompt.** Do not assume it inherited it.
-- Self-check before every commit (the diff **and** the message):
-  `grep -rnE '实测|逐跳|钉死|认不出|还弹|用户(骂|拍板)|小宝宝|自作多情|维护者决定|个 agent|本会话|见 MEMORY' <changed paths>`
-  — any hit → rewrite before committing.
+- A comment states what the code does, plus a terse technical reason for a non-obvious design choice. A commit / PR
+  message states the change technically: what changed and why. Stop there.
+- Keep out of every committed artifact (comment, commit message, CHANGELOG, any tracked file): the chat back-and-forth,
+  the debugging or investigation process, anything about the user, and which model or how many agents did the work. None
+  of that describes the code — it is internal communication and stays in the session, not the repo.
+- Technical vocabulary is fine and expected (App Intents, UserDefaults, XPC, symlink, an OS error code, a CVE) — it
+  describes the code, not the conversation. The ban is on internal-communication narrative, not on technical terms.
+  In-app user-facing strings are stricter still — A9 / the L10n rules forbid internals there entirely.
+- A comment that justifies a design choice gives the engineering reason, not the story of how it was found.
+- Spawning an agent that may write code, comments, or commits → state this constraint in its prompt; do not assume it
+  inherited it.
+- Before committing, reread the diff and the message and cut anything that narrates the process or the conversation
+  rather than the change.
 
 ## Testing Rules
 
