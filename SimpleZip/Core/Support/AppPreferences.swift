@@ -692,7 +692,7 @@ enum AppPreferences {
     }
 
     nonisolated static var showHiddenFiles: Bool {
-        defaults.bool(forKey: Key.showHiddenFiles)
+        defaultTrueBool(forKey: Key.showHiddenFiles)
     }
 
     /// 「什么算隐藏文件」判定方式。默认 `.dotfilesOnly`（仅 Unix dotfile）。
