@@ -29,6 +29,18 @@
       selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
       shouldUseLaunchSchemeArgsEnv = "YES"
       shouldAutocreateTestPlan = "YES">
+      <Testables>
+         <TestableReference
+            skipped = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "DEC0DE00000000000000A090"
+               BuildableName = "SimpleZipUITests.xctest"
+               BlueprintName = "SimpleZipUITests"
+               ReferencedContainer = "container:SimpleZip.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
+      </Testables>
       <PostActions>
          <ExecutionAction
             ActionType = "Xcode.IDEStandardExecutionActionsCore.ExecutionActionType.ShellScriptAction">

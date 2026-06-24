@@ -99,6 +99,17 @@ Xcode Debug build for app-impacting changes:
 /usr/bin/env DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer /usr/bin/xcodebuild -project SimpleZip.xcodeproj -scheme SimpleZip -configuration Debug -derivedDataPath /private/tmp/SimpleZipDerivedData build
 ```
 
+UI launch smoke tests (XCUITest target `SimpleZipUITests` — app launches, a window and the menu bar
+appear, app terminates). Optional but cheap; run when an app-target change could affect launch / window /
+menu assembly:
+
+```bash
+/usr/bin/env DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer /usr/bin/xcodebuild -project SimpleZip.xcodeproj -scheme SimpleZip -destination 'platform=macOS' test
+```
+
+They launch the real `SimpleZip-dev.app`, so they need a window server (not headless) and the local `SimpleZip Dev`
+signing identity (CI would need its own signing). Not wired into `pr.yml` — run locally before a release.
+
 Use this matrix:
 
 - Core logic only, especially `SimpleZip/Core`: run the SwiftPM core tests.

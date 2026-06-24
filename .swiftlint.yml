@@ -12,6 +12,7 @@ baseline: swiftlint-baseline.json
 included:
   - SimpleZip
   - SimpleZipFinderExtension
+  - SimpleZipUITests
   - Tests
 
 excluded:
