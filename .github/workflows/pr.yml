@@ -37,6 +37,19 @@ jobs:
           xcodebuild -version
           echo "DEVELOPER_DIR=$DEVELOPER_DIR"
 
+      # SwiftLint 防漂移门禁：仓库现有违规已记入 swiftlint-baseline.json，这步只对**新增**违规报错。
+      # 版本固定 0.64.1（必须与 baseline 生成时一致；换版本可能引入新默认规则 → 需 `scripts/lint.sh
+      # regen-baseline` 重建基线再提交）。SwiftLint 经 sourcekit 工作，故放在「Select Xcode」之后。
+      - name: SwiftLint (new-violation gate)
+        run: |
+          set -euo pipefail
+          SWIFTLINT_VERSION=0.64.1
+          curl -fsSL -o "$RUNNER_TEMP/portable_swiftlint.zip" \
+            "https://github.com/realm/SwiftLint/releases/download/${SWIFTLINT_VERSION}/portable_swiftlint.zip"
+          unzip -o -q "$RUNNER_TEMP/portable_swiftlint.zip" -d "$RUNNER_TEMP/swiftlint"
+          "$RUNNER_TEMP/swiftlint/swiftlint" version
+          "$RUNNER_TEMP/swiftlint/swiftlint" lint --strict
+
       # SwiftPM 的 build 产物可以跨 run 缓存，省一次完整 resolve + compile。
       # key 用 Package.swift + 所有参与 SwiftPM 编译的 .swift 路径的 hash，
       # 这样改动业务代码就 cache miss，但只动 README / 工作流之类的不会。

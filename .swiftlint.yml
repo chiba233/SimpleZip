@@ -1,0 +1,60 @@
+# SwiftLint 配置 —— 配合 swiftlint-baseline.json：仓库现有违规已记入基线，
+# CI / 本地脚本只对**新增**违规报警（防止风格随多人 / 多 agent 协作漂移）。
+# 不要求历史代码达标、也不批量重排既有代码。
+#   本地跑：scripts/lint.sh        CI：.github/workflows/pr.yml 的 SwiftLint 步骤
+#
+# 阈值按本仓库实际风格放宽（长行、大文件、短惯用名是既有约定），只把明显跑偏的新代码挡下。
+# 新违规出现时优先改代码；确属误报再在此调规则，或就地 `// swiftlint:disable:next <rule>` 局部豁免。
+# 重建基线（极少需要）：scripts/lint.sh regen-baseline。
+
+baseline: swiftlint-baseline.json
+
+included:
+  - SimpleZip
+  - SimpleZipFinderExtension
+  - Tests
+
+excluded:
+  - .build
+  - SimpleZip/Tools
+  - SimpleZip/Assets.xcassets
+  - Tests/SimpleZipCoreTests/Fixtures
+
+disabled_rules:
+  - todo                      # 仓库里的 TODO / FIXME 是有意保留的待办，不当违规
+  - trailing_comma            # 与现有多行字面量风格冲突，无实际价值
+
+line_length:
+  warning: 140
+  error: 250
+  ignores_comments: true
+  ignores_urls: true
+  ignores_interpolated_strings: true
+
+file_length:
+  warning: 2000
+  error: 3500
+  ignore_comment_only_lines: true
+
+type_body_length:
+  warning: 1000
+  error: 2000
+
+function_body_length:
+  warning: 140
+  error: 320
+
+cyclomatic_complexity:
+  warning: 25
+  error: 50
+
+identifier_name:
+  min_length: 1               # i / x / a / 闭包参数等惯用短名
+  max_length:
+    warning: 64
+    error: 80
+
+type_name:
+  max_length:
+    warning: 64
+    error: 80
