@@ -389,15 +389,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func application(_ application: NSApplication, open urls: [URL]) {
-        // 这次 open 是不是快捷指令(Shortcuts / WorkflowKit)发起的 —— 用户自建的快捷指令是天然白名单,
-        // 它发来的 simplezip:// 动作一律直接执行、绝不二次确认。整批 urls 同一事件同源,算一次即可。
-        let fromShortcuts = Self.isOpenEventFromShortcuts()
         for url in urls {
             if FinderServiceActionQueue.shared.enqueue(fromCallbackURL: url) { continue }
-            // #16:simplezip://… —— 任何进程都能发。**非快捷指令**来源且「运行前确认」开关开时弹确认
-            //(列动作+完整路径);快捷指令一律直接跑。
+            // #16:simplezip://… —— 任何进程都能发。URL 带正确的自动化密钥(用户放进自己的快捷指令)= 可信、直接执行;
+            // 否则在「其它来源运行前确认」开关开时弹确认(列动作 + 完整路径)。
             if let command = SimpleZipURLCommand.parse(url) {
-                handleURLCommand(command, fromShortcuts: fromShortcuts)
+                handleURLCommand(command, trusted: Self.urlHasValidAutomationKey(url))
                 continue
             }
             if SimpleZipURLCommand.isAppOwnedURL(url) { continue }
@@ -406,36 +403,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         scheduleEnsureWindowForPendingExternalOpens()
     }
 
-    /// 这次 `application(_:open:)` 的 Apple Event(GURL)是不是 Shortcuts / WorkflowKit(快捷指令运行器)发起的。
-    /// 用户自建的快捷指令是天然白名单 → 其 simplezip:// 动作一律直接执行、不弹二次确认;确认框只拦**别的 app**。
-    /// 靠事件的发起进程 bundle id 判定;拿不到(非 Apple Event 触发等)按「非快捷指令」处理(更安全的一侧)。
-    private static func isOpenEventFromShortcuts() -> Bool {
-        guard let event = NSAppleEventManager.shared().currentAppleEvent,
-              let address = event.attributeDescriptor(forKeyword: AEKeyword(keyAddressAttr)),
-              let pidDescriptor = address.coerce(toDescriptorType: typeKernelProcessID) else {
-            return false
-        }
-        var pid: pid_t = 0
-        let data = pidDescriptor.data
-        guard data.count == MemoryLayout<pid_t>.size else { return false }
-        _ = withUnsafeMutableBytes(of: &pid) { data.copyBytes(to: $0) }
-        guard pid > 0,
-              let bundleID = NSRunningApplication(processIdentifier: pid)?.bundleIdentifier else {
-            return false
-        }
-        // 快捷指令 app 本体 + 各运行器(WorkflowKit.BackgroundShortcutRunner 等)。
-        return bundleID == "com.apple.shortcuts"
-            || bundleID.hasPrefix("com.apple.shortcuts.")
-            || bundleID.hasPrefix("com.apple.WorkflowKit")
+    /// URL 是否带正确的自动化「可信密钥」(`key=<AppPreferences.urlSchemeAutomationKey>`)。
+    /// 用户把设置里那串密钥放进自己的快捷指令 URL → 视为可信、跳过二次确认;别的 app 不知道密钥 → 仍需确认。
+    /// (为什么不认进程:Shortcuts 的「打开 URL」运行器发完事件即退出,app 处理到时它已消失,事后查不到是谁。)
+    private static func urlHasValidAutomationKey(_ url: URL) -> Bool {
+        guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+              let provided = components.queryItems?.first(where: { $0.name == "key" })?.value,
+              !provided.isEmpty else { return false }
+        return provided == AppPreferences.urlSchemeAutomationKey
     }
 
     /// #16:URL scheme 动作的确认 + 入队。check/compare 走 FinderServiceAction 管道
     /// (ContentView 消费,无窗口时由 ensure-window 机制兜底),open 走外部打开队列。
-    /// `fromShortcuts`:快捷指令(白名单)发起则跳过确认直接执行;其它来源看「运行前确认」开关。
-    private func handleURLCommand(_ command: SimpleZipURLCommand, fromShortcuts: Bool) {
+    /// `trusted`:URL 带正确自动化密钥则跳过确认直接执行;否则看「其它来源运行前确认」开关。
+    private func handleURLCommand(_ command: SimpleZipURLCommand, trusted: Bool) {
         NSApp.activate(ignoringOtherApps: true)
-        // 需要确认 = **非**快捷指令发起 **且** 「运行前确认」开关=开。快捷指令永远直接跑;开关关时其它来源也直接跑。
-        if !fromShortcuts && AppPreferences.urlSchemeRequireConfirmation {
+        // 需要确认 = **没带正确密钥** **且** 「运行前确认」开关=开。带密钥永远直接跑;开关关时其它来源也直接跑。
+        if !trusted && AppPreferences.urlSchemeRequireConfirmation {
             let alert = NSAlert()
             alert.alertStyle = .warning
             alert.messageText = L10n.text("urlScheme.confirm.title")

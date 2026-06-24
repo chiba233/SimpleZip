@@ -2503,9 +2503,12 @@
 "settings.automation.shortcuts.actions" = "Cada ejecución de Atajos aparece en vivo en el Centro de actividad, etiquetada con su origen. Los archivos cifrados nunca muestran avisos en Atajos.";
 "settings.automation.shortcuts.unavailable" = "Esta compilación no está firmada con un ID de desarrollador de Apple, por lo que estas acciones y Siri no pueden ejecutarse: la app Atajos las sigue mostrando, pero informan de un error de comunicación. Funcionarán automáticamente cuando se instale una compilación firmada correctamente.";
 "settings.automation.urlScheme.section" = "Esquema URL";
-"settings.automation.urlScheme.description" = "Los Atajos que creas ejecutan los comandos simplezip:// directamente. Otras apps y scripts también pueden controlar SimpleZip así — abrir, extraer, crear, hash, probar o comparar archivos (solo rutas absolutas).";
+"settings.automation.urlScheme.description" = "Cualquier proceso puede activar estos comandos simplezip://; en Atajos usa la acción «Abrir URL». Abrir, extraer, crear, hash, probar o comparar archivos (solo rutas absolutas).";
 "settings.automation.urlScheme.requireConfirm" = "Confirmar comandos de otras apps";
-"settings.automation.urlScheme.requireConfirm.desc" = "Tus propios Atajos siempre se ejecutan directamente. Esto solo cubre simplezip:// de otras apps y scripts — activado pregunta primero, desactivado los ejecuta sin preguntar.";
+"settings.automation.urlScheme.requireConfirm.desc" = "Los enlaces simplezip:// sin la clave de confianza —de otras apps, scripts o el terminal— piden confirmación antes de ejecutarse. Desactivado, cualquier origen local se ejecuta sin preguntar.";
+"settings.automation.urlScheme.key" = "Clave de confianza";
+"settings.automation.urlScheme.key.desc" = "Añade esta clave a una URL (&key=…) y se ejecutará sin confirmación. Ponla en tus propios Atajos o scripts: otras apps no la conocen, así que seguirán recibiendo confirmación.";
+"settings.automation.urlScheme.key.copy" = "Copiar";
 "settings.automation.finder.section" = "Servicios de Finder";
 "settings.automation.finder.title" = "Acciones de clic derecho en Finder";
 "settings.automation.finder.description" = "Acciones de comprimir, extraer y hash en el menú contextual de Finder. Activa o desactiva acciones individuales en el panel General.";

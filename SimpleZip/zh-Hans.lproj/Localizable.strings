@@ -1432,9 +1432,12 @@
 "settings.automation.shortcuts.actions" = "每次快捷指令运行都实时进活动中心并标记来源。加密归档在快捷指令里绝不弹窗。";
 "settings.automation.shortcuts.unavailable" = "这个构建没有 Apple 开发者签名,这些动作和 Siri 无法运行——「快捷指令」App 里仍会列出它们,但会报「无法与 App 通信」。装上正确签名的构建后会自动恢复。";
 "settings.automation.urlScheme.section" = "URL Scheme";
-"settings.automation.urlScheme.description" = "你建的快捷指令直接运行 simplezip:// 命令。其它 app 和脚本也能这样驱动 SimpleZip:打开、解压、创建、校验、测试、比较归档(只接受绝对路径)。";
+"settings.automation.urlScheme.description" = "下列命令任何进程都能用 simplezip:// 触发；在快捷指令里用「打开 URL」动作即可。打开、解压、创建、校验、测试、比较归档（只接受绝对路径）。";
 "settings.automation.urlScheme.requireConfirm" = "其它来源运行前确认";
-"settings.automation.urlScheme.requireConfirm.desc" = "你自己的快捷指令始终直接运行。这一项只管其它 app / 脚本发来的 simplezip://:开 = 先弹确认;关 = 不弹、直接跑。";
+"settings.automation.urlScheme.requireConfirm.desc" = "没带可信密钥的 simplezip:// 链接（别的 app、脚本、终端）在执行前先弹确认。关 = 信任本机所有来源、不再弹框。";
+"settings.automation.urlScheme.key" = "可信密钥";
+"settings.automation.urlScheme.key.desc" = "把这串密钥加到 URL 末尾（&key=…），该链接即免确认、直接执行。放进你自己的快捷指令 / 脚本即可；别的 app 不知道密钥，仍会弹确认。";
+"settings.automation.urlScheme.key.copy" = "复制";
 "settings.automation.finder.section" = "Finder 服务";
 "settings.automation.finder.title" = "Finder 右键动作";
 "settings.automation.finder.description" = "Finder 右键菜单里的压缩、解压与哈希动作。逐项开关在「通用」页管理。";

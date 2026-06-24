@@ -2503,9 +2503,12 @@
 "settings.automation.shortcuts.actions" = "ทุกครั้งที่คำสั่งลัดทำงานจะแสดงสดในศูนย์กิจกรรมพร้อมป้ายแหล่งที่มา ไฟล์เก็บถาวรที่เข้ารหัสจะไม่ถามในคำสั่งลัด";
 "settings.automation.shortcuts.unavailable" = "บิลด์นี้ไม่ได้เซ็นด้วย Apple Developer ID การดำเนินการเหล่านี้และ Siri จึงทำงานไม่ได้ — แอปคำสั่งลัดยังคงแสดงรายการไว้ แต่จะรายงานข้อผิดพลาดในการสื่อสาร เมื่อติดตั้งบิลด์ที่เซ็นอย่างถูกต้องแล้วจะใช้งานได้โดยอัตโนมัติ";
 "settings.automation.urlScheme.section" = "URL Scheme ของแอป";
-"settings.automation.urlScheme.description" = "ช็อตคัตที่คุณสร้างจะเรียกใช้คำสั่ง simplezip:// โดยตรง แอปและสคริปต์อื่นก็ขับเคลื่อน SimpleZip แบบนี้ได้ — เปิด แตกไฟล์ สร้าง แฮช ทดสอบ หรือเปรียบเทียบไฟล์เก็บถาวร (เฉพาะพาธสัมบูรณ์)";
+"settings.automation.urlScheme.description" = "กระบวนการใดก็เรียกใช้คำสั่ง simplezip:// เหล่านี้ได้ ในช็อตคัตให้ใช้การกระทำ “เปิด URL” เปิด แตก สร้าง แฮช ทดสอบ หรือเปรียบเทียบไฟล์เก็บถาวร (เฉพาะเส้นทางสมบูรณ์)";
 "settings.automation.urlScheme.requireConfirm" = "ยืนยันคำสั่งจากแอปอื่น";
-"settings.automation.urlScheme.requireConfirm.desc" = "ช็อตคัตของคุณเองจะทำงานโดยตรงเสมอ ตัวเลือกนี้ครอบคลุมเฉพาะ simplezip:// จากแอปและสคริปต์อื่น — เปิดจะถามก่อน ปิดจะเรียกใช้โดยไม่ถาม";
+"settings.automation.urlScheme.requireConfirm.desc" = "ลิงก์ simplezip:// ที่ไม่มีคีย์ที่เชื่อถือได้ (จากแอปอื่น สคริปต์ หรือเทอร์มินัล) จะถามก่อนทำงาน ปิด = ให้ทุกแหล่งในเครื่องทำงานโดยไม่ต้องถาม";
+"settings.automation.urlScheme.key" = "คีย์ที่เชื่อถือได้";
+"settings.automation.urlScheme.key.desc" = "เพิ่มคีย์นี้ต่อท้าย URL (&key=…) แล้วจะทำงานโดยไม่ต้องยืนยัน ใส่ไว้ในช็อตคัตหรือสคริปต์ของคุณเอง แอปอื่นไม่รู้คีย์จึงยังต้องยืนยัน";
+"settings.automation.urlScheme.key.copy" = "คัดลอก";
 "settings.automation.finder.section" = "บริการ Finder";
 "settings.automation.finder.title" = "การทำงานคลิกขวาใน Finder";
 "settings.automation.finder.description" = "การบีบอัด แตกไฟล์ และแฮชในเมนูบริบทของ Finder เปิดหรือปิดแต่ละรายการได้ในแผงทั่วไป";

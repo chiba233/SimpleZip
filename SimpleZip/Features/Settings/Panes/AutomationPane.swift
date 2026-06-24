@@ -17,8 +17,10 @@ struct AutomationPane: View {
     /// #1 唯一新偏好:自动化通道(CLI / Shortcuts)允许用预设密码。默认 true 保持现行为;
     /// 关掉后无人值守流程只试空密码,绝不静默动用预设。
     @AppStorage(AppPreferences.Key.automationAllowPresetPassword) private var allowPresetPassword = true
-    /// URL scheme:其它来源(非快捷指令)的 simplezip:// 命令执行前是否弹确认。默认 true=开。快捷指令永远直接跑、不受此控。
+    /// URL scheme:没带可信密钥的 simplezip:// 命令执行前是否弹确认。默认 true=开。带正确密钥的 URL 永远直接跑、不受此控。
     @AppStorage(AppPreferences.Key.urlSchemeRequireConfirmation) private var urlSchemeRequireConfirmation = true
+    /// 「复制可信密钥」后的短暂提示(已复制)。
+    @State private var urlSchemeKeyMessage: String?
     /// 0.4.4 macOS 26 AI:是否把发布包 / 任务捐献进 Spotlight。默认 true = 便利;关 = 更私密(并清空已索引)。
     @AppStorage(AppPreferences.Key.spotlightIndexingEnabled) private var spotlightIndexing = true
     /// #34/#36:归档内容缓存控制(开关 / 归档数上限 / 过期天数)。关 → 停止缓存并清空。
@@ -298,7 +300,7 @@ struct AutomationPane: View {
 
             // AI 助手主开关 + 能力状态已搬到独立「AI 与智能建议」设置页(单一归属,见 AISettingsPane)。
 
-            // ③ URL Scheme:simplezip:// 命令。快捷指令永远直接跑;「其它来源运行前确认」开关只管别的 app / 脚本。
+            // ③ URL Scheme:simplezip:// 命令。URL 带可信密钥(&key=…)= 直接执行;「其它来源运行前确认」开关只管**没带密钥**的来源。
             Section(L10n.text("settings.automation.urlScheme.section")) {
                 SettingsToggleRow(
                     title: L10n.text("settings.automation.urlScheme.requireConfirm"),
@@ -306,6 +308,34 @@ struct AutomationPane: View {
                     systemImage: "link.circle", iconTint: .cyan,
                     isOn: $urlSchemeRequireConfirmation
                 )
+                // 可信密钥:URL 末尾加 &key=<它> 即免确认。用户把它放进自己的快捷指令 / 脚本;别的 app 不知道密钥 → 仍弹确认。
+                SettingsControlRow(
+                    title: L10n.text("settings.automation.urlScheme.key"),
+                    description: L10n.text("settings.automation.urlScheme.key.desc"),
+                    systemImage: "key.fill", iconTint: .cyan
+                ) {
+                    HStack(spacing: 8) {
+                        Text(AppPreferences.urlSchemeAutomationKey)
+                            .font(.caption.monospaced())
+                            .textSelection(.enabled)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                            .frame(maxWidth: 170, alignment: .trailing)
+                        Button {
+                            NSPasteboard.general.clearContents()
+                            NSPasteboard.general.setString(AppPreferences.urlSchemeAutomationKey, forType: .string)
+                            urlSchemeKeyMessage = L10n.text("diagnostics.copied")
+                        } label: {
+                            Label(L10n.text("settings.automation.urlScheme.key.copy"), systemImage: "doc.on.doc")
+                        }
+                    }
+                }
+                if let urlSchemeKeyMessage {
+                    Text(urlSchemeKeyMessage)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
                 Text(L10n.text("settings.automation.urlScheme.description"))
                     .font(.caption)
                     .foregroundStyle(.secondary)

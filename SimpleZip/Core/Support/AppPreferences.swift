@@ -347,10 +347,13 @@ enum AppPreferences {
         nonisolated static let tasksOpenOnFailure = "tasksOpenOnFailure"
         /// 0.4.4 #1:自动化通道(CLI / Shortcuts)允许使用预设密码(默认 true 保持现行为)。
         nonisolated static let automationAllowPresetPassword = "automationAllowPresetPassword"
-        /// URL scheme(simplezip://)动作执行前是否弹确认框(默认 true=安全)。**只管非快捷指令的来源**(脚本 / 终端
-        /// `open` / 其它 app);用户自建的快捷指令是白名单,无论此开关一律直接执行(见 AppDelegate.isCurrentOpenFromShortcuts)。
-        /// 关掉 = 信任本机所有进程发来的 simplezip://、不再弹框。
+        /// URL scheme(simplezip://)动作执行前是否弹确认框(默认 true=安全)。**只对没带正确密钥的来源**生效;
+        /// 带 `key=<urlSchemeAutomationKey>` 的 URL(用户把密钥放进自己的快捷指令里)视为可信、直接执行。
+        /// 关掉此开关 = 信任本机所有进程发来的 simplezip://、不再弹框。
         nonisolated static let urlSchemeRequireConfirmation = "urlSchemeRequireConfirmation"
+        /// 自动化「可信密钥」:随机生成、首次读取时落库(每装机一份;**不进备份**,换机重生成)。URL 带
+        /// `key=<它>` 即免确认 —— 用户把这串密钥放进自己的快捷指令 URL,别的 app 不知道密钥 → 仍弹确认。
+        nonisolated static let urlSchemeAutomationKey = "urlSchemeAutomationKey"
         /// 0.4.4 macOS 26 AI:把发布包 / 活动中心任务捐献进 Spotlight 语义索引(默认 true = 便利;关 = 更私密)。
         nonisolated static let spotlightIndexingEnabled = "spotlightIndexingEnabled"
         /// 0.4.5 启动卡顿修复:Spotlight 索引**电源档**(`saver` / `normal` / `highPower`)。控制重查间隔(有效期)+
@@ -477,9 +480,20 @@ enum AppPreferences {
         defaultTrueBool(forKey: Key.automationAllowPresetPassword)
     }
 
-    /// URL scheme 动作执行前是否弹确认框(默认 true=安全)。只对**非快捷指令**的来源生效;快捷指令永远直接执行。
+    /// URL scheme 动作执行前是否弹确认框(默认 true=安全)。只对**没带正确密钥**的来源生效;带密钥的 URL 直接执行。
     nonisolated static var urlSchemeRequireConfirmation: Bool {
         defaultTrueBool(forKey: Key.urlSchemeRequireConfirmation)
+    }
+
+    /// 自动化「可信密钥」—— 随机生成、首次读取即落库(每装机一份)。URL 带 `key=<它>` 即免确认。
+    /// 不进备份(换机重生成,用户重新从设置复制进快捷指令)。空/缺失则即时生成并存。
+    nonisolated static var urlSchemeAutomationKey: String {
+        if let existing = defaults.string(forKey: Key.urlSchemeAutomationKey), !existing.isEmpty {
+            return existing
+        }
+        let generated = UUID().uuidString
+        defaults.set(generated, forKey: Key.urlSchemeAutomationKey)
+        return generated
     }
 
     /// 0.4.4 macOS 26 AI:是否把发布包 / 活动中心任务捐献进 Spotlight 语义索引。

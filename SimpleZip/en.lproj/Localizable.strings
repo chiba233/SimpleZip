@@ -1434,9 +1434,12 @@
 "settings.automation.shortcuts.actions" = "Every Shortcuts run shows up live in the Activity Center, tagged with its source. Encrypted archives never prompt in shortcuts.";
 "settings.automation.shortcuts.unavailable" = "This build isn't signed with an Apple Developer ID, so these actions and Siri can't run — the Shortcuts app still lists them, but they report a connection error. They'll work automatically once a properly signed build is installed.";
 "settings.automation.urlScheme.section" = "URL Scheme";
-"settings.automation.urlScheme.description" = "Shortcuts you build run simplezip:// commands directly. Other apps and scripts can drive SimpleZip the same way — open, extract, create, hash, test or compare archives (absolute paths only).";
+"settings.automation.urlScheme.description" = "Any process can trigger these simplezip:// commands; in Shortcuts use the “Open URLs” action. Open, extract, create, hash, test or compare archives (absolute paths only).";
 "settings.automation.urlScheme.requireConfirm" = "Confirm commands from other apps";
-"settings.automation.urlScheme.requireConfirm.desc" = "Your own Shortcuts always run directly. This only covers simplezip:// from other apps and scripts — on asks first, off lets them run without a prompt.";
+"settings.automation.urlScheme.requireConfirm.desc" = "simplezip:// links without the trusted key — from other apps, scripts or the terminal — ask before running. Off lets every local source run without a prompt.";
+"settings.automation.urlScheme.key" = "Trusted key";
+"settings.automation.urlScheme.key.desc" = "Append this key to a URL (&key=…) and it runs without confirmation. Put it in your own Shortcuts or scripts — other apps don’t know it, so they still get a prompt.";
+"settings.automation.urlScheme.key.copy" = "Copy";
 "settings.automation.finder.section" = "Finder Services";
 "settings.automation.finder.title" = "Right-click actions in Finder";
 "settings.automation.finder.description" = "Compress, extract and hash actions in Finder's context menu. Enable or disable individual actions in the General pane.";

@@ -2505,9 +2505,12 @@
 "settings.automation.shortcuts.actions" = "ショートカットの実行はすべて、出所タグ付きでアクティビティセンターにリアルタイム表示されます。暗号化アーカイブはショートカット内で確認ダイアログを出しません。";
 "settings.automation.shortcuts.unavailable" = "このビルドには Apple Developer 署名がないため、これらの操作と Siri は実行できません。ショートカット App には表示されますが、「Appと通信できません」と表示されます。正しく署名されたビルドをインストールすると自動的に利用可能になります。";
 "settings.automation.urlScheme.section" = "URL スキーム";
-"settings.automation.urlScheme.description" = "あなたが作ったショートカットは simplezip:// コマンドを直接実行します。他のアプリやスクリプトも同じように SimpleZip を操作できます — アーカイブを開く・展開・作成・ハッシュ・テスト・比較(絶対パスのみ)。";
+"settings.automation.urlScheme.description" = "これらの simplezip:// コマンドはどのプロセスからでも実行できます。ショートカットでは「URL を開く」アクションを使います。アーカイブを開く・展開・作成・ハッシュ・テスト・比較（絶対パスのみ）。";
 "settings.automation.urlScheme.requireConfirm" = "他アプリからのコマンドを確認";
-"settings.automation.urlScheme.requireConfirm.desc" = "あなた自身のショートカットは常に直接実行されます。これは他のアプリやスクリプトからの simplezip:// だけが対象です — オンで先に確認、オフで確認なしに実行。";
+"settings.automation.urlScheme.requireConfirm.desc" = "信頼キーを持たない simplezip:// リンク（他アプリ・スクリプト・ターミナル）は実行前に確認します。オフにすると、ローカルのすべての発信元が確認なしで実行されます。";
+"settings.automation.urlScheme.key" = "信頼キー";
+"settings.automation.urlScheme.key.desc" = "このキーを URL の末尾に付ける（&key=…）と、確認なしで実行されます。自分のショートカットやスクリプトに入れてください。他アプリはキーを知らないため、確認が表示されます。";
+"settings.automation.urlScheme.key.copy" = "コピー";
 "settings.automation.finder.section" = "Finder サービス";
 "settings.automation.finder.title" = "Finder の右クリックアクション";
 "settings.automation.finder.description" = "Finder のコンテキストメニューで圧縮、展開、ハッシュ操作を利用できます。個別の操作は「一般」ペインでオン/オフできます。";

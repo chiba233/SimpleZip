@@ -2503,9 +2503,12 @@
 "settings.automation.shortcuts.actions" = "Chaque exécution Raccourcis apparaît en direct dans le centre d’activité, avec sa source. Les archives chiffrées ne demandent jamais de mot de passe dans Raccourcis.";
 "settings.automation.shortcuts.unavailable" = "Cette version n'est pas signée avec un identifiant Apple Developer ; ces actions et Siri ne peuvent donc pas s'exécuter — l'app Raccourcis les affiche toujours, mais elles signalent une erreur de communication. Elles fonctionneront automatiquement une fois une version correctement signée installée.";
 "settings.automation.urlScheme.section" = "Schéma d’URL";
-"settings.automation.urlScheme.description" = "Les Raccourcis que vous créez exécutent les commandes simplezip:// directement. D'autres apps et scripts peuvent aussi piloter SimpleZip — ouvrir, extraire, créer, hacher, tester ou comparer des archives (chemins absolus uniquement).";
+"settings.automation.urlScheme.description" = "Tout processus peut déclencher ces commandes simplezip:// ; dans Raccourcis, utilisez l’action « Ouvrir les URL ». Ouvrir, extraire, créer, hacher, tester ou comparer des archives (chemins absolus uniquement).";
 "settings.automation.urlScheme.requireConfirm" = "Confirmer les commandes d'autres apps";
-"settings.automation.urlScheme.requireConfirm.desc" = "Vos propres Raccourcis s'exécutent toujours directement. Ceci ne concerne que les simplezip:// d'autres apps et scripts — activé demande d'abord, désactivé les exécute sans demander.";
+"settings.automation.urlScheme.requireConfirm.desc" = "Les liens simplezip:// sans clé de confiance — autres apps, scripts ou terminal — demandent confirmation avant de s’exécuter. Désactivé, toute source locale s’exécute sans invite.";
+"settings.automation.urlScheme.key" = "Clé de confiance";
+"settings.automation.urlScheme.key.desc" = "Ajoutez cette clé à une URL (&key=…) pour qu’elle s’exécute sans confirmation. Placez-la dans vos propres Raccourcis ou scripts — les autres apps l’ignorent et reçoivent donc une confirmation.";
+"settings.automation.urlScheme.key.copy" = "Copier";
 "settings.automation.finder.section" = "Services Finder";
 "settings.automation.finder.title" = "Actions du clic droit dans le Finder";
 "settings.automation.finder.description" = "Actions de compression, d’extraction et de hachage dans le menu contextuel du Finder. Activez ou désactivez chaque action dans le volet Général.";
