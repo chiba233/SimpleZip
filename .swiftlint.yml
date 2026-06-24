@@ -1,13 +1,9 @@
-# SwiftLint 配置 —— 配合 swiftlint-baseline.json：仓库现有违规已记入基线，
-# CI / 本地脚本只对**新增**违规报警（防止风格随多人 / 多 agent 协作漂移）。
-# 不要求历史代码达标、也不批量重排既有代码。
-#   本地跑：scripts/lint.sh        CI：.github/workflows/pr.yml 的 SwiftLint 步骤
+# SwiftLint 配置。本地跑 `npm run lint`（= scripts/lint-changed.sh）：只对「相对 main 有改动的行」报警，
+# 历史代码一行不碰 —— 防止风格随协作漂移，又不被既有违规淹没。不走 baseline（SwiftLint 的 baseline 存绝对
+# 路径、跨机器/CI 不可用）。这是开发期本地工具，**不参与 CI**。
 #
 # 阈值按本仓库实际风格放宽（长行、大文件、短惯用名是既有约定），只把明显跑偏的新代码挡下。
 # 新违规出现时优先改代码；确属误报再在此调规则，或就地 `// swiftlint:disable:next <rule>` 局部豁免。
-# 重建基线（极少需要）：scripts/lint.sh regen-baseline。
-
-baseline: swiftlint-baseline.json
 
 included:
   - SimpleZip

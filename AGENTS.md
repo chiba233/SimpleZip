@@ -67,25 +67,21 @@ Xcode project settings, build settings, or app bundle behavior should also be ve
 
 For any business code change, always run the smallest relevant real verification before finishing.
 
-Lint: SwiftLint with a baseline (`.swiftlint.yml` + `swiftlint-baseline.json`). Run before finishing any
-business Swift change:
+Lint: SwiftLint, **local dev tool only — not run in CI**. Run before finishing any business Swift change:
 
 ```bash
-scripts/lint.sh
+npm run lint           # = scripts/lint-changed.sh
 ```
 
-- Equivalent to `swiftlint lint --strict`. The baseline records the repo's pre-existing violations, so this
-  only flags **new** ones — fix those in code (`scripts/lint.sh fix` auto-corrects the fixable subset). Do not
-  edit the baseline to silence a new violation.
-- SwiftLint needs sourcekit from a full Xcode. If `xcode-select -p` points at CommandLineTools, prefix the
-  command with `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer` (or your Xcode path), otherwise it
-  aborts with `Loading sourcekitdInProc.framework … failed`.
-- Requires the `swiftlint` binary (`brew install swiftlint`). If it is genuinely unavailable, say lint was
-  not run because the tool is missing — do not invent a lint result.
-- Regenerating the baseline (rare — only after intentionally accepting new debt, or after a SwiftLint version
-  bump changes the rule set): `scripts/lint.sh regen-baseline`, then commit the updated
-  `swiftlint-baseline.json`. CI pins SwiftLint to the version the baseline was built with (see
-  `.github/workflows/pr.yml`).
+- Lints only the **lines changed** vs `main` (config `.swiftlint.yml`). Historical code is never touched, so
+  the repo's pre-existing violations don't drown out genuinely new ones. Portable (no baseline — SwiftLint's
+  baseline stores absolute paths and is useless across machines/CI). New files are linted in full.
+- Fix new violations in code; `swiftlint --fix` auto-corrects the fixable subset.
+- SwiftLint needs sourcekit from a full Xcode. The npm wrapper sets `DEVELOPER_DIR` automatically; running the
+  script directly under Command Line Tools aborts with `Loading sourcekitdInProc.framework … failed` — prefix
+  with `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer` (or your Xcode path).
+- Requires the `swiftlint` binary (`brew install swiftlint`, or `npm run install`). If it is genuinely
+  unavailable, say lint was not run because the tool is missing — do not invent a lint result.
 
 Default SwiftPM core tests:
 
@@ -120,7 +116,7 @@ Use this matrix:
 
 Final responses after business code changes must include:
 
-- lint result: `scripts/lint.sh` passed / failed, or why it was not run (e.g. tool missing);
+- lint result: `npm run lint` passed / failed, or why it was not run (e.g. tool missing);
 - test/build command run;
 - whether each command passed, failed, was blocked, or was not executed;
 - any residual risk if verification was partial.
