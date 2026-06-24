@@ -389,11 +389,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func application(_ application: NSApplication, open urls: [URL]) {
+        // 这次 open 是不是快捷指令(Shortcuts / WorkflowKit)发起的 —— 用户自建的快捷指令是天然白名单,
+        // 它发来的 simplezip:// 动作一律直接执行、绝不二次确认。整批 urls 同一事件同源,算一次即可。
+        let fromShortcuts = Self.isOpenEventFromShortcuts()
         for url in urls {
             if FinderServiceActionQueue.shared.enqueue(fromCallbackURL: url) { continue }
-            // #16:simplezip://check|compare|open —— 任何进程都能发,先弹确认(列动作+完整路径)。
+            // #16:simplezip://… —— 任何进程都能发。**非快捷指令**来源且「运行前确认」开关开时弹确认
+            //(列动作+完整路径);快捷指令一律直接跑。
             if let command = SimpleZipURLCommand.parse(url) {
-                handleURLCommand(command)
+                handleURLCommand(command, fromShortcuts: fromShortcuts)
                 continue
             }
             if SimpleZipURLCommand.isAppOwnedURL(url) { continue }
@@ -402,30 +406,57 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         scheduleEnsureWindowForPendingExternalOpens()
     }
 
+    /// 这次 `application(_:open:)` 的 Apple Event(GURL)是不是 Shortcuts / WorkflowKit(快捷指令运行器)发起的。
+    /// 用户自建的快捷指令是天然白名单 → 其 simplezip:// 动作一律直接执行、不弹二次确认;确认框只拦**别的 app**。
+    /// 靠事件的发起进程 bundle id 判定;拿不到(非 Apple Event 触发等)按「非快捷指令」处理(更安全的一侧)。
+    private static func isOpenEventFromShortcuts() -> Bool {
+        guard let event = NSAppleEventManager.shared().currentAppleEvent,
+              let address = event.attributeDescriptor(forKeyword: AEKeyword(keyAddressAttr)),
+              let pidDescriptor = address.coerce(toDescriptorType: typeKernelProcessID) else {
+            return false
+        }
+        var pid: pid_t = 0
+        let data = pidDescriptor.data
+        guard data.count == MemoryLayout<pid_t>.size else { return false }
+        _ = withUnsafeMutableBytes(of: &pid) { data.copyBytes(to: $0) }
+        guard pid > 0,
+              let bundleID = NSRunningApplication(processIdentifier: pid)?.bundleIdentifier else {
+            return false
+        }
+        // 快捷指令 app 本体 + 各运行器(WorkflowKit.BackgroundShortcutRunner 等)。
+        return bundleID == "com.apple.shortcuts"
+            || bundleID.hasPrefix("com.apple.shortcuts.")
+            || bundleID.hasPrefix("com.apple.WorkflowKit")
+    }
+
     /// #16:URL scheme 动作的确认 + 入队。check/compare 走 FinderServiceAction 管道
     /// (ContentView 消费,无窗口时由 ensure-window 机制兜底),open 走外部打开队列。
-    private func handleURLCommand(_ command: SimpleZipURLCommand) {
+    /// `fromShortcuts`:快捷指令(白名单)发起则跳过确认直接执行;其它来源看「运行前确认」开关。
+    private func handleURLCommand(_ command: SimpleZipURLCommand, fromShortcuts: Bool) {
         NSApp.activate(ignoringOtherApps: true)
-        let alert = NSAlert()
-        alert.alertStyle = .warning
-        alert.messageText = L10n.text("urlScheme.confirm.title")
-        switch command {
-        case .check(let path):
-            alert.informativeText = L10n.format("urlScheme.confirm.check", path)
-        case .compare(let left, let right):
-            alert.informativeText = L10n.format("urlScheme.confirm.compare", left, right)
-        case .open(let path):
-            alert.informativeText = L10n.format("urlScheme.confirm.open", path)
-        case .extract(let paths):
-            alert.informativeText = L10n.format("urlScheme.confirm.extract", paths.joined(separator: "\n"))
-        case .hash(let paths):
-            alert.informativeText = L10n.format("urlScheme.confirm.hash", paths.joined(separator: "\n"))
-        case .create(let format, let inputs):
-            alert.informativeText = L10n.format("urlScheme.confirm.create", format.rawValue.uppercased(), inputs.joined(separator: "\n"))
+        // 需要确认 = **非**快捷指令发起 **且** 「运行前确认」开关=开。快捷指令永远直接跑;开关关时其它来源也直接跑。
+        if !fromShortcuts && AppPreferences.urlSchemeRequireConfirmation {
+            let alert = NSAlert()
+            alert.alertStyle = .warning
+            alert.messageText = L10n.text("urlScheme.confirm.title")
+            switch command {
+            case .check(let path):
+                alert.informativeText = L10n.format("urlScheme.confirm.check", path)
+            case .compare(let left, let right):
+                alert.informativeText = L10n.format("urlScheme.confirm.compare", left, right)
+            case .open(let path):
+                alert.informativeText = L10n.format("urlScheme.confirm.open", path)
+            case .extract(let paths):
+                alert.informativeText = L10n.format("urlScheme.confirm.extract", paths.joined(separator: "\n"))
+            case .hash(let paths):
+                alert.informativeText = L10n.format("urlScheme.confirm.hash", paths.joined(separator: "\n"))
+            case .create(let format, let inputs):
+                alert.informativeText = L10n.format("urlScheme.confirm.create", format.rawValue.uppercased(), inputs.joined(separator: "\n"))
+            }
+            alert.addButton(withTitle: L10n.text("button.ok"))
+            alert.addButton(withTitle: L10n.text("button.cancel"))
+            guard alert.runModal() == .alertFirstButtonReturn else { return }
         }
-        alert.addButton(withTitle: L10n.text("button.ok"))
-        alert.addButton(withTitle: L10n.text("button.cancel"))
-        guard alert.runModal() == .alertFirstButtonReturn else { return }
         switch command {
         case .check(let path):
             FinderServiceActionQueue.shared.enqueue(.testArchives([URL(fileURLWithPath: path)]))

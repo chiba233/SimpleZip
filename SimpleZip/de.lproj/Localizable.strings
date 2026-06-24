@@ -2504,9 +2504,9 @@
 "settings.automation.shortcuts.actions" = "Jede Kurzbefehl-Ausführung erscheint live im Aktivitätscenter und ist mit ihrer Quelle markiert. Verschlüsselte Archive fragen in Kurzbefehlen nie nach.";
 "settings.automation.shortcuts.unavailable" = "Dieser Build ist nicht mit einer Apple-Developer-ID signiert, daher können diese Aktionen und Siri nicht ausgeführt werden – die Kurzbefehle-App listet sie weiterhin auf, meldet aber einen Kommunikationsfehler. Sie funktionieren automatisch, sobald ein korrekt signierter Build installiert ist.";
 "settings.automation.urlScheme.section" = "URL-Schema";
-"settings.automation.urlScheme.title" = "simplezip://-Befehle";
-"settings.automation.urlScheme.description" = "Andere Apps und Skripte können SimpleZip bitten, Archive zu testen, zu vergleichen oder zu öffnen. Es werden nur absolute Pfade akzeptiert.";
-"settings.automation.urlScheme.confirmAlways" = "Vor dem Ausführen immer in der App bestätigt.";
+"settings.automation.urlScheme.description" = "Von dir erstellte Kurzbefehle führen simplezip://-Befehle direkt aus. Andere Apps und Skripte können SimpleZip ebenso steuern — Archive öffnen, entpacken, erstellen, Hash, testen oder vergleichen (nur absolute Pfade).";
+"settings.automation.urlScheme.requireConfirm" = "Befehle von anderen Apps bestätigen";
+"settings.automation.urlScheme.requireConfirm.desc" = "Deine eigenen Kurzbefehle laufen immer direkt. Dies betrifft nur simplezip:// von anderen Apps und Skripten — an fragt zuerst, aus führt ohne Nachfrage aus.";
 "settings.automation.finder.section" = "Finder-Dienste";
 "settings.automation.finder.title" = "Rechtsklick-Aktionen im Finder";
 "settings.automation.finder.description" = "Komprimieren-, Entpacken- und Hash-Aktionen im Kontextmenü des Finders. Einzelne Aktionen aktivieren oder deaktivieren Sie im Bereich Allgemein.";

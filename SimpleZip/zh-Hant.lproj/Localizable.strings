@@ -2505,9 +2505,9 @@
 "settings.automation.shortcuts.actions" = "每次捷徑執行都會即時顯示在活動中心，並標記來源。加密封存檔在捷徑中絕不彈窗詢問。";
 "settings.automation.shortcuts.unavailable" = "這個建置沒有 Apple 開發者簽章,這些動作和 Siri 無法執行——「捷徑」App 裡仍會列出它們,但會回報「無法與 App 通訊」。安裝正確簽章的建置後會自動恢復。";
 "settings.automation.urlScheme.section" = "URL 配置";
-"settings.automation.urlScheme.title" = "simplezip:// 命令";
-"settings.automation.urlScheme.description" = "其他 app 和腳本可要求 SimpleZip 測試、比較或開啟封存檔。只接受絕對路徑。";
-"settings.automation.urlScheme.confirmAlways" = "執行前一律在 app 內確認。";
+"settings.automation.urlScheme.description" = "你建立的捷徑直接執行 simplezip:// 命令。其它 app 和指令稿也能這樣驅動 SimpleZip:開啟、解壓、建立、核對、測試、比較封存檔(只接受絕對路徑)。";
+"settings.automation.urlScheme.requireConfirm" = "其它來源執行前確認";
+"settings.automation.urlScheme.requireConfirm.desc" = "你自己的捷徑一律直接執行。這一項只管其它 app / 指令稿發來的 simplezip://:開 = 先彈確認;關 = 不彈、直接跑。";
 "settings.automation.finder.section" = "Finder 服務";
 "settings.automation.finder.title" = "Finder 右鍵動作";
 "settings.automation.finder.description" = "Finder 右鍵選單中的壓縮、解壓縮與雜湊動作。可在「一般」頁逐項開關。";

@@ -347,6 +347,10 @@ enum AppPreferences {
         nonisolated static let tasksOpenOnFailure = "tasksOpenOnFailure"
         /// 0.4.4 #1:自动化通道(CLI / Shortcuts)允许使用预设密码(默认 true 保持现行为)。
         nonisolated static let automationAllowPresetPassword = "automationAllowPresetPassword"
+        /// URL scheme(simplezip://)动作执行前是否弹确认框(默认 true=安全)。**只管非快捷指令的来源**(脚本 / 终端
+        /// `open` / 其它 app);用户自建的快捷指令是白名单,无论此开关一律直接执行(见 AppDelegate.isCurrentOpenFromShortcuts)。
+        /// 关掉 = 信任本机所有进程发来的 simplezip://、不再弹框。
+        nonisolated static let urlSchemeRequireConfirmation = "urlSchemeRequireConfirmation"
         /// 0.4.4 macOS 26 AI:把发布包 / 活动中心任务捐献进 Spotlight 语义索引(默认 true = 便利;关 = 更私密)。
         nonisolated static let spotlightIndexingEnabled = "spotlightIndexingEnabled"
         /// 0.4.5 启动卡顿修复:Spotlight 索引**电源档**(`saver` / `normal` / `highPower`)。控制重查间隔(有效期)+
@@ -471,6 +475,11 @@ enum AppPreferences {
     /// 0.4.4 #1:自动化通道是否允许用预设密码(关 = 无人值守只试空密码,绝不静默用预设)。
     nonisolated static var automationAllowPresetPassword: Bool {
         defaultTrueBool(forKey: Key.automationAllowPresetPassword)
+    }
+
+    /// URL scheme 动作执行前是否弹确认框(默认 true=安全)。只对**非快捷指令**的来源生效;快捷指令永远直接执行。
+    nonisolated static var urlSchemeRequireConfirmation: Bool {
+        defaultTrueBool(forKey: Key.urlSchemeRequireConfirmation)
     }
 
     /// 0.4.4 macOS 26 AI:是否把发布包 / 活动中心任务捐献进 Spotlight 语义索引。
@@ -1199,6 +1208,7 @@ enum AppPreferences {
         Key.tasksPlaySoundOnFinish,
         Key.tasksNotifyOnFinish,
         Key.automationAllowPresetPassword,
+        Key.urlSchemeRequireConfirmation,
         Key.spotlightIndexingEnabled,
         Key.spotlightIndexingPower,
         Key.aiAssistantEnabled,
@@ -1324,6 +1334,7 @@ enum AppPreferences {
         v[Key.heavyTaskConcurrencyLimit] = heavyTaskConcurrencyLimit
         v[Key.tasksOpenOnFailure] = tasksOpenOnFailure
         v[Key.automationAllowPresetPassword] = automationAllowPresetPassword
+        v[Key.urlSchemeRequireConfirmation] = urlSchemeRequireConfirmation
         v[Key.spotlightIndexingEnabled] = spotlightIndexingEnabled
         v[Key.spotlightIndexingPower] = spotlightIndexingPowerRaw
         v[Key.aiAssistantEnabled] = aiAssistantEnabled

@@ -17,6 +17,8 @@ struct AutomationPane: View {
     /// #1 唯一新偏好:自动化通道(CLI / Shortcuts)允许用预设密码。默认 true 保持现行为;
     /// 关掉后无人值守流程只试空密码,绝不静默动用预设。
     @AppStorage(AppPreferences.Key.automationAllowPresetPassword) private var allowPresetPassword = true
+    /// URL scheme:其它来源(非快捷指令)的 simplezip:// 命令执行前是否弹确认。默认 true=开。快捷指令永远直接跑、不受此控。
+    @AppStorage(AppPreferences.Key.urlSchemeRequireConfirmation) private var urlSchemeRequireConfirmation = true
     /// 0.4.4 macOS 26 AI:是否把发布包 / 任务捐献进 Spotlight。默认 true = 便利;关 = 更私密(并清空已索引)。
     @AppStorage(AppPreferences.Key.spotlightIndexingEnabled) private var spotlightIndexing = true
     /// #34/#36:归档内容缓存控制(开关 / 归档数上限 / 过期天数)。关 → 停止缓存并清空。
@@ -296,18 +298,20 @@ struct AutomationPane: View {
 
             // AI 助手主开关 + 能力状态已搬到独立「AI 与智能建议」设置页(单一归属,见 AISettingsPane)。
 
-            // ③ URL Scheme(展示型:现状即「每次都要 app 内确认」,不提供关闭项)。
+            // ③ URL Scheme:simplezip:// 命令。快捷指令永远直接跑;「其它来源运行前确认」开关只管别的 app / 脚本。
             Section(L10n.text("settings.automation.urlScheme.section")) {
-                SettingsControlRow(
-                    title: L10n.text("settings.automation.urlScheme.title"),
-                    description: L10n.text("settings.automation.urlScheme.description"),
-                    systemImage: "link.circle", iconTint: .cyan
-                ) {
-                    Text(L10n.text("settings.automation.urlScheme.confirmAlways"))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                Text(verbatim: "simplezip://check?path=/…  ·  simplezip://compare?left=/…&right=/…  ·  simplezip://open?path=/…")
+                SettingsToggleRow(
+                    title: L10n.text("settings.automation.urlScheme.requireConfirm"),
+                    description: L10n.text("settings.automation.urlScheme.requireConfirm.desc"),
+                    systemImage: "link.circle", iconTint: .cyan,
+                    isOn: $urlSchemeRequireConfirmation
+                )
+                Text(L10n.text("settings.automation.urlScheme.description"))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(verbatim: "simplezip://open?path=/…  ·  extract?path=/…&path=/…  ·  create?path=/…&format=zip|7z|tgz  ·  hash?path=/…  ·  check?path=/…  ·  compare?left=/…&right=/…")
                     .font(.caption.monospaced())
                     .foregroundStyle(.secondary)
                     .textSelection(.enabled)

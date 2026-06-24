@@ -2503,9 +2503,9 @@
 "settings.automation.shortcuts.actions" = "Каждый запуск Команд сразу появляется в центре активности с отметкой источника. Зашифрованные архивы в Командах никогда не показывают запросы.";
 "settings.automation.shortcuts.unavailable" = "Эта сборка не подписана идентификатором разработчика Apple, поэтому эти действия и Siri не работают — приложение «Быстрые команды» по-прежнему их показывает, но они выдают ошибку связи. Они заработают автоматически после установки правильно подписанной сборки.";
 "settings.automation.urlScheme.section" = "URL-схема";
-"settings.automation.urlScheme.title" = "Команды simplezip://";
-"settings.automation.urlScheme.description" = "Другие приложения и скрипты могут попросить SimpleZip проверить, сравнить или открыть архивы. Принимаются только абсолютные пути.";
-"settings.automation.urlScheme.confirmAlways" = "Перед запуском всегда требуется подтверждение в приложении.";
+"settings.automation.urlScheme.description" = "Созданные вами команды (Shortcuts) выполняют simplezip://-команды напрямую. Другие приложения и скрипты тоже могут управлять SimpleZip — открыть, извлечь, создать, хеш, проверить или сравнить архивы (только абсолютные пути).";
+"settings.automation.urlScheme.requireConfirm" = "Подтверждать команды от других приложений";
+"settings.automation.urlScheme.requireConfirm.desc" = "Ваши собственные команды всегда выполняются напрямую. Это касается только simplezip:// от других приложений и скриптов — включено спрашивает сначала, выключено выполняет без запроса.";
 "settings.automation.finder.section" = "Службы Finder";
 "settings.automation.finder.title" = "Действия правой кнопки в Finder";
 "settings.automation.finder.description" = "Действия сжатия, извлечения и хеширования в контекстном меню Finder. Отдельные действия включаются или отключаются на панели «Основные».";

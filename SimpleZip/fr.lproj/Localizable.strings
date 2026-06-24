@@ -2503,9 +2503,9 @@
 "settings.automation.shortcuts.actions" = "Chaque exécution Raccourcis apparaît en direct dans le centre d’activité, avec sa source. Les archives chiffrées ne demandent jamais de mot de passe dans Raccourcis.";
 "settings.automation.shortcuts.unavailable" = "Cette version n'est pas signée avec un identifiant Apple Developer ; ces actions et Siri ne peuvent donc pas s'exécuter — l'app Raccourcis les affiche toujours, mais elles signalent une erreur de communication. Elles fonctionneront automatiquement une fois une version correctement signée installée.";
 "settings.automation.urlScheme.section" = "Schéma d’URL";
-"settings.automation.urlScheme.title" = "Commandes simplezip://";
-"settings.automation.urlScheme.description" = "D’autres apps et scripts peuvent demander à SimpleZip de tester, comparer ou ouvrir des archives. Seuls les chemins absolus sont acceptés.";
-"settings.automation.urlScheme.confirmAlways" = "Toujours confirmé dans l’app avant l’exécution.";
+"settings.automation.urlScheme.description" = "Les Raccourcis que vous créez exécutent les commandes simplezip:// directement. D'autres apps et scripts peuvent aussi piloter SimpleZip — ouvrir, extraire, créer, hacher, tester ou comparer des archives (chemins absolus uniquement).";
+"settings.automation.urlScheme.requireConfirm" = "Confirmer les commandes d'autres apps";
+"settings.automation.urlScheme.requireConfirm.desc" = "Vos propres Raccourcis s'exécutent toujours directement. Ceci ne concerne que les simplezip:// d'autres apps et scripts — activé demande d'abord, désactivé les exécute sans demander.";
 "settings.automation.finder.section" = "Services Finder";
 "settings.automation.finder.title" = "Actions du clic droit dans le Finder";
 "settings.automation.finder.description" = "Actions de compression, d’extraction et de hachage dans le menu contextuel du Finder. Activez ou désactivez chaque action dans le volet Général.";
