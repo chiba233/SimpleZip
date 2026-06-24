@@ -308,7 +308,7 @@ struct AutomationPane: View {
                     systemImage: "link.circle", iconTint: .cyan,
                     isOn: $urlSchemeRequireConfirmation
                 )
-                // 可信密钥:URL 末尾加 &key=<它> 即免确认。用户把它放进自己的快捷指令 / 脚本;别的 app 不知道密钥 → 仍弹确认。
+                // 可信密钥:URL 末尾加 &key=<它> 即免确认直接执行。
                 SettingsControlRow(
                     title: L10n.text("settings.automation.urlScheme.key"),
                     description: L10n.text("settings.automation.urlScheme.key.desc"),

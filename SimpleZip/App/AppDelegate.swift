@@ -391,7 +391,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func application(_ application: NSApplication, open urls: [URL]) {
         for url in urls {
             if FinderServiceActionQueue.shared.enqueue(fromCallbackURL: url) { continue }
-            // #16:simplezip://… —— 任何进程都能发。URL 带正确的自动化密钥(用户放进自己的快捷指令)= 可信、直接执行;
+            // #16:simplezip://… —— 任何进程都能发。带正确自动化密钥 = 可信、直接执行;
             // 否则在「其它来源运行前确认」开关开时弹确认(列动作 + 完整路径)。
             if let command = SimpleZipURLCommand.parse(url) {
                 handleURLCommand(command, trusted: Self.urlHasValidAutomationKey(url))
@@ -404,8 +404,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     /// URL 是否带正确的自动化「可信密钥」(`key=<AppPreferences.urlSchemeAutomationKey>`)。
-    /// 用户把设置里那串密钥放进自己的快捷指令 URL → 视为可信、跳过二次确认;别的 app 不知道密钥 → 仍需确认。
-    /// (为什么不认进程:Shortcuts 的「打开 URL」运行器发完事件即退出,app 处理到时它已消失,事后查不到是谁。)
+    /// 匹配 → 视为可信、跳过确认;不匹配或缺失 → 交由「其它来源运行前确认」开关决定。
+    /// 按密钥而非发起进程身份判定:GURL 事件的发起方是转瞬即逝的系统运行器,事后不可靠。
     private static func urlHasValidAutomationKey(_ url: URL) -> Bool {
         guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
               let provided = components.queryItems?.first(where: { $0.name == "key" })?.value,
