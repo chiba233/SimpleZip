@@ -109,7 +109,7 @@ static type. Subprocess spawn/capture/cancellation is centralized in `BackendPro
 
 All on-device model **inference** runs outside the main app binary. The app builds Codable input DTOs and calls
 `AIAgentClient.generatePass(kind:input:as:)`, which serializes one typed `generate(kind:inputJSON:languageName:)` XPC
-call; the engine that actually imports `FoundationModels`, builds the prompt, runs the model and parses the result is
+call; the engine that imports `FoundationModels`, builds the prompt, runs the model and parses the result is
 `AIPassEngine` in `SimpleZipAgentSupport/AIAgentService.swift`, compiled only into the agent and XPC-Service targets —
 never the app. The app binary therefore creates no `LanguageModelSession`; only a read-only "is the model available"
 check (`AIReportAssistant.isReady`, via `SystemLanguageModel.isAvailable`) still touches `FoundationModels`.

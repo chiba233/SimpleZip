@@ -4,11 +4,9 @@
 
 SimpleZip exposes its archive operations as [App Intents](https://developer.apple.com/documentation/appintents), so you
 can use them from the **Shortcuts** app and **Siri** on macOS. Every action runs on the same engines that drive the app
-itself — there is no parallel automation backend — and each run is recorded in the Activity Center so you can watch
-progress live and review the history later.
+itself — there is no parallel automation backend — and each run is recorded in the Activity Center for monitoring progress and reviewing history.
 
-This document lists the actions, the entities they expose, the example phrases, and the macOS-version availability. It
-documents only what the app actually ships; it does not invent commands, parameters, or behavior.
+This document lists the actions, the entities they expose, the example phrases, and the macOS-version availability.
 
 > Related automation surfaces: see [`CLI.md`](./CLI.md) for the command-line companion and
 > [`URL-SCHEME.md`](./URL-SCHEME.md) for the `simplezip://` URL scheme. All three report into the same Activity Center.

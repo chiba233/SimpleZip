@@ -204,7 +204,7 @@ struct VerifyReport {
 
 `signature` 字段原样复用 `.siz` 的 `GPGVerifyResult` 枚举 —— 相同的 case，
 相同的「指纹强比较」语义（如果清单声称了 `signerFingerprint` 的话；今天它还
-没有；若 v2 加入该字段，强检查可免费接入）。
+没有；若 v2 加入该字段，强检查可直接复用）。
 
 UI 将报告呈现为一张表：
 

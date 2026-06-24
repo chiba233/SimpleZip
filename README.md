@@ -7,11 +7,11 @@
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 
 **The native macOS archive manager that feels like Finder — fast, private, and
-quietly smart.** Open archives like folders and *edit* files inside without
+smart.** Open archives like folders and *edit* files inside without
 unpacking, make / convert / split ZIP · 7z · RAR · TAR · DMG · gz · bz2 · xz in a
 couple of clicks, paste a download link to stream-extract a remote archive
 without saving the whole thing first — and, if you want it, let an optional
-on-device AI quietly point you to the right next step. Need to open more?
+on-device AI suggest relevant actions. Need to open more?
 `tar.zst`, ISO, CAB, CPIO and installer PKGs open read-only too, and you can sign
 & verify archives so the people you send them to know they're really from you.
 
@@ -106,7 +106,7 @@ on the official 7-Zip engine, which ships inside the app.
   an optional on-device assistant offers an at-a-glance summary and *fitting*
   actions — compute a checksum, open with the right app, pull a single file out of
   an archive, surface a link it found inside. It only ever suggests; if the model
-  has nothing to say, the row stays empty. Whitelisted folders only, read quietly
+  has nothing to say, the row stays empty. Whitelisted folders only, read
   while your Mac is idle, never uploaded, encrypted contents never read.
 - **Settings and a toolbar that adapt.** The create and extract dialogs can apply
   recommended settings in one tap, and the toolbar reorders its actions for the
@@ -141,7 +141,7 @@ on the official 7-Zip engine, which ships inside the app.
 - **Download & extract from a URL** — paste an `http(s)` link to an archive into
   the address bar and SimpleZip streams it straight to disk *as it downloads*, so
   the whole archive never has to be saved first. Streamable formats and servers
-  only — it checks first rather than pretending to support one.
+  only — it checks first whether the server supports streaming content.
 - **Streaming fast extraction** — for ZIP and tar-family archives, an opt-in
   streaming mode reads sequentially: noticeably quicker for big archives and over
   network volumes.
@@ -173,7 +173,7 @@ on the official 7-Zip engine, which ships inside the app.
   renames / copies (`report.docx`, `report (1).docx`, `report_v2.docx`,
   `报告 副本.docx`) into one group, marked "identical copies" or "similar versions".
 - **Reproducibility deep report** — pack a folder twice and prove the two archives
-  are byte-for-byte identical, with an honest breakdown of which factors carry
+  are byte-for-byte identical, with a breakdown of which factors carry
   across re-packs (timestamps stripped, entry order deterministic) and which don't.
 - **Release-directory check & Quick Verify** — confirm a release folder is complete
   and verifiable: SHA256SUMS coverage and real hashing, the `.szs` manifest checked
@@ -247,7 +247,7 @@ on the official 7-Zip engine, which ships inside the app.
 3. A short **Welcome Assistant** walks you through a few preferences and checks
    that the archive engine is ready. You can skip anything and change it later.
 
-That's it — drag an archive onto the window, or open one with **File → Open**.
+Drag an archive onto the window, or open one with **File → Open**.
 
 ## 🗂 What it can open and make
 
@@ -341,7 +341,7 @@ that. The full cryptographic design and threat model live in
 
 - SimpleZip is **Developer ID signed and notarized** — Gatekeeper passes it
   through on first launch, no right-click workaround needed.
-- It is **not sandboxed** on purpose — a file manager needs to mount disk
+- It is **not sandboxed** intentionally — a file manager needs to mount disk
   images, run the archive engine, and accept drag-and-drop across your disk.
 - The official 7-Zip engine is **bundled** — ZIP/7z/TAR/etc. work out of the
   box with nothing else to install. GPG and RAR-creation are optional add-ons.

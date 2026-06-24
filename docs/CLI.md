@@ -25,7 +25,7 @@ Tool**.
   dialog** to create the link. The password is handled by the system Security framework
   and never passes through the app.
 - If that authorization is cancelled or fails, the app falls back to showing a
-  ready-to-copy `sudo` command so you can create the link yourself:
+  ready-to-copy `sudo` command to create the link yourself:
 
   ```
   sudo mkdir -p /usr/local/bin && sudo ln -sf '/path/to/SimpleZip.app/Contents/MacOS/SimpleZip' /usr/local/bin/simplezip

@@ -19,7 +19,7 @@
 ## 1. 它是什么
 
 SimpleZip 是一个原生 macOS 压缩档案管理器，Swift + SwiftUI/AppKit 写的。底层用命令行后端（`7zz` / 系统 `zip`/`tar`/`unzip` /
-`rar` / `hdiutil` / `gpg`）干活，上层是 SwiftUI 界面。
+`rar` / `hdiutil` / `gpg`）工作，上层是 SwiftUI 界面。
 
 部署目标 **macOS 13.0+**。不要用需要更高系统版本的 SwiftUI API。
 
@@ -269,7 +269,7 @@ Apple Intelligence / FoundationModels 的胶水层。**这里的一切都是只�
 
 ## 6. 一次「打开档案 → 浏览 → 解压」走过哪几层
 
-帮你建立心智模型（找 bug 时按这条链往下追）：
+帮助建立心智模型（找 bug 时按这条链往下追）：
 
 1. 用户拖入/双击档案 → `ContentView` / `AppDelegate`（外部文件走 `ExternalFileOpenQueue`）。
 2. `ArchiveBrowserModel+Loading` 调 `ArchiveService.list(...)`。

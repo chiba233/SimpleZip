@@ -6,7 +6,7 @@ SimpleZip 把归档操作暴露为 [App Intents](https://developer.apple.com/doc
 **快捷指令** app 和 **Siri** 使用它们。每个动作都运行在驱动 app 本身的同一套引擎上——没有平行的自动化后端——并且每次运行都会记入
 活动中心，方便你实时观察进度、稍后回看历史。
 
-本文列出这些动作、它们暴露的实体、示例语句，以及 macOS 版本可用性。文档只描述 app 真实交付的内容；不会臆造任何命令、参数或行为。
+本文列出这些动作、它们暴露的实体、示例语句，以及 macOS 版本可用性。
 
 > 相关自动化入口：命令行伴随工具见 [`CLI.zh-CN.md`](./CLI.zh-CN.md)，`simplezip://` URL Scheme 见
 > [`URL-SCHEME.zh-CN.md`](./URL-SCHEME.zh-CN.md)。三者都记入同一个活动中心。
