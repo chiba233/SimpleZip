@@ -56,7 +56,7 @@
 			remoteGlobalIDString = D098EA6DED7B92784FBBCB16;
 			remoteInfo = SimpleZipAIXPCService;
 		};
-		DEC0DE00000000000000A070 /* PBXContainerItemProxy */ = {
+		E7DDE805982853C75AD45AD6 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 0846B9682FB350EF0095DC1D /* Project object */;
 			proxyType = 1;
@@ -116,7 +116,7 @@
 		E0474B6A74E638D6D57948EE /* SimpleZipAgentSupport/yumeka.SimpleZip-in-mac.dev.aiagent.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "SimpleZipAgentSupport/yumeka.SimpleZip-in-mac.dev.aiagent.plist"; sourceTree = SOURCE_ROOT; };
 		E2BCE4100CF6DD6585CD73A9 /* SimpleZipAgentSupport/yumeka.SimpleZip-in-mac.aiagent.index.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "SimpleZipAgentSupport/yumeka.SimpleZip-in-mac.aiagent.index.plist"; sourceTree = SOURCE_ROOT; };
 		EDF9E86D1F6AC7CE4DF39EB2 /* SimpleZipAIAgent */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = SimpleZipAIAgent; sourceTree = BUILT_PRODUCTS_DIR; };
-		DEC0DE00000000000000A020 /* SimpleZipUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SimpleZipUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		DC9BE5B525A831E3C9FF2139 /* SimpleZipUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SimpleZipUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -155,7 +155,7 @@
 			path = SimpleZip/Core;
 			sourceTree = "<group>";
 		};
-		DEC0DE00000000000000A010 /* SimpleZipUITests */ = {
+		BC6A6997BABC47BFF429174D /* SimpleZipUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = SimpleZipUITests;
 			sourceTree = "<group>";
@@ -185,7 +185,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		DEC0DE00000000000000A040 /* Frameworks */ = {
+		8E695C99E66BD9804D4A0F63 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -202,7 +202,7 @@
 				73BD34CC957FE43B8736704F /* SimpleZipAIAgent */,
 				0878FB37A2D6C4EE59680726 /* SimpleZipAIXPCService */,
 				DD8EF9DE6DA93CE020AFD97C /* SimpleZip/Core */,
-				DEC0DE00000000000000A010 /* SimpleZipUITests */,
+				BC6A6997BABC47BFF429174D /* SimpleZipUITests */,
 				E274F6D3FCA63EE823D79129 /* SimpleZipAgentSupport */,
 				0846B9712FB350EF0095DC1D /* Products */,
 			);
@@ -214,7 +214,7 @@
 				0846B9702FB350EF0095DC1D /* SimpleZip-dev.app */,
 				EDF9E86D1F6AC7CE4DF39EB2 /* SimpleZipAIAgent */,
 				B0BED9549EFEBE106302CF14 /* SimpleZipAIXPCService.xpc */,
-				DEC0DE00000000000000A020 /* SimpleZipUITests.xctest */,
+				DC9BE5B525A831E3C9FF2139 /* SimpleZipUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -309,26 +309,26 @@
 			productReference = B0BED9549EFEBE106302CF14 /* SimpleZipAIXPCService.xpc */;
 			productType = "com.apple.product-type.xpc-service";
 		};
-		DEC0DE00000000000000A090 /* SimpleZipUITests */ = {
+		865D87DA6B349798B97F48AE /* SimpleZipUITests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = DEC0DE00000000000000A060 /* Build configuration list for PBXNativeTarget "SimpleZipUITests" */;
+			buildConfigurationList = 8A5E3DC12E7CA0BE9AFB385E /* Build configuration list for PBXNativeTarget "SimpleZipUITests" */;
 			buildPhases = (
-				DEC0DE00000000000000A030 /* Sources */,
-				DEC0DE00000000000000A040 /* Frameworks */,
+				312331F95F242C0304B59EA8 /* Sources */,
+				8E695C99E66BD9804D4A0F63 /* Frameworks */,
 			);
 			buildRules = (
 			);
 			dependencies = (
-				DEC0DE00000000000000A080 /* PBXTargetDependency */,
+				882882EEDABFEDFFF595D330 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				DEC0DE00000000000000A010 /* SimpleZipUITests */,
+				BC6A6997BABC47BFF429174D /* SimpleZipUITests */,
 			);
 			name = SimpleZipUITests;
 			packageProductDependencies = (
 			);
 			productName = SimpleZipUITests;
-			productReference = DEC0DE00000000000000A020 /* SimpleZipUITests.xctest */;
+			productReference = DC9BE5B525A831E3C9FF2139 /* SimpleZipUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
 /* End PBXNativeTarget section */
@@ -353,7 +353,7 @@
 					D098EA6DED7B92784FBBCB16 = {
 						CreatedOnToolsVersion = 26.4.1;
 					};
-					DEC0DE00000000000000A090 = {
+					865D87DA6B349798B97F48AE = {
 						CreatedOnToolsVersion = 26.4.1;
 						TestTargetID = 0846B96F2FB350EF0095DC1D;
 					};
@@ -389,7 +389,7 @@
 				156308F98084E3CA8D9C9541 /* SimpleZipAIAgent */,
 				D098EA6DED7B92784FBBCB16 /* SimpleZipAIXPCService */,
 				0846B9802FB350F10095DC1D /* SimpleZipCoreTests */,
-				DEC0DE00000000000000A090 /* SimpleZipUITests */,
+				865D87DA6B349798B97F48AE /* SimpleZipUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -459,7 +459,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		DEC0DE00000000000000A030 /* Sources */ = {
+		312331F95F242C0304B59EA8 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -479,10 +479,10 @@
 			target = 156308F98084E3CA8D9C9541 /* SimpleZipAIAgent */;
 			targetProxy = 57E51B2E48A5D86F3535D30E /* PBXContainerItemProxy */;
 		};
-		DEC0DE00000000000000A080 /* PBXTargetDependency */ = {
+		882882EEDABFEDFFF595D330 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 0846B96F2FB350EF0095DC1D /* SimpleZip */;
-			targetProxy = DEC0DE00000000000000A070 /* PBXContainerItemProxy */;
+			targetProxy = E7DDE805982853C75AD45AD6 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -784,7 +784,7 @@
 			};
 			name = Release;
 		};
-		DEC0DE00000000000000A050 /* Debug */ = {
+		2CF6732A785957C3E8919DD3 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_IDENTITY = "SimpleZip Dev";
@@ -805,7 +805,7 @@
 			};
 			name = Debug;
 		};
-		DEC0DE00000000000000A051 /* Release */ = {
+		38084A542DB839679E91C3E7 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_IDENTITY = "-";
@@ -871,11 +871,11 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		DEC0DE00000000000000A060 /* Build configuration list for PBXNativeTarget "SimpleZipUITests" */ = {
+		8A5E3DC12E7CA0BE9AFB385E /* Build configuration list for PBXNativeTarget "SimpleZipUITests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				DEC0DE00000000000000A050 /* Debug */,
-				DEC0DE00000000000000A051 /* Release */,
+				2CF6732A785957C3E8919DD3 /* Debug */,
+				38084A542DB839679E91C3E7 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

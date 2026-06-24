@@ -34,7 +34,7 @@
             skipped = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "DEC0DE00000000000000A090"
+               BlueprintIdentifier = "865D87DA6B349798B97F48AE"
                BuildableName = "SimpleZipUITests.xctest"
                BlueprintName = "SimpleZipUITests"
                ReferencedContainer = "container:SimpleZip.xcodeproj">
