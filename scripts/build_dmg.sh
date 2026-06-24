@@ -183,7 +183,13 @@ if [[ -n "${SIGN_IDENTITY:-}" ]]; then
   # 真正装船的产物状态,而非签名中途的中间态(对 .xpc bundle,--display 查的是其主可执行的 flags)。
   for signed_bin in "$APP_PATH" "$AGENT_BIN" "$XPC_SERVICE_BUNDLE"; do
     [[ -e "$signed_bin" ]] || continue
-    if ! codesign --display --verbose=4 "$signed_bin" 2>&1 | grep -Eq 'flags=.*runtime'; then
+    # `codesign --display --verbose=4` 的输出很长（Sealed Resources 列全部资源哈希，整体远超 64KB 管道缓冲）。
+    # 写成 `… | grep -Eq` 时，grep 命中靠前的 flags 行会提前退出并关闭管道，codesign 随后写剩余输出收到
+    # SIGPIPE（退出码 141）；配合脚本顶部的 `set -o pipefail`，整条管道被判为失败 → 即便 app 确实带 hardened
+    # runtime 也假报 missing。先用命令替换把输出收进变量（让 codesign 完整跑完、不被提前关管道），再对变量 grep，
+    # 彻底绕开 SIGPIPE。
+    sign_info="$(codesign --display --verbose=4 "$signed_bin" 2>&1)"
+    if ! grep -Eq 'flags=.*runtime' <<<"$sign_info"; then
       echo "ERROR: hardened runtime flag missing after signing $signed_bin" >&2
       exit 1
     fi
