@@ -2406,7 +2406,7 @@
 "settings.ai.privacy.point.guarantee" = "การรับประกันของเรา: AI ทำเพียงอธิบาย จัดหมวดหมู่ และแนะนำเท่านั้น จะไม่ลบไฟล์ ไม่อนุมัติการดำเนินการ และไม่ดำเนินการเขียนที่มีความเสี่ยงโดยอัตโนมัติแทนคุณ ทุกการย้าย การสร้าง หรือการเขียนต้องได้รับการยืนยันอย่างชัดเจนจากคุณ";
 "settings.automation.shortcuts.section" = "คำสั่งลัดและ Siri";
 "settings.automation.shortcuts.title" = "การทำงานของคำสั่งลัด";
-"settings.automation.shortcuts.description" = "มีสิบการกระทำใน Shortcuts: แตกไฟล์ สร้าง ทดสอบ ตรวจสอบ Checksum เปรียบเทียบ ค้นหาเนื้อหา ตรวจสอบ สร้าง Release Package ค้นหาไฟล์เก็บถาวรที่มีไฟล์ และเปลี่ยนการตั้งค่า";
+"settings.automation.shortcuts.description" = "เจ็ดการกระทำในช็อตคัต —— เปิดไฟล์เก็บถาวร ไฟล์ แพ็กเกจรุ่น งาน และการตั้งค่า ค้นหาไฟล์เก็บถาวรที่มีไฟล์ และเปลี่ยนการตั้งค่า";
 "settings.automation.spotlight.section" = "Spotlight";
 
 /* macOS 26 AI 报告助手 */

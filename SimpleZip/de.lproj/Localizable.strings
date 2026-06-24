@@ -2407,7 +2407,7 @@
 "settings.ai.privacy.point.guarantee" = "Unsere Garantie: Die AI erklärt, klassifiziert und schlägt nur vor. Sie löscht niemals Dateien, gibt keine Vorgänge frei und führt keinen riskanten Schreibvorgang automatisch für dich aus; jedes Verschieben, Erstellen oder Schreiben erfordert deine ausdrückliche Bestätigung.";
 "settings.automation.shortcuts.section" = "Kurzbefehle & Siri";
 "settings.automation.shortcuts.title" = "Kurzbefehl-Aktionen";
-"settings.automation.shortcuts.description" = "Zehn Aktionen sind in der Kurzbefehle-App verfügbar: Entpacken, Erstellen, Testen, Prüfsummen verifizieren, Vergleichen, Inhalt durchsuchen, Inspizieren, Release-Paket erstellen, Archiv mit Datei finden und Einstellung ändern.";
+"settings.automation.shortcuts.description" = "Sieben Kurzbefehl-Aktionen — Archive, Dateien, Release-Pakete, Aufgaben und Einstellungen öffnen, Archiv mit Datei finden und eine Einstellung ändern.";
 "settings.automation.spotlight.section" = "Spotlight";
 
 /* macOS 26 AI 报告助手 */

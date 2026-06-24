@@ -1321,7 +1321,7 @@
 "settings.ai.privacy.point.guarantee" = "我们保证:AI 只做解释、分类与建议,绝不替你删除文件、放行操作或自动执行任何有风险的写入;一切移动、创建、写入都需要你亲自确认。";
 "settings.automation.shortcuts.section" = "快捷指令与 Siri";
 "settings.automation.shortcuts.title" = "快捷指令动作";
-"settings.automation.shortcuts.description" = "快捷指令 App 里有十个动作：解压、创建、测试、验证校验文件、比较、搜索内容、检查、创建发布包、查找包含某文件的归档、更改设置。";
+"settings.automation.shortcuts.description" = "七个快捷指令动作 —— 打开归档、文件、发布包、任务和设置，查找包含某文件的归档，以及更改设置。";
 "settings.automation.spotlight.section" = "Spotlight";
 
 /* macOS 26 AI 报告助手 */

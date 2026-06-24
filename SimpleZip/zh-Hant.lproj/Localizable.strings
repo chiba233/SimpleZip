@@ -2408,7 +2408,7 @@
 "settings.ai.privacy.point.guarantee" = "我們保證:AI 只做解釋、分類與建議,絕不替你刪除檔案、放行操作或自動執行任何有風險的寫入;一切移動、建立、寫入都需要你親自確認。";
 "settings.automation.shortcuts.section" = "捷徑與 Siri";
 "settings.automation.shortcuts.title" = "捷徑動作";
-"settings.automation.shortcuts.description" = "捷徑 App 中有十個動作：解壓縮、建立、測試、驗證校驗碼、比較、搜尋內容、檢查、建立發布套件、尋找包含特定檔案的壓縮包、更改設定。";
+"settings.automation.shortcuts.description" = "七個捷徑動作 —— 打開歸檔、檔案、發布包、任務和設定，尋找包含某檔案的歸檔，以及更改設定。";
 "settings.automation.spotlight.section" = "Spotlight";
 
 /* macOS 26 AI 报告助手 */

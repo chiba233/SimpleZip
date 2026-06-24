@@ -2406,7 +2406,7 @@
 "settings.ai.privacy.point.guarantee" = "Nuestra garantía: La IA solo explica, clasifica y sugiere. Nunca elimina archivos, ni aprueba operaciones, ni realiza automáticamente ninguna escritura arriesgada por ti; cada movimiento, creación o escritura requiere tu confirmación explícita.";
 "settings.automation.shortcuts.section" = "Atajos y Siri";
 "settings.automation.shortcuts.title" = "Acciones de Atajos";
-"settings.automation.shortcuts.description" = "Hay diez acciones disponibles en la app Atajos: Extraer, Crear, Probar, Verificar sumas de comprobación, Comparar, Buscar contenido, Inspeccionar, Crear paquete de publicación, Buscar archivo que contiene un fichero y Cambiar ajuste.";
+"settings.automation.shortcuts.description" = "Siete acciones de Atajos: abrir archivos, ficheros, paquetes de versión, tareas y ajustes, buscar el archivo que contiene un fichero y cambiar un ajuste.";
 "settings.automation.spotlight.section" = "Spotlight";
 
 /* macOS 26 AI 报告助手 */

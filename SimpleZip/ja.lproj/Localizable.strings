@@ -2408,7 +2408,7 @@
 "settings.ai.privacy.point.guarantee" = "私たちの保証:AI は説明・分類・提案のみを行います。ファイルの削除、操作の許可、危険な書き込みを自動で実行することは決してありません。移動・作成・書き込みはすべてあなたの明示的な確認が必要です。";
 "settings.automation.shortcuts.section" = "ショートカットと Siri";
 "settings.automation.shortcuts.title" = "ショートカットアクション";
-"settings.automation.shortcuts.description" = "ショートカット App で 10 個のアクションが利用できます：展開、作成、テスト、チェックサム検証、比較、内容検索、検査、リリースパッケージ作成、ファイルを含むアーカイブ検索、設定変更。";
+"settings.automation.shortcuts.description" = "7 つのショートカットアクション —— アーカイブ・ファイル・リリースパッケージ・タスク・設定を開く、ファイルを含むアーカイブを検索、設定を変更。";
 "settings.automation.spotlight.section" = "Spotlight";
 
 /* macOS 26 AI 报告助手 */

@@ -2406,7 +2406,7 @@
 "settings.ai.privacy.point.guarantee" = "Notre garantie : L’IA se contente d’expliquer, de classer et de suggérer. Elle ne supprime jamais de fichiers, n’autorise aucune opération et n’effectue automatiquement aucune écriture risquée à votre place ; chaque déplacement, création ou écriture nécessite votre confirmation explicite.";
 "settings.automation.shortcuts.section" = "Raccourcis et Siri";
 "settings.automation.shortcuts.title" = "Actions Raccourcis";
-"settings.automation.shortcuts.description" = "Dix actions sont disponibles dans l'app Raccourcis : Extraire, Créer, Tester, Vérifier les checksums, Comparer, Rechercher le contenu, Inspecter, Créer un package de publication, Trouver l'archive contenant un fichier, Modifier un réglage.";
+"settings.automation.shortcuts.description" = "Sept actions Raccourcis — ouvrir archives, fichiers, paquets de version, tâches et réglages, trouver l’archive contenant un fichier, et modifier un réglage.";
 "settings.automation.spotlight.section" = "Spotlight";
 
 /* macOS 26 AI 报告助手 */

@@ -1323,7 +1323,7 @@
 "settings.ai.privacy.point.guarantee" = "Our guarantee: The AI only explains, classifies and suggests. It never deletes files, approves operations, or automatically performs any risky write for you; every move, creation or write needs your explicit confirmation.";
 "settings.automation.shortcuts.section" = "Shortcuts & Siri";
 "settings.automation.shortcuts.title" = "Shortcuts Actions";
-"settings.automation.shortcuts.description" = "Ten actions are available in the Shortcuts app: Extract, Create, Test, Verify Checksums, Compare, Search Contents, Inspect, Create Release Package, Find Archive Containing File, and Change a Setting.";
+"settings.automation.shortcuts.description" = "Seven Shortcuts actions — open archives, files, release packages, tasks and settings, find which archive contains a file, and change a setting.";
 "settings.automation.spotlight.section" = "Spotlight";
 
 /* macOS 26 AI 报告助手 */
