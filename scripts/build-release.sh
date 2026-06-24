@@ -12,10 +12,13 @@ source "$ROOT/scripts/_xcode-env.sh"
 DERIVED="/private/tmp/SimpleZipRelease"
 APP="$DERIVED/Build/Products/Release/SimpleZip.app"
 
-rm -rf "$DERIVED"
+# 加速：① 默认增量构建——复用 derived data，不每次清（首次全量，之后只编改动的文件）；想干净全量加 --clean。
+#       ② 只编主机一种架构（ONLY_ACTIVE_ARCH=YES，省掉另一半 x86_64/arm64）。本地够用；可分发的通用二进制走 build:signed。
+[[ "${1:-}" == "--clean" ]] && rm -rf "$DERIVED"
 xcodebuild \
   -project SimpleZip.xcodeproj -scheme SimpleZip -configuration Release \
-  -derivedDataPath "$DERIVED" -destination 'generic/platform=macOS' \
+  -derivedDataPath "$DERIVED" \
+  ONLY_ACTIVE_ARCH=YES \
   CODE_SIGNING_ALLOWED=NO \
   build
 
