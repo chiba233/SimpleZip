@@ -7,6 +7,7 @@
     "install": "scripts/setup.sh",
     "build": "scripts/build.sh",
     "test": "scripts/test.sh",
+    "test:ui": "scripts/test-ui.sh",
     "dev": "scripts/dev.sh",
     "lint": "scripts/lint-changed.sh"
   }
