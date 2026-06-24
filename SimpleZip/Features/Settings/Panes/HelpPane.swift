@@ -42,16 +42,22 @@ private struct HelpCategory: Identifiable {
             HelpTopic(key: "webExtract", systemImage: "arrow.down.circle", colors: [.blue, .indigo]),
             HelpTopic(key: "create", systemImage: "plus.square.on.square", colors: [.orange, .yellow]),
             HelpTopic(key: "edit", systemImage: "pencil.and.outline", colors: [.purple, .indigo]),
-            HelpTopic(key: "search", systemImage: "magnifyingglass", colors: [.pink, .orange])
+            HelpTopic(key: "search", systemImage: "magnifyingglass", colors: [.pink, .orange]),
+            HelpTopic(key: "dmg", systemImage: "externaldrive", colors: [.gray, .blue]),
+            HelpTopic(key: "splitMerge", systemImage: "square.split.2x1", colors: [.brown, .orange])
         ]),
         HelpCategory(key: "verify", systemImage: "checkmark.seal", color: .green, topics: [
             HelpTopic(key: "checksums", systemImage: "number.square", colors: [.green, .mint]),
             HelpTopic(key: "inspect", systemImage: "checklist", colors: [.teal, .green]),
-            HelpTopic(key: "release", systemImage: "shippingbox.and.arrow.backward", colors: [.cyan, .blue])
+            HelpTopic(key: "release", systemImage: "shippingbox.and.arrow.backward", colors: [.cyan, .blue]),
+            HelpTopic(key: "reproducible", systemImage: "arrow.triangle.2.circlepath", colors: [.mint, .teal]),
+            HelpTopic(key: "releaseDir", systemImage: "folder.badge.questionmark", colors: [.indigo, .purple])
         ]),
         HelpCategory(key: "analyze", systemImage: "chart.pie", color: .indigo, topics: [
             HelpTopic(key: "analyze", systemImage: "chart.pie", colors: [.indigo, .purple]),
-            HelpTopic(key: "presets", systemImage: "wand.and.stars", colors: [.purple, .pink])
+            HelpTopic(key: "presets", systemImage: "wand.and.stars", colors: [.purple, .pink]),
+            HelpTopic(key: "duplicates", systemImage: "doc.on.doc", colors: [.teal, .blue]),
+            HelpTopic(key: "salvage", systemImage: "cross.case", colors: [.red, .orange])
         ]),
         HelpCategory(key: "ai", systemImage: "sparkles", color: .purple, topics: [
             HelpTopic(key: "aiSuggestions", systemImage: "sparkles", colors: [.purple, .pink]),
@@ -61,11 +67,25 @@ private struct HelpCategory: Identifiable {
         HelpCategory(key: "safety", systemImage: "shield.lefthalf.filled", color: .orange, topics: [
             HelpTopic(key: "metadata", systemImage: "doc.badge.gearshape", colors: [.brown, .orange]),
             HelpTopic(key: "safety", systemImage: "shield.lefthalf.filled", colors: [.orange, .red]),
-            HelpTopic(key: "sign", systemImage: "signature", colors: [.teal, .green])
+            HelpTopic(key: "sign", systemImage: "signature", colors: [.teal, .green]),
+            HelpTopic(key: "sensitiveFiles", systemImage: "eye.trianglebadge.exclamationmark", colors: [.yellow, .orange])
         ]),
         HelpCategory(key: "automation", systemImage: "terminal", color: .gray, topics: [
             HelpTopic(key: "cli", systemImage: "terminal", colors: [.gray, .blue]),
-            HelpTopic(key: "tasks", systemImage: "list.bullet.rectangle", colors: [.gray, .blue])
+            HelpTopic(key: "tasks", systemImage: "list.bullet.rectangle", colors: [.gray, .blue]),
+            HelpTopic(key: "shortcuts", systemImage: "rectangle.stack", colors: [.pink, .purple]),
+            HelpTopic(key: "spotlight", systemImage: "magnifyingglass.circle", colors: [.orange, .yellow]),
+            HelpTopic(key: "finderExtension", systemImage: "finder", colors: [.blue, .cyan])
+        ]),
+        HelpCategory(key: "settings", systemImage: "gearshape.2", color: .teal, topics: [
+            HelpTopic(key: "settingsGeneral", systemImage: "switch.2", colors: [.gray, .blue]),
+            HelpTopic(key: "settingsCompression", systemImage: "rectangle.compress.vertical", colors: [.orange, .yellow]),
+            HelpTopic(key: "settingsBrowser", systemImage: "list.bullet", colors: [.blue, .cyan]),
+            HelpTopic(key: "settingsAssociations", systemImage: "link", colors: [.green, .mint]),
+            HelpTopic(key: "settingsGPG", systemImage: "key", colors: [.purple, .indigo]),
+            HelpTopic(key: "settingsUpdates", systemImage: "arrow.down.circle.dotted", colors: [.teal, .green]),
+            HelpTopic(key: "settingsHealth", systemImage: "stethoscope", colors: [.red, .pink]),
+            HelpTopic(key: "settingsBackup", systemImage: "arrow.triangle.pull", colors: [.brown, .orange])
         ])
     ]
 }
