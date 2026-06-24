@@ -5,7 +5,8 @@
   "description": "本地开发便捷脚本（npm run …）。仅供开发使用，不参与 CI；每个脚本只是对 scripts/ 下命令的薄封装，真实命令见 scripts/ 与 AGENTS.md。",
   "scripts": {
     "install": "scripts/setup.sh",
-    "build": "scripts/build.sh",
+    "build": "scripts/build-release.sh",
+    "build:signed": "secrets/build-release.sh",
     "test": "scripts/test.sh",
     "test:ui": "scripts/test-ui.sh",
     "dev": "scripts/dev.sh",
