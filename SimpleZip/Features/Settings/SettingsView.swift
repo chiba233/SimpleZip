@@ -23,7 +23,7 @@ struct SettingsView: View {
     @State private var aiSettingsQuery = ""
     @State private var aiSettingsRunning = false
     @State private var aiSettingsError: String?
-    // 打开设置时别把键盘焦点自动塞给 AI 搜索框(用户报「一开设置光标永远在搜索框，不合理」)。
+    // 打开设置时别把键盘焦点自动塞给 AI 搜索框(一开设置光标永远在搜索框，不合理)。
     // 绑定 @FocusState、默认不聚焦 → SwiftUI 接管焦点、不再让它当窗口首响应者;用户点一下才进。
     @FocusState private var aiSearchFieldFocused: Bool
 
@@ -114,7 +114,7 @@ struct SettingsView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
-        // 定宽:否则 TextField 随输入变宽,把 `fixedSize` 的侧栏无限撑长(用户实测)。
+        // 定宽:否则 TextField 随输入变宽,把 `fixedSize` 的侧栏无限撑长。
         .frame(width: 180)
         .padding(.horizontal, 4)
         .padding(.bottom, 4)
@@ -256,7 +256,7 @@ struct SettingsView: View {
 ///
 /// 为什么不用 SwiftUI `Settings` 场景:它给的是**不可缩放的偏好窗**,要做成「可缩放 + 全屏 + 沉浸」必须手动覆盖
 /// 标题栏 chrome,而 SwiftUI 会在**重开 / 进全屏**时用自己那套配置把覆盖冲掉 → 标题栏色带(白条)反复冒出
-/// (用户实测「第一次正常、第二次打开就爆」)。自己持有窗口 → chrome 创建时设一次、永不被冲(与活动中心同款,一直稳)。
+/// (第一次正常、第二次打开就爆)。自己持有窗口 → chrome 创建时设一次、永不被冲(与活动中心同款,一直稳)。
 @MainActor
 final class SettingsWindowController {
     static let shared = SettingsWindowController()
@@ -303,7 +303,7 @@ final class SettingsWindowController {
         window.level = .normal
         window.center()
         window.makeKeyAndOrderFront(nil)
-        // 别让 AI 搜索框抢初始焦点(用户报:一开设置光标永远在搜索框)。延一拍等 hosting view 布局完再清。
+        // 别让 AI 搜索框抢初始焦点(一开设置光标永远在搜索框)。延一拍等 hosting view 布局完再清。
         DispatchQueue.main.async { window.makeFirstResponder(nil) }
         self.window = window
         NSApp.activate(ignoringOtherApps: true)

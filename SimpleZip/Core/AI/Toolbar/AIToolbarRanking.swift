@@ -4,7 +4,7 @@
 //
 //  0.4.5 #80 建议七 Phase2:工具栏动作的**AI 预烘焙排序缓存**(后台 agent 写、前台只读)。
 //
-//  颗粒度(用户拍板):**文件级** `byFile`(path → 有序动作 id)只覆盖 AI suggestion list 里「重要」的文件
+//  颗粒度:**文件级** `byFile`(path → 有序动作 id)只覆盖 AI suggestion list 里「重要」的文件
 //  (复用现有注意力机制,不另跑重要性判定);**类型级** `byType`(扩展名 → 有序动作 id)覆盖其余按后缀。
 //  渲染:AI 开 + 单选 → 选中文件命中 byFile 用之、否则用其扩展名 byType;叠进 `AINextActionRanker`(习惯当权重)。
 //  AI 关 → 不用此缓存(纯习惯排序)。复选 → 不查(走统一池,见 ToolbarActionUsageStore 桶粒度)。

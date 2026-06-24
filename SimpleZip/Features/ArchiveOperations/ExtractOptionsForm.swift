@@ -42,7 +42,7 @@ struct ExtractOptionsForm<ExtraControls: View, Drawers: View>: View {
 
     var body: some View {
         // 0.4.1 重构：hero 头 + 自适应分区卡片 + 钉底 bar 操作栏。
-        // 不用 grouped Form（List 贪婪布局要写死高度 → 内容少时一大片固定空白,用户点名的问题）；
+        // 不用 grouped Form（List 贪婪布局要写死高度 → 内容少时一大片固定空白）；
         // DialogSection 高度贴内容,ScrollView 只设 maxHeight 防超屏。
         VStack(spacing: 0) {
             DialogHero(
@@ -75,7 +75,7 @@ struct ExtractOptionsForm<ExtraControls: View, Drawers: View>: View {
                             }
                             if !(hasUsablePreset && usePresetPassword) {
                                 LabeledContent {
-                                    // 值列靠右对齐(用户拍板:「路径和密码靠右对齐,不要左对齐」)。
+                                    // 值列靠右对齐(路径和密码靠右对齐,不要左对齐)。
                                     SecureField(L10n.text("extract.password.placeholder"), text: $password)
                                         .textFieldStyle(.roundedBorder)
                                         .dialogFieldEmphasis()
@@ -148,7 +148,7 @@ struct ExtractOptionsForm<ExtraControls: View, Drawers: View>: View {
 
     private var destinationRow: some View {
         LabeledContent {
-            // 值列靠右对齐(用户拍板:「路径和密码靠右对齐,不要左对齐」)。
+            // 值列靠右对齐(路径和密码靠右对齐,不要左对齐)。
             HStack(spacing: 8) {
                 Text(destinationURL.path)
                     .lineLimit(1)
@@ -164,8 +164,7 @@ struct ExtractOptionsForm<ExtraControls: View, Drawers: View>: View {
         }
     }
 
-    /// 「保存到 / 密码 / 解密方式」三行的标签统一定宽 —— 标签长短不一时值列各自起步,
-    /// 用户报「保存到和密码不齐」。定宽后值列垂直对齐(en 最长的 "Password (optional)" 也放得下)。
+    /// 「保存到 / 密码 / 解密方式」三行的标签统一定宽 —— 标签长短不一时值列各自起步,定宽后值列垂直对齐(en 最长的 "Password (optional)" 也放得下)。
     /// 一级行彩色瓦片（无侧栏不降饱和）。
     private func alignedRowLabel(_ key: String, systemImage: String, tint: Color) -> some View {
         DialogRowLabel(L10n.text(key), systemImage: systemImage, tint: tint, width: 180)

@@ -733,7 +733,7 @@
 
 /* Fallback strings synced from English; keep keys present in every locale. */
 "welcome.gpg.title" = "GPG(PGP 서명) — 선택 사항";
-"welcome.gpg.body" = "GPG를 사용하면 압축 파일에 서명하여 받는 사람이 출처와 무결성을 검증할 수 있고, 특정 수신자의 공개 키로 암호화할 수 있습니다. 완전히 선택 사항입니다 — 꺼 두면 SimpleZip은 GPG가 아예 없는 것처럼 동작합니다. 언제든지 여기서 사용을 시작할 수 있습니다.";
+"welcome.gpg.body" = "GPG를 사용하면 압축 파일에 서명하여 받는 사람이 출처와 무결성을 검증할 수 있고, 특정 수신자의 공개 키로 암호화할 수 있습니다. 완전히 선택 사항입니다. 꺼 두면 SimpleZip은 GPG가 없는 것처럼 동작하며, 언제든지 여기서 활성화할 수 있습니다.";
 "welcome.gpg.enable" = "GPG 통합 켜기";
 "welcome.gpg.enable.description" = "켜면 압축 파일 만들기 시트에 「GPG 서명」 옵션이 노출되고, .siz를 열 때 서명자 정보가 표시되며, 설정 → GPG에서 키를 관리할 수 있습니다. 끄면 모든 GPG 진입점이 주 UI에서 사라집니다.";
 "welcome.gpg.backendCheck" = "GPG 백엔드";
@@ -778,7 +778,7 @@
 "settings.section.gpg" = "GPG(PGP 서명)";
 "settings.section.gpg.subtitle" = "GPG 사용, 키링과 신뢰 관리, 키서버 검색, 기본 서명 키 설정.";
 "settings.gpg.enabledTitle" = "GPG 통합 켜기";
-"settings.gpg.enabledDescription" = "켜면 압축 파일 만들기 시트에 서명 체크박스가 나타나고, .siz 컨테이너를 열 때 서명자 정보가 표시되며, 설정에서 키를 관리할 수 있습니다. 끄면 모든 GPG 진입점이 숨겨져 GPG를 쓰지 않는 사용자를 방해하지 않습니다.";
+"settings.gpg.enabledDescription" = "켜면 압축 파일 만들기 시트에 서명 체크박스가 나타나고, .siz 컨테이너를 열 때 서명자 정보가 표시되며, 설정에서 키를 관리할 수 있습니다. 끄면 모든 GPG 진입점이 숨겨집니다.";
 "settings.gpg.backend.title" = "GPG 백엔드";
 "settings.gpg.resolvedPath" = "GPG 경로: %@";
 "settings.gpg.resolvedVersion" = "GnuPG 버전: %@";
@@ -887,7 +887,7 @@
 "settings.gpg.defaults.signingStrategy.label" = "서명 키 선택 방식";
 "settings.gpg.defaults.signingStrategy.silent" = "기본 키를 자동으로 사용";
 "settings.gpg.defaults.signingStrategy.ask" = "매번 묻기";
-"settings.gpg.defaults.signingStrategy.silentDescription" = "키링에서 「기본값」으로 표시된 키로 압축 파일을 서명하며, 묻지 않습니다. 단일 키 사용자에게 알맞은 일반적인 기본값입니다.";
+"settings.gpg.defaults.signingStrategy.silentDescription" = "키링에서 「기본값」으로 표시된 키로 압축 파일을 서명하며, 대화 상자를 표시하지 않습니다. 단일 키 사용자에게 알맞은 기본 동작입니다.";
 "settings.gpg.defaults.signingStrategy.askDescription" = "압축 파일을 생성할 때 「GPG로 서명」 아래에 키 선택기가 나타나, 이 특정 압축 파일에 어떤 비밀 키로 서명할지 고를 수 있습니다. 여러 키(업무용 / 개인용 / 프로젝트별)를 사용할 때 필요합니다.";
 "archive.gpgSign.keyLabel" = "서명 키";
 "archive.gpgSign.key.auto" = "기본값 / GPG가 선택";
@@ -940,7 +940,7 @@
 "settings.gpg.newKey.subkey.encryptFixed" = "암호화 — 암호화용 하위 키(자동)";
 "settings.gpg.newKey.subkey.encryptFixedDetail" = "gpg가 전용 암호화 하위 키를 자동으로 생성하여, 다른 사람이 당신에게 보낸 콘텐츠를 복호화할 수 있게 합니다.";
 "settings.gpg.newKey.subkey.authOption" = "인증 — 인증용 하위 키";
-"settings.gpg.newKey.subkey.authOptionDetail" = "선택 사항. GPG 키를 SSH 키로 사용할 수 있게 합니다(gpg-agent가 ssh-agent 프로토콜을 지원함). 키를 SSH 인증에 사용할 계획이 없다면 꺼 두세요.";
+"settings.gpg.newKey.subkey.authOptionDetail" = "선택 사항. GPG 키를 SSH 키로 사용할 수 있게 합니다(gpg-agent가 ssh-agent 프로토콜을 지원함). SSH 인증에 키를 사용하지 않는다면 꺼 두세요.";
 "settings.gpg.keys.deletePublicTitle" = "“%@” 공개 키를 삭제할까요?";
 "settings.gpg.keys.deleteSecretTitle" = "“%@” 키(개인 키 포함)를 삭제할까요?";
 "settings.gpg.keys.deletePublicMessage" = "공개 키 지문 …%1$@, 출처 %2$@.\n\n공개 키만 삭제합니다. 나중에 이 공개 키를 다시 사용해야 한다면(예: 검증 또는 암호화), 다시 가져와야 합니다.";
@@ -1070,11 +1070,11 @@
 "welcome.fileAssociations.setAllDone" = "이제 지원하는 모든 압축 형식의 기본 앱이 SimpleZip입니다.";
 "welcome.fileAssociations.setAllPartial" = "기본 앱으로 지정함(제외: %@)";
 "welcome.hiddenFiles.title" = "숨김 파일";
-"welcome.hiddenFiles.body" = "브라우저에 숨김 파일을 표시합니다. 켜면 목록을 어지럽히지 않고 접을 수 있는 '숨김 파일' 그룹에 모읍니다. 무엇을 숨김으로 볼지, 그룹이 접힘 상태를 어떻게 기억할지 선택하세요.";
+"welcome.hiddenFiles.body" = "브라우저에 숨김 파일을 표시합니다. 켜면 숨김 파일을 접을 수 있는 '숨김 파일' 그룹에 모읍니다. 무엇을 숨김으로 볼지, 그룹이 접힘 상태를 어떻게 기억할지 선택할 수 있습니다.";
 "welcome.rowDensity.title" = "목록 크기";
 "welcome.rowDensity.body" = "목록 행의 높이이며 아이콘과 텍스트 크기도 함께 조정됩니다. 파일 브라우저와 압축 파일 브라우저 모두에 적용됩니다.";
 "welcome.grouping.title" = "그룹화(선택)";
-"welcome.grouping.body" = "선택 사항: 브라우저 목록을 접을 수 있는 섹션으로 나눕니다. 전역 기본값을 정하거나 폴더별로 그룹화를 기억할 수 있습니다(그 후 폴더에서 마우스 오른쪽 버튼으로 설정). '없음'으로 두면 평면 목록을 유지합니다.";
+"welcome.grouping.body" = "선택 사항: 브라우저 목록을 접을 수 있는 섹션으로 나눕니다. 전역 기본값을 정하거나 폴더별로 그룹화를 기억할 수 있습니다(폴더에서 마우스 오른쪽 버튼으로 설정). '없음'으로 두면 평면 목록을 유지합니다.";
 "welcome.backupRestore.importReplaceHint" = "가져오면 현재 설정이 백업의 설정으로 대체됩니다.";
 
 /* 0.2.1 — 常规设置合并页 */
@@ -1347,7 +1347,7 @@
 "szs.instructions.passphraseNote" = "SimpleZip은 개인 키 암호문을 다루지 않습니다 — GPG 자체 에이전트(pinentry)가 입력을 요청합니다.";
 "szs.instructions.senderNote" = "보낸 사람의 메시지:";
 "szs.instructions.title" = "제목:";
-"szs.instructions.withSimpleZip" = "SimpleZip 사용 시: 이 .szs를 열기만 하면 서명을 검증하고 각 파일의 SHA-256을 자동으로 대조합니다.";
+"szs.instructions.withSimpleZip" = "SimpleZip 사용 시: 이 .szs를 열면 서명을 검증하고 각 파일의 SHA-256을 자동으로 대조합니다.";
 "transfer.retryFailed" = "실패한 %@개 항목 재시도";
 "transfer.section.changed" = "변경됨";
 "transfer.section.failed" = "실패";
@@ -1356,7 +1356,7 @@
 "error.siz.versionTooNew" = "이 .siz는 더 새로운 SimpleZip 버전에서 생성되었습니다(형식 v%1$@; 이 버전은 v%2$@까지 지원). 정상적으로 열려면 SimpleZip을 업데이트하세요.";
 "error.szs.versionTooNew" = "이 .szs는 더 새로운 SimpleZip 버전에서 생성되었습니다(형식 v%1$@; 이 버전은 v%2$@까지 지원). 정상적으로 열려면 SimpleZip을 업데이트하세요.";
 "container.versionTooNew.title" = "더 새로운 SimpleZip 버전에서 생성됨";
-"container.versionTooNew.message" = "“%1$@”은(는) 형식 버전 v%2$@을 사용하지만 이 SimpleZip은 v%3$@까지만 이해합니다 — 그래서 열 수 없습니다. SimpleZip을 업데이트하는 것이 안전한 해결책입니다. 강제로 열 수도 있지만 이 버전이 모르는 필드는 무시되므로 서명 또는 암호화 세부 정보가 불완전할 수 있습니다.";
+"container.versionTooNew.message" = "“%1$@”은(는) 형식 버전 v%2$@을 사용하지만 이 SimpleZip은 v%3$@까지만 이해합니다. SimpleZip을 업데이트하는 것이 안전한 해결책입니다. 강제로 열 수도 있지만 이 버전이 모르는 필드는 무시되므로 서명 또는 암호화 세부 정보가 불완전할 수 있습니다.";
 "container.versionTooNew.forceOpen" = "그래도 열기";
 "siz.signatureSheet.section.decryption" = "복호화";
 "settings.section.updates" = "소프트웨어 업데이트";
@@ -1443,7 +1443,7 @@
 "health.aiAgent.title" = "백그라운드 AI 서비스";
 "health.aiAgent.ok" = "등록됨 — SimpleZip이 닫혀 있을 때 백그라운드에서 색인합니다.";
 "health.aiAgent.notRegistered" = "사일런트 백그라운드 색인이 켜져 있지만 서비스가 아직 등록되지 않았습니다.";
-"health.aiAgent.requiresApproval" = "로그인 항목에서 꺼져 있습니다. SimpleZip이 임의로 다시 켜지 않습니다 — 백그라운드 색인이 필요하면 시스템 설정에서 다시 활성화하세요.";
+"health.aiAgent.requiresApproval" = "로그인 항목에서 꺼져 있습니다. 백그라운드 색인이 필요하면 시스템 설정에서 다시 활성화하세요.";
 "health.aiAgent.notFound" = "앱에 백그라운드 서비스가 없습니다(빌드 문제).";
 "health.aiAgent.repair" = "백그라운드 서비스 복구";
 "health.aiAgent.openLoginItems" = "로그인 항목 설정 열기";
@@ -1886,7 +1886,7 @@
 
 /* 0.4.2 GPG keyserver, release assistant, CLI */
 "settings.gpg.keys.contextCopyPublicKey" = "공개 키 복사";
-"settings.gpg.keys.publicKeyCopied" = "공개 키를 클립보드에 복사했습니다 — 검증하거나 당신에게 암호화해야 하는 사람에게 붙여 넣으세요.";
+"settings.gpg.keys.publicKeyCopied" = "공개 키를 클립보드에 복사했습니다 — 검증하거나 암호화가 필요한 사람에게 붙여 넣으세요.";
 "settings.gpg.keys.filter.prompt" = "키 검색: 이름, 이메일 또는 지문";
 "settings.gpg.keys.filter.noMatch" = "“%1$@”와(과) 일치하는 키가 없습니다.";
 "settings.gpg.keys.clipboardMenu" = "클립보드";
@@ -2162,7 +2162,7 @@
 "help.topic.aiAssist.title" = "스마트 추천 설정과 도구 막대";
 "help.topic.aiAssist.body" = "만들기와 추출 대화상자에서 추천 설정을 한 번에 적용할 수 있습니다. 도구 막대도 현재 파일에 맞게 재정렬되어 가장 쓸 법한 작업이 앞에 옵니다.";
 "help.topic.aiBackground.title" = "백그라운드 미리 읽기와 개인정보";
-"help.topic.aiBackground.body" = "AI는 허용한 폴더만, 그리고 Mac이 유휴 상태일 때만 미리 읽습니다. 아무것도 업로드하지 않고 암호화된 내용은 절대 읽지 않으며, 설명과 제안만 할 뿐 무엇도 대신 삭제하거나 승인하지 않습니다. 설정 → AI에서 언제든 끄거나 지울 수 있습니다.";
+"help.topic.aiBackground.body" = "AI는 허용한 폴더만, 그리고 Mac이 유휴 상태일 때만 미리 읽습니다. 아무것도 업로드하지 않고 암호화된 내용은 절대 읽지 않으며, 설명과 제안만 할 뿐 파일을 삭제하거나 작업을 승인하지 않습니다. 설정 → AI에서 언제든 끄거나 지울 수 있습니다.";
 "help.topic.fastExtract.title" = "스트리밍 고속 추출";
 "help.topic.fastExtract.body" = "ZIP 또는 tar 계열 아카이브를 추출할 때 스트리밍 고속 추출을 선택할 수 있습니다 — 순차 읽기로 큰 아카이브와 네트워크 볼륨에서 눈에 띄게 빠릅니다. 추출 옵션에서 체크만 하면 됩니다.";
 "help.topic.webExtract.title" = "URL에서 내려받아 추출";
@@ -2403,8 +2403,8 @@
 "settings.ai.privacy.point.use" = "사용 목적: 파일에 대한 설명, 분류, 한 줄 요약, 작업 추천, 정리 제안을 기기에서 생성하는 데에만 사용합니다. 광고에 사용하지 않고, 판매하지 않으며, 앱 간 프로파일링을 만들지 않습니다.";
 "settings.ai.privacy.point.model" = "사용하는 모델: Apple의 온디바이스 모델(Apple Intelligence, macOS 26 이상 및 지원 기기 필요). 모든 연산은 사용자의 Mac에서 로컬로 실행됩니다.";
 "settings.ai.privacy.point.flow" = "데이터 흐름: 데이터는 Mac을 벗어나지 않습니다. 어떤 서버에도 업로드되지 않고, 제3자에게 전송되지 않으며, 어떤 모델 학습에도 사용되지 않습니다.";
-"settings.ai.privacy.point.promise" = "약속: 모든 AI 기능은 기본적으로 꺼져 있으며 사용자가 직접 켜야 합니다. 파생 데이터는 이 Mac에만 저장되고 환경설정 백업에서 제외되며, 언제든지 지울 수 있고, 원본 피드백은 최대 30일간만 보관합니다.";
-"settings.ai.privacy.point.guarantee" = "보장: AI는 설명, 분류, 제안만 합니다. 파일을 삭제하거나 작업을 승인하거나 위험한 쓰기를 자동으로 수행하지 않습니다. 모든 이동, 생성, 쓰기는 사용자의 명시적 확인이 필요합니다.";
+"settings.ai.privacy.point.promise" = "모든 AI 기능은 기본적으로 꺼져 있으며 사용자가 직접 켜야 합니다. 파생 데이터는 이 Mac에만 저장되고 환경설정 백업에서 제외되며, 언제든지 지울 수 있고, 원본 피드백은 최대 30일간만 보관합니다.";
+"settings.ai.privacy.point.guarantee" = "AI는 설명, 분류, 제안만 합니다. 파일을 삭제하거나 작업을 승인하거나 위험한 쓰기를 자동으로 수행하지 않습니다. 모든 이동, 생성, 쓰기는 사용자의 명시적 확인이 필요합니다.";
 "settings.automation.shortcuts.section" = "단축어 및 Siri";
 "settings.automation.shortcuts.title" = "단축어 동작";
 "settings.automation.shortcuts.description" = "단축어 동작 7개 —— 아카이브, 파일, 릴리스 패키지, 작업, 설정 열기, 파일이 든 아카이브 찾기, 설정 변경.";
@@ -2766,15 +2766,15 @@
 "tasks.aiWorkbench.automation.open" = "단축어 열기";
 
 "welcome.ai.title" = "온디바이스 인텔리전스";
-"welcome.ai.body" = "SimpleZip은 Mac의 Apple Intelligence를 사용해 보고서 설명, 압축 파일 분류, 다음 단계 제안을 할 수 있습니다 —— 모두 기기 내에서. 대신 결정하지 않으며 스스로 잠금 해제하거나 변경하지 않습니다.";
-"welcome.ai.privacyNote" = "모든 작업은 Mac에서 실행됩니다. SimpleZip은 설명·분류·제안만 하며, 대신 결정하거나 암호화된 압축 파일의 내용을 읽지 않습니다.";
+"welcome.ai.body" = "SimpleZip은 Mac의 Apple Intelligence를 사용해 보고서 설명, 압축 파일 분류, 다음 단계 제안을 할 수 있습니다. 모두 기기 내에서 처리됩니다. 자체적으로 결정하거나 잠금 해제·변경하지 않습니다.";
+"welcome.ai.privacyNote" = "모든 작업은 Mac에서 실행됩니다. SimpleZip은 설명·분류·제안만 하며, 자체적으로 결정하거나 암호화된 압축 파일의 내용을 읽지 않습니다.";
 "dupArchives.needTwo" = "중복을 찾으려면 이 폴더에 압축 파일이 2개 이상 있어야 합니다.";
 "welcome.ai.background.body" = "SimpleZip이 백그라운드에서 조용히 요약과 추천을 미리 준비합니다. 모두 선택 사항입니다.";
 
 "update.window.title" = "새로운 기능";
 "update.hero.title" = "SimpleZip %@(으)로 업데이트됨";
 "update.hero.body" = "몇 단계로 새 기능을 설정하세요.";
-"update.done.title" = "완료!";
+"update.done.title" = "업데이트 완료";
 "update.done.body" = "새 기능을 사용할 준비가 되었습니다.";
 
 /* 0.4.5 AppIntents(Shortcuts UI):标题 / 参数 / 类型 / 描述本地化(英文字面量即键) */

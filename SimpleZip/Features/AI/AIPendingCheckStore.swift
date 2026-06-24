@@ -2,7 +2,7 @@
 //  AIPendingCheckStore.swift
 //  SimpleZip
 //
-//  0.4.5 #80:只读自动检查 pending 队列的 **app 侧持久 store**(用户拍板的两阶段架构,阶段 B/C 用)。
+//  0.4.5 #80:只读自动检查 pending 队列的 **app 侧持久 store**(两阶段架构,阶段 B/C 用)。
 //
 //  持有 `AIPendingCheckQueue`(纯值逻辑在 Core),负责落盘 / 读取 / 计数 / 清空。**派生数据,不进偏好备份**,
 //  随「清空后台索引」一并抹掉。入队(阶段 B,电池侧)与执行(阶段 C,插电侧)都经过这里。

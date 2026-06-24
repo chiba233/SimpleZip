@@ -178,7 +178,7 @@ final class FileBrowserService {
     }
 
     /// 包（.app 等 bundle）显示名缓存（#16）：/Applications 每次 FSEvents reload 都重读 ~101 份
-    /// Info.plist（实测 74ms，后台线程但纯浪费）。按 path|mtime 缓存 —— bundle 更新会改目录 mtime，
+    /// Info.plist（约 74ms，后台线程但纯浪费）。按 path|mtime 缓存 —— bundle 更新会改目录 mtime，
     /// 旧条目自动失效。NSCache 线程安全（makeFileItems 在 detached task 里跑），条数上限兜底。
     private nonisolated(unsafe) static let packageNameCache: NSCache<NSString, NSString> = {
         let cache = NSCache<NSString, NSString>()
@@ -260,7 +260,7 @@ final class FileBrowserService {
             // Unix 权限 / 属主 —— lstat 语义（不跟随符号链接,显示链接自身的权限与属主）。取不到就留空 / 退回 uid。
             // 只在列启用时 stat,避免对受保护目录平白触发 TCC 弹窗（见上方 wantsPosixMetadata）。
             // 用裸 lstat 而不是 attributesOfItem：后者每项一次 getattrlist **加一次属主用户名解析**，
-            // 大目录在主线程直接卡死（实测挂在这行被 SIGTERM 强杀）；lstat 是微秒级 syscall，
+            // 大目录在主线程直接卡死（挂在这行被 SIGTERM 强杀）；lstat 是微秒级 syscall，
             // 用户名走上面的 uid 缓存。语义不变 —— attributesOfItem 本身就是 lstat 语义。
             var permissions = ""
             var owner = ""

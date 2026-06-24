@@ -369,7 +369,7 @@ extension ArchiveBrowserModel {
     func locationCompletions(for text: String) -> [LocationCompletion] {
         guard case .folder(let currentFolder) = mode else { return [] }
         let query = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        // 网络 URL 不做本地路径补全 —— 否则把 https://… 当文件路径补出垃圾候选框(用户报)。
+        // 网络 URL 不做本地路径补全 —— 否则把 https://… 当文件路径补出垃圾候选框。
         let lowerQuery = query.lowercased()
         if lowerQuery.hasPrefix("http://") || lowerQuery.hasPrefix("https://") { return [] }
         guard !query.isEmpty else {
@@ -931,7 +931,7 @@ extension ArchiveBrowserModel {
             clearExpandedFolderRegistry()
             // **bug 修复**:进 AI 工作区**清掉残留的文件列表**。否则 fileItems 还是进来前那个文件夹的内容,
             // 用 ← / → 回到**同一个**物理目录时,applyLoadedFolder 的「same listing」优化判定内容没变 → 不重新
-            // 赋值 → 刚挂载的空 FileTable 永远填不上(换个路径才正常)。导航单次触发,不是 reload 循环,A17 安全。
+            // 赋值 → 刚挂载的空 FileTable 永远填不上(换个路径才正常)。导航单次触发,不是 reload 循环。
             if !fileItems.isEmpty { fileItems = [] }
         }
     }

@@ -12,8 +12,8 @@
 //  后台索引开关 + 活跃度≠off + 有白名单。**电源门控 / 间隔判定不在这里** —— 那是 launchd 调度 + 调用方(下一刀)的事;
 //  本函数只负责「真要跑时,跑一轮、超时即停、写回」。单次 timeout 由调用方折进 `isCancelled`(传 `{ Date() >= 截止 }`)。
 //
-//  A19:agent 的 `Bundle.main` 指向符号链接母目录、不可信 → 一切路径据**约定的 App bundle id**
-//  (`AIAgentConfiguration.appBundleID`,#if DEBUG 隔离 dev/prod)显式拼;偏好域用 `UserDefaults(suiteName:)` 读对。
+//  一切路径据**约定的 App bundle id**
+//  (`AIAgentConfiguration.appBundleID`,#if DEBUG 隔离 dev/prod)显式拼;偏好域用 `UserDefaults(suiteName:)` 读对。agent 的 `Bundle.main` 指向符号链接母目录、不可信。
 //
 //  全程同步(元数据扫描是纯同步文件 IO,不调模型)→ 调用方直接调 + exit,无需 run loop。
 //
@@ -30,7 +30,7 @@ enum AIAgentBackgroundIndex {
         let note: String
     }
 
-    /// App 共享的 Application Support 子目录(`<App Support>/<App bundle id>/`)。A19:不靠 Bundle.main。
+    /// App 共享的 Application Support 子目录(`<App Support>/<App bundle id>/`)。不靠 Bundle.main。
     private static func appSupportBase() -> URL? {
         guard let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
             return nil
@@ -38,7 +38,7 @@ enum AIAgentBackgroundIndex {
         return base.appendingPathComponent(AIAgentConfiguration.appBundleID, isDirectory: true)
     }
 
-    /// 读 App 写的 scope 白名单(偏好域 = App bundle id;A19 + 实测:嵌入 helper 被拉起时 Bundle.main 解析到
+    /// 读 App 写的 scope 白名单(偏好域 = App bundle id;嵌入 helper 被拉起时 Bundle.main 解析到
     /// app bundle → suiteName==自己 id 会失效读空,故统一走 appDomainDefaults()——该情况回退 .standard 才是对的域)。
     private static func loadScopes() -> [AIArchivePrefetchScope] {
         guard let data = AIAgentConfiguration.appDomainDefaults().data(forKey: AppPreferences.Key.aiBackgroundIndexScopes),
@@ -74,7 +74,7 @@ enum AIAgentBackgroundIndex {
         func skip(_ note: String) -> RunSummary { log(note); return RunSummary(scopesScanned: 0, recordsWritten: 0, note: note) }
 
         // 1. 配置门控(红线主开关 + 静默后台 opt-in + 后台索引开关)。**不参考前台「本地 AI 活跃度 / 索引电源」**
-        //    (用户拍板:那是前台 XPC 的设置;后台 agent 只看系统低电 / 省电)。预算用固定档(balanced),不随活跃度变。
+        //    (后台 agent 只看系统低电 / 省电)。预算用固定档(balanced),不随活跃度变。
         guard let config = AIAgentConfiguration.loadPersisted() else { return skip("无配置(App 未同步)→ 不跑") }
         guard config.aiAssistantEnabled else { return skip("AI 主开关关(红线)→ 不跑") }
         guard config.silentBackgroundIndexEnabled else { return skip("静默后台索引未开(opt-in 默认关)→ 不跑") }
@@ -141,7 +141,7 @@ enum AIAgentBackgroundIndex {
             }
         }
         // 7. **模型烘焙**:在本进程内直调端上模型预烘焙各 pass(到 deadline 即停,下轮续)。这才是后台 agent 的本职。
-        //    **电源门控(用户拍板:后台 agent 只看系统低电 / 省电,不看前台活跃度)**:省电模式 / 低电 → 只留元数据,跳过模型。
+        //    **电源门控(后台 agent 只看系统低电 / 省电,不看前台活跃度)**:省电模式 / 低电 → 只留元数据,跳过模型。
         var bakedSummaries = 0
         var bakedURLs = 0
         var bakeNote = "(未烘焙)"

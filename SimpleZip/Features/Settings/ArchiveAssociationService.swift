@@ -18,7 +18,7 @@ struct ArchiveAssociation: Identifiable, Hashable {
 
     var id: String { fileExtension }
 
-    /// 类别(0.4.3 用户拍板:文件关联按类分组、同类同色;0.4.4 把镜像/安装包从压缩包拆出)。
+    /// 类别(0.4.3 文件关联按类分组、同类同色;0.4.4 把镜像/安装包从压缩包拆出)。
     enum Category {
         case archive    // 压缩包(zip/7z/tar/rar/cab/cpio/xar/zst/xip… —— 都是「解压取内容」的归档)
         case diskImage  // 磁盘镜像与安装包(dmg/iso 挂载 + pkg 安装,非压缩、非解压)

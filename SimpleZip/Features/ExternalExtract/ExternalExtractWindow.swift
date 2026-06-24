@@ -15,7 +15,7 @@ import SwiftUI
 /// 主窗口会被一并拉起，违反了「双击 = 后台静默解压」的预期。这个 controller 完全独立于主窗口的 model。
 ///
 /// **同一时间只允许一个浮窗 + 一个解压任务**。`start` / `startBatch` 在替换窗口前会 **cancel 上一个任务**——
-/// 否则旧任务的 `Task` 强捕获了旧 session 仍会在后台不可见地继续写磁盘（用户报告的多选解压隐身任务问题）。
+/// 否则旧任务的 `Task` 强捕获了旧 session 仍会在后台不可见地继续写磁盘（解决多选解压隐身任务问题）。
 @MainActor
 final class ExternalExtractWindowController: NSObject, NSWindowDelegate {
     static let shared = ExternalExtractWindowController()

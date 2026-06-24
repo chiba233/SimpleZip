@@ -5,8 +5,8 @@
 "welcome.button.next" = "下一步";
 "welcome.button.finish" = "开始使用";
 "welcome.stepLabel" = "第 %d 步 / 共 %d 步";
-"welcome.intro.title" = "几步搞定关键设置";
-"welcome.intro.body" = "SimpleZip 是一个原生 macOS 压缩包管理器。下面这几步会帮你打开几个新用户最容易错过的开关。你随时能在 SimpleZip → 重新运行欢迎助手 里再次打开本向导。";
+"welcome.intro.title" = "几步完成关键设置";
+"welcome.intro.body" = "SimpleZip 是一个原生 macOS 压缩包管理器。以下步骤涵盖新用户常用设置。可随时从 SimpleZip → 重新运行欢迎助手 再次打开。";
 "welcome.intro.note" = "所有设置都可以在「SimpleZip → 偏好设置」里随时修改。";
 "welcome.language.title" = "选择界面语言";
 "welcome.language.body" = "界面语言独立于系统语言。改语言会即时生效；macOS 顶部菜单栏要重启 App 后才会跟随。";
@@ -30,8 +30,8 @@
 "welcome.backend.sevenZip.missing" = "7-Zip ✗ 不可用";
 "welcome.backend.rar.available" = "RAR ✓ 已就绪";
 "welcome.backend.rar.missing" = "RAR ⓘ 不可用（仅创建 .rar 时需要）";
-"welcome.completion.title" = "搞定";
-"welcome.completion.body" = "你已经完成了关键设置。SimpleZip 现在可以从 Dock、Finder 或拖文件夹到主窗口开始使用。\n\n后续如果想改设置，去「偏好设置」就行；想再走一遍这个助手，从 SimpleZip 菜单进。";
+"welcome.completion.title" = "完成";
+"welcome.completion.body" = "你已完成关键设置。SimpleZip 可以从 Dock、Finder 或拖文件夹到主窗口开始使用。\n\n后续若需调整设置，在「偏好设置」中修改即可；重新运行此助手请从 SimpleZip 菜单进入。";
 "welcome.backupRestore.title" = "导入之前的备份？";
 "welcome.backupRestore.body" = "如果你之前从「偏好设置 → 备份与还原」导出过 SimpleZip 偏好 JSON 备份，可以现在直接导入恢复，跳过后面手工选项。没有的话点「下一步」继续即可。";
 "welcome.backupRestore.button" = "选择备份文件…";
@@ -733,7 +733,7 @@
 
 /* Fallback strings synced from zh-Hans; values are Traditional Chinese fallback for keys not previously localized. */
 "welcome.gpg.title" = "GPG（PGP 簽章）— 可选";
-"welcome.gpg.body" = "GPG 讓你给壓縮包簽章，證明檔案来源可信、內容未被改动；也支持「指定收件人解密」。完全可选 —— 關掉就跟没装過一样；想用再来這裡開。";
+"welcome.gpg.body" = "GPG 提供压缩包签名与指定收件人加密功能。关闭后所有 GPG 相关入口均隐藏，可随时在设置中重新开启。";
 "welcome.gpg.enable" = "啟用 GPG 集成";
 "welcome.gpg.enable.description" = "開启後，建立壓縮包對話框出現「GPG 簽章」選項、開啟 .siz 顯示簽章資訊、設定 → GPG 裡能管理金鑰。關閉時所有 GPG 入口在主界面消失。";
 "welcome.gpg.backendCheck" = "GPG 後端";
@@ -778,7 +778,7 @@
 "settings.section.gpg" = "GPG（PGP 簽章）";
 "settings.section.gpg.subtitle" = "啟用 GPG、管理密鑰環與信任、搜尋金鑰伺服器，並設定預設簽署密鑰。";
 "settings.gpg.enabledTitle" = "啟用 GPG 集成";
-"settings.gpg.enabledDescription" = "開启後，建立壓縮包時可勾选簽章、開啟 .siz 時顯示簽章資訊、設定裡可以管理金鑰。關閉時所有 GPG 相關入口都隱藏，不打扰不使用的人。";
+"settings.gpg.enabledDescription" = "开启后，创建时可选签名、打开 .siz 显示签名信息、设置中管理密钥。关闭后所有 GPG 入口均隐藏。";
 "settings.gpg.backend.title" = "GPG 後端";
 "settings.gpg.resolvedPath" = "GPG 路徑：%@";
 "settings.gpg.resolvedVersion" = "GnuPG 版本：%@";
@@ -887,7 +887,7 @@
 "settings.gpg.defaults.signingStrategy.label" = "簽章金鑰策略";
 "settings.gpg.defaults.signingStrategy.silent" = "静默使用預設金鑰";
 "settings.gpg.defaults.signingStrategy.ask" = "每次询問";
-"settings.gpg.defaults.signingStrategy.silentDescription" = "建立壓縮包時直接用鑰匙圈裡设為「預設」的私鑰簽章，不打扰你。单金鑰使用者的常规預設。";
+"settings.gpg.defaults.signingStrategy.silentDescription" = "创建时自动使用默认私钥签名，无需手动选择。适合单密钥用户。";
 "settings.gpg.defaults.signingStrategy.askDescription" = "建立壓縮包對話框裡在「用 GPG 簽章」下方多出一個金鑰 picker，讓你针对目前這個壓縮包选具体用哪把私鑰簽。多金鑰使用者（工作 / 私人 / 项目分開簽）需要這個。";
 "archive.gpgSign.keyLabel" = "簽章金鑰";
 "archive.gpgSign.key.auto" = "預設 / 讓 GPG 挑";
@@ -940,7 +940,7 @@
 "settings.gpg.newKey.subkey.encryptFixed" = "加密 — encryption subkey（自动）";
 "settings.gpg.newKey.subkey.encryptFixedDetail" = "gpg 自动生成一個加密專用子金鑰，讓你能解密別人加密给你的內容。";
 "settings.gpg.newKey.subkey.authOption" = "認證 — authentication subkey";
-"settings.gpg.newKey.subkey.authOptionDetail" = "可选。用 GPG 金鑰代替 SSH key 登录服務器（gpg-agent 提供 ssh-agent 协議）。如果你不打算把 GPG 金鑰用于 SSH 認證，留空就行。";
+"settings.gpg.newKey.subkey.authOptionDetail" = "可选。用 GPG 密钥代替 SSH key 登录服务器（gpg-agent 提供 ssh-agent 协议）。若不用于 SSH 认证，可留空。";
 "settings.gpg.keys.deletePublicTitle" = "刪除「%@」的公鑰？";
 "settings.gpg.keys.deleteSecretTitle" = "刪除「%@」的金鑰（含私鑰）？";
 "settings.gpg.keys.deletePublicMessage" = "公鑰指紋 …%1$@，来自 %2$@。\n\n僅刪除公鑰；如果之後需要重新使用這個公鑰（如驗簽 / 加密），需要重新匯入。";
@@ -1070,11 +1070,11 @@
 "welcome.fileAssociations.setAllDone" = "現在所有支援的壓縮格式預設都是 SimpleZip 了。";
 "welcome.fileAssociations.setAllPartial" = "已設為預設，除了：%@";
 "welcome.hiddenFiles.title" = "隱藏檔案";
-"welcome.hiddenFiles.body" = "在瀏覽器中顯示隱藏檔案。開啟後，它們會收進可摺疊的「隱藏檔案」群組，而不會把清單塞滿——可選擇什麼算隱藏，以及群組如何記住摺疊狀態。";
+"welcome.hiddenFiles.body" = "在浏览器里显示隐藏文件。开启后它们会收进独立的「隐藏文件」折叠分组，不混在普通文件列表中。可自定义隐藏规则及分组折叠行为。";
 "welcome.rowDensity.title" = "清單大小";
 "welcome.rowDensity.body" = "清單列有多高，圖示與文字大小也隨之調整。檔案瀏覽與壓縮檔瀏覽都適用。";
 "welcome.grouping.title" = "分組（選用）";
-"welcome.grouping.body" = "選用：把瀏覽器清單切成可摺疊的區塊。設一個全域預設，或依資料夾記住分組（之後在任一資料夾按右鍵設定）。維持「無」就是平鋪清單。";
+"welcome.grouping.body" = "可选：把浏览列表按类别切成可折叠区块。设一个全局默认，或按文件夹单独记忆分组。选择「无」即平铺列表。";
 "welcome.backupRestore.importReplaceHint" = "匯入會用備份中的設定取代你目前的設定。";
 
 /* 0.2.1 — 常规设置合并页 */
@@ -1348,7 +1348,7 @@
 "szs.instructions.passphraseNote" = "SimpleZip 從不經手你的私鑰密碼 —— 由 GPG 自己的 agent（pinentry）提示輸入。";
 "szs.instructions.senderNote" = "寄件者留言：";
 "szs.instructions.title" = "標題：";
-"szs.instructions.withSimpleZip" = "用 SimpleZip：直接開啟這個 .szs —— 它會驗證簽章並替你逐一核對每個檔案的 SHA-256。";
+"szs.instructions.withSimpleZip" = "用 SimpleZip：直接打开这个 .szs —— 它会验证签名并逐个核对每个文件的 SHA-256。";
 "transfer.retryFailed" = "重試 %@ 個失敗項目";
 "transfer.section.changed" = "已更改";
 "transfer.section.failed" = "失敗";
@@ -1357,7 +1357,7 @@
 "error.siz.versionTooNew" = "這個 .siz 由更新版本的 SimpleZip 建立（格式 v%1$@，本版最高支援 v%2$@）。升級 SimpleZip 即可正常開啟。";
 "error.szs.versionTooNew" = "這個 .szs 由更新版本的 SimpleZip 建立（格式 v%1$@，本版最高支援 v%2$@）。升級 SimpleZip 即可正常開啟。";
 "container.versionTooNew.title" = "由更新版本的 SimpleZip 建立";
-"container.versionTooNew.message" = "「%1$@」使用了 v%2$@ 格式，而目前 SimpleZip 最高只支援 v%3$@ —— 這就是它無法開啟的原因。升級 SimpleZip 是最穩妥的辦法；也可以強制開啟：本版不認識的新欄位會被忽略，簽章或加密資訊可能不完整。";
+"container.versionTooNew.message" = "「%1$@」为 v%2$@ 格式,当前 SimpleZip 最高支持 v%3$@。升级 SimpleZip 后即可打开;也可强制打开(忽略未知字段,签名或加密信息可能不完整)。";
 "container.versionTooNew.forceOpen" = "仍要嘗試開啟";
 "siz.signatureSheet.section.decryption" = "解密";
 "settings.section.updates" = "軟體更新";
@@ -1444,7 +1444,7 @@
 "health.aiAgent.title" = "背景 AI 服務";
 "health.aiAgent.ok" = "已註冊 —— SimpleZip 關閉時在背景索引。";
 "health.aiAgent.notRegistered" = "已開啟靜默背景索引,但服務尚未註冊。";
-"health.aiAgent.requiresApproval" = "已在「登入項目」中關閉。SimpleZip 不會替你重新開啟 —— 如需背景索引,請在系統設定中重新啟用。";
+"health.aiAgent.requiresApproval" = "已在「登录项」中关闭。如需后台索引,请在系统设置中手动重新启用。";
 "health.aiAgent.notFound" = "應用程式中缺少背景服務(建置問題)。";
 "health.aiAgent.repair" = "修復背景服務";
 "health.aiAgent.openLoginItems" = "打開登入項目設定";
@@ -1887,7 +1887,7 @@
 
 /* 0.4.2 GPG keyserver, release assistant, CLI */
 "settings.gpg.keys.contextCopyPublicKey" = "複製公鑰";
-"settings.gpg.keys.publicKeyCopied" = "公鑰已複製到剪貼簿——可直接貼給需要驗簽或替你加密的人。";
+"settings.gpg.keys.publicKeyCopied" = "公钥已复制到剪贴板，可发送给需验证签名或加密的联系人。";
 "settings.gpg.keys.filter.prompt" = "搜尋金鑰：姓名、電子郵件或指紋";
 "settings.gpg.keys.filter.noMatch" = "沒有符合「%1$@」的金鑰。";
 "settings.gpg.keys.clipboardMenu" = "剪貼簿";
@@ -2163,7 +2163,7 @@
 "help.topic.aiAssist.title" = "智慧推薦設定與工具列";
 "help.topic.aiAssist.body" = "在建立與解壓縮對話框裡,一鍵「套用推薦設定」。工具列也會依目前檔案智慧排序,把你最可能要用的操作放在最前。";
 "help.topic.aiBackground.title" = "背景預讀與隱私";
-"help.topic.aiBackground.body" = "AI 只在你授權的白名單資料夾裡、且裝置閒置時預讀。不上傳任何內容,絕不讀取加密內容,而且只解釋與建議——從不替你刪除或放行任何東西。可隨時在「設定 → AI」關閉或清空。";
+"help.topic.aiBackground.body" = "AI 仅在你授权的白名单文件夹、设备空闲时预读。不上传任何内容,不读取加密内容,仅解释和建议。可随时在「设置 → AI」关闭或清空。";
 "help.topic.fastExtract.title" = "串流快速解壓縮";
 "help.topic.fastExtract.body" = "解壓縮 ZIP 或 tar 系壓縮檔時,可勾選「串流快速解壓縮」——循序讀取,對大包與網路卷明顯更快。在解壓縮選項裡勾選即可。";
 "help.topic.webExtract.title" = "從網址邊下邊解";
@@ -2399,13 +2399,13 @@
 "settings.ai.privacy.section" = "隱私";
 "settings.ai.privacy.note" = "AI 助理完全在你的 Mac 本機執行。密碼、加密內容和金鑰絕不會傳送給它。";
 "settings.ai.privacy.disclosure.title" = "AI 隱私須知";
-"settings.ai.privacy.point.data" = "取得的資料:僅當你主動開啟相關開關、並把目錄加入白名單後,背景才會讀取這些目錄裡未加密檔案的中繼資料(名稱、大小、時間、類型)。若你額外開啟內容預讀,還會讀取文件開頭的文字與壓縮檔內部的項目清單,且一律先經過去敏處理。你對建議的回饋(我不喜歡、點擊)也只記錄在本機。";
+"settings.ai.privacy.point.data" = "获取的数据:仅当开启相关开关并将目录加入白名单后,后台才读取这些目录内非加密文件的元数据(名称、大小、时间、类型)。若额外开启内容预读,还会读取文档开头文本与压缩包条目清单,一律经过脱敏处理。对建议的反馈(标记不感兴趣、点击操作)仅记录在本机。";
 "settings.ai.privacy.point.never" = "絕不取得:加密封存檔的內容、密碼、金鑰、解密後的明文,以及完整的敏感路徑——這些永遠不會被讀取或儲存。";
 "settings.ai.privacy.point.use" = "資料用途:僅用於在本機產生對檔案的解釋、分類、一句話摘要、操作推薦與整理建議。不用於廣告,不用於販售,不建立跨應用程式的輪廓。";
 "settings.ai.privacy.point.model" = "使用的模型:Apple 提供的裝置端模型(Apple Intelligence,需 macOS 26 以上且裝置支援),全部運算都在你的 Mac 本機完成。";
 "settings.ai.privacy.point.flow" = "資料流通:全程不離開你的 Mac——不上傳到任何伺服器,不傳送給第三方,也不用於訓練任何模型。";
-"settings.ai.privacy.point.promise" = "我們承諾:所有 AI 功能預設關閉,需你主動開啟;衍生資料只儲存在本機、不進入偏好設定備份;你可以隨時一鍵清空;原始回饋資料最多保留 30 天。";
-"settings.ai.privacy.point.guarantee" = "我們保證:AI 只做解釋、分類與建議,絕不替你刪除檔案、放行操作或自動執行任何有風險的寫入;一切移動、建立、寫入都需要你親自確認。";
+"settings.ai.privacy.point.promise" = "所有 AI 功能默认关闭,需手动开启;派生数据仅保存在本机、不入偏好备份;可随时一键清空;原始反馈数据最多保留 30 天。";
+"settings.ai.privacy.point.guarantee" = "AI 仅做解释、分类与建议,不会删除文件、放行操作或自动执行写入;所有移动、创建、写入均需手动确认。";
 "settings.automation.shortcuts.section" = "捷徑與 Siri";
 "settings.automation.shortcuts.title" = "捷徑動作";
 "settings.automation.shortcuts.description" = "七個捷徑動作 —— 打開歸檔、檔案、發布包、任務和設定，尋找包含某檔案的歸檔，以及更改設定。";
@@ -2766,16 +2766,16 @@
 "tasks.aiWorkbench.automation.body" = "你近期已從 %@ 重複同類操作 %@ 次 — 用捷徑或命令列就能自動化。";
 "tasks.aiWorkbench.automation.open" = "打開捷徑";
 
-"welcome.ai.title" = "裝置端智慧";
-"welcome.ai.body" = "SimpleZip 可使用你 Mac 上的 Apple 智慧來解釋報告、分類壓縮檔、建議下一步 —— 全部在本機完成。它從不替你做決定,也絕不自行解鎖或修改任何東西。";
-"welcome.ai.privacyNote" = "全部在你的 Mac 上執行。SimpleZip 只解釋、分類、建議 —— 從不替你做決定,也絕不讀取加密壓縮檔的內容。";
+"welcome.ai.title" = "端上智能";
+"welcome.ai.body" = "Mac 本机 Apple Intelligence 可解释报告、归类压缩包、建议下一步操作。全部计算在本地完成。";
+"welcome.ai.privacyNote" = "全部在 Mac 本地运行。仅解释、归类、建议，不读取加密内容。";
 "dupArchives.needTwo" = "尋找重複壓縮檔需要本資料夾中至少有兩個壓縮檔。";
 "welcome.ai.background.body" = "讓 SimpleZip 在背景安靜地提前準備摘要與建議。全部可選。";
 
 "update.window.title" = "更新助手";
 "update.hero.title" = "已更新到 SimpleZip %@";
 "update.hero.body" = "幾步設定新功能。";
-"update.done.title" = "搞定!";
+"update.done.title" = "完成";
 "update.done.body" = "新功能已就緒。";
 
 /* 0.4.5 AppIntents(Shortcuts UI):标题 / 参数 / 类型 / 描述本地化(英文字面量即键) */

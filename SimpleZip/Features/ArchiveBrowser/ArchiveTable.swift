@@ -33,7 +33,7 @@ struct ArchiveTable: View {
     @AppStorage(AppPreferences.Key.rowDensity) private var rowDensity = FileBrowserOutline.RowDensity.standard.rawValue
 
     var body: some View {
-        // A17：分组 / 密度的实际值由 coordinator 直接读 `AppPreferences`（传给 representable 是死参，已删）。
+        // 分组 / 密度的实际值由 coordinator 直接读 `AppPreferences`（传给 representable 是死参，已删）。
         // 但**必须在 body 里读到这两个 @AppStorage**，否则 Settings 改它们时不再触发重渲染 → 表格不重新分组 /
         // 不调行高。这行丢弃读纯粹维持那条重绘依赖，别删。
         let _ = (archiveGroupBy, rowDensity)
@@ -441,7 +441,7 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
                     menu.addItem(menuItem(L10n.text("contentSearch.menu"), systemImage: "text.magnifyingglass", action: #selector(searchArchiveContents)))
                     menu.addItem(menuItem(L10n.text("security.report.title"), systemImage: "shield.lefthalf.filled", action: #selector(showSecurityReport)))
                     // 0.4.4:元数据报告 / 打开性能报告是只读分析 —— 只读格式(tar/rar/zst/.siz 内层…)同样可用,
-                    // 不跟编辑类入口一起消失(用户报「打开后右键成孤儿」)。
+                    // 不跟编辑类入口一起消失(只读格式下右键菜单不应缺失这些入口)。
                     menu.addItem(menuItem(L10n.text("metadata.menu"), systemImage: "info.square", action: #selector(showMetadataReport)))
                     if model.lastOpenMetrics != nil {
                         menu.addItem(menuItem(L10n.text("openMetrics.menu"), systemImage: "speedometer", action: #selector(copyOpenMetrics)))

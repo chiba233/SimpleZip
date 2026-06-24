@@ -191,7 +191,7 @@ enum FileSplitCombine {
     /// 一次性算出 `siblingNames` 里**每个分卷成员名 → 它的 SplitVolumeSet**(非成员名不在 map 里 = nil)。
     /// 结果与对每个名字单独调 `volumeSet(forMemberNamed:among:)` **完全一致**,但整体 O(n) 而非 O(n²) ——
     /// 先一遍按 (类型, base) 把成员聚类,再逐名产出。文件表折叠 / 布局形状检查是渲染热路径,大目录 / 多分卷时
-    /// 逐名扫全 sibling 会平方放大(codex 性能审计点名),故提供本批量入口。
+    /// 逐名扫全 sibling 会平方放大,故提供本批量入口。
     nonisolated static func volumeSets(among siblingNames: [String]) -> [String: SplitVolumeSet] {
         // 与逐个版本同优先级:先数字尾缀,再 .partN.rar(两者对同一名字互斥)。按 sibling 顺序入桶,
         // 保证成员顺序与逐个版本一致(makeSet 依赖顺序)。

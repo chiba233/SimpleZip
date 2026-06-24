@@ -7,12 +7,12 @@
 //  ⚠️ 拿外部文件(IntentFile)或回传值(ReturnsValue)的归档动作(解压/创建/哈希/测试/分析/
 //  比较/搜索/检查/发布打包…)已全部移除:非沙箱宿主下结构性地回传失败(NSCocoaError 4101 ——
 //  沙箱化的 Shortcuts runner 拿不到对非沙箱 app bundle 的 `app-sandbox.read` 读扩展,解不出
-//  返回类型;`OpenIntent` 又只接 AppEntity、接不了 IntentFile,逐跳实测+本地公证均证实)。这些动作
+//  返回类型;`OpenIntent` 又只接 AppEntity、接不了 IntentFile,经逐格式验证+本地公证均证实)。这些动作
 //  改由 **URL scheme** 驱动(`simplezip://extract?path=…`,见 AppDelegate / SimpleZipURLCommand),
 //  Shortcuts 用「打开 URL」即可,不经 App Intents、无 4101。
 //
 //  这里只留**不拿外部文件**的:开关设置(AppEntity)、按文件名找归档(String)。「在活动中心打开任务」
-//  是 OpenIntent(在 ArchiveTaskEntity.swift,实测可正常通信)。
+//  是 OpenIntent(在 ArchiveTaskEntity.swift,可正常通信)。
 //
 //  本地化口径:静态元数据(标题 / 参数名 / 描述)是字面 LocalizedStringResource ——
 //  英文字面量即键,各 .lproj 补译,由系统按 Shortcuts 进程语言解析;运行期 dialog / 错误消息走

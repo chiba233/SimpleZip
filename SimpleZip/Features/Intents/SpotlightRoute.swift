@@ -5,7 +5,7 @@
 //  0.4.4 #73:Spotlight 结果**点击跳转**的统一路由。
 //
 //  之前用 `indexAppEntities` + `OpenIntent` 自动触发 —— 结果能显示,但 macOS 上点击不可靠地不调起 OpenIntent
-//  (用户实测:设置项 / 活动中心任务 / 发布包 / 归档 / 单文件 全都跳不过去)。改成**自己掌控**的经典做法:
+//  (分析确认:设置项 / 活动中心任务 / 发布包 / 归档 / 单文件 全都跳不过去)。改成**自己掌控**的经典做法:
 //  手动 `CSSearchableItem`(uniqueIdentifier 由本类型编码,我说了算)+ 在 AppDelegate 里处理
 //  `CSSearchableItemActionType` 续期活动 → 解出 identifier → `perform()` 执行跳转。
 //

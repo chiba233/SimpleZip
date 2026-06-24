@@ -1528,7 +1528,7 @@ enum AppPreferences {
         }
         for (key, value) in values where allowed.contains(key) {
             // 安全:只写**可存进 UserDefaults 的属性列表标量/集合**。损坏 / 恶意备份可能给某白名单 key 配 JSON null
-            // (解码成 NSNull)→ `defaults.set(NSNull(), forKey:)` 触发 Foundation abort 崩溃(已实测)。非 plist 值一律跳过。
+            // (解码成 NSNull)→ `defaults.set(NSNull(), forKey:)` 触发 Foundation abort 崩溃。非 plist 值一律跳过。
             guard Self.isStorablePreferenceValue(value) else { continue }
             defaults.set(value, forKey: key)
         }

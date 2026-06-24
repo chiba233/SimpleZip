@@ -44,7 +44,7 @@ final class AIBackgroundIndexer {
     /// 接通 `AIBackgroundPlanner`(工程补充五):用当前 runtime + 已收集的 interaction 信号(AIFeedbackStore)+ 索引健康,
     /// 确定性地规划「后台空闲时该补什么数据 / 预热哪个 surface」的一组 tier-gated job(绝不越当前档位天花板)。
     /// **v1 只产 plan 供观测(DevTools)**;逐 job kind 接执行、以及 interest-event / evidence-gap / 陈旧工作区等
-    /// 输入待对应数据收集接齐后填,是后续步骤(见记忆 ⓪/①)。纯确定性、可取消、可解释。
+    /// 输入待对应数据收集接齐后填。纯确定性、可取消、可解释。
     func planBackgroundJobs() -> AIBackgroundPlan {
         let input = AIBackgroundPlanningInput(
             runtime: currentRuntimeContext(),
@@ -118,11 +118,10 @@ final class AIBackgroundIndexer {
         passDiagnostics.recordRunning(name)
     }
 
-    /// 归档/文件夹清单类**重型** pass(包内 / 包定性 / 文件组)每轮**只处理 1 个候选**。实测端上模型单次结构化生成
+    /// 归档/文件夹清单类**重型** pass(包内 / 包定性 / 文件组)每轮**只处理 1 个候选**。端上模型单次结构化生成
     /// 方差极大(2~34s,NPU 非确定性),且这些 pass 的 prompt 最长(整份清单)→ 单次最慢。若按 `maxModelSuggestionsPerRound`
-    /// (激进 6)批量处理,一次调用就把单串行闸(`AIGenerationSerializer`)占满数分钟,跨心跳注入 > 消化、队列永不收敛,
-    /// DevTools 永远「仍在运行」(实测 `/tmp/inference_test_results.md`)。改 1 个/轮:配合 `maxAttempts:3`,单次 ≈ 39s
-    /// (< 60s 激进心跳)→ 每轮腾出闸门、轮转推进、队列收敛。覆盖面靠多轮 + 指纹跳过逐步补齐(慢但全)。
+    /// (激进 6)批量处理,一次调用就把单串行闸(`AIGenerationSerializer`)占满数分钟,跨心跳注入 > 消化、队列永不收敛。
+    /// 1 个/轮:配合 `maxAttempts:3`,单次 ≈ 39s(< 60s 激进心跳)→ 每轮腾出闸门、轮转推进、队列收敛。覆盖面靠多轮 + 指纹跳过逐步补齐(慢但全)。
     private static let deepContextSuggestionsPerRound = 1
 
     /// DevTools 用:当前各档闸的实时状态 + 输入 —— 直接回答「为啥都是 0」(哪一档被卡)。
@@ -157,7 +156,7 @@ final class AIBackgroundIndexer {
             devToolsExempt: devToolsInteractionExempt)
     }
 
-    /// App **是否曾真正进入前台活跃**(plain var,绝不 @Published —— A17:reload/启动路径禁发布)。
+    /// App **是否曾真正进入前台活跃**(plain var,绝不 @Published —— reload/启动路径禁发布)。
     /// 由 `AppDelegate.applicationDidBecomeActive` 置位(只赋值,不起任何活、不碰布局)。
     /// 用途:App Intents 把本 app 当 helper 在**后台**拉起跑 intent 时,SwiftUI 照样实例化 ContentView、
     /// onAppear 照跑 `runIfEnabled` —— 但 helper **从不 becomeActive**,故此处恒为 false,实际扫描永不启动,
@@ -183,8 +182,8 @@ final class AIBackgroundIndexer {
         // 心跳自然跑起扫描。注意:启动旗标只在 becomeActive 里纯赋值,不在那里起任何活(避免诱发 SwiftUI
         // ScrollView 在窗口布局周期内重入崩溃)。
         //
-        // 🔴 helper 死因(2026-06-23 实测采样+日志钉死):App Intents 后台 helper 会因**窗口状态恢复**
-        //(日志 `restoreWindowWithIdentifier SimpleZip.Main`)触发 becomeActive → `hasEnteredForeground` 被误置 true
+        // App Intents 后台 helper 会因**窗口状态恢复**
+        // (日志 `restoreWindowWithIdentifier SimpleZip.Main`)触发 becomeActive → `hasEnteredForeground` 被误置 true
         // → 启动 AI 后台索引 → `nonDefaultOpenApps` 的**同步 LaunchServices** 占满 Swift cooperative 线程池 →
         // **饿死 App Intents 的异步 XPC 回复 → NSCocoaError 4101「Couldn't communicate with a helper application」**。
         // 「helper 永不 becomeActive」的旧假设是错的;但 helper 恢复出的窗口**不可见**(`running-NotVisible`)。
@@ -559,8 +558,8 @@ final class AIBackgroundIndexer {
 
     // MARK: - 磁盘镜像安装建议(推荐打开方式 backlog 第2项;MainActor:7zz peek + 模型 async)
 
-    /// 对**还没评估、内含 App 的 .dmg**,后台出「安装到应用程序」建议:① 7zz **只读 peek**(纯文件读、不挂载,实测
-    /// ~17ms)列出 dmg 内的 `.app` 包;② 有 App → 端上模型出 {一句话定性 + 是否建议安装}(拒绝假AI:确定性只找到
+    /// 对**还没评估、内含 App 的 .dmg**,后台出「安装到应用程序」建议:① 7zz **只读 peek**(纯文件读、不挂载,约
+    /// 17ms)列出 dmg 内的 `.app` 包;② 有 App → 端上模型出 {一句话定性 + 是否建议安装}(拒绝假AI:确定性只找到
     /// 「有 .app」这个候选,冒不冒 + 措辞由模型定);③ 写回索引(`setDiskImageSuggestion`)。门控同单文件建议
     /// (AI 建议开关 + 内容预读 + 模型就绪);预算 = AI 活跃度档位的 `maxModelSuggestionsPerRound`。可取消、串行不重叠。
     /// **peek 阶段绝不挂载**(纯 7zz 文件读);点击「安装 X」才走 app 内置复制逻辑把 .app 拷进 /Applications(用户授权)。
@@ -1390,7 +1389,7 @@ final class AIIndexerGate {
     private var lastInteractionDate = Date()
     private var interactionMonitor: Any?
     /// DevTools 开着时**完全豁免交互门控** —— 挂着 DevTools debug / 复制信息绝不该被当成「用户在用 app」把正在观察的
-    /// 后台 AI pass 停掉(用户实测:干啥都归零)。**任何**事件、任何窗口,只要这面旗子立着就一律不计交互。
+    /// 后台 AI pass 停掉。**任何**事件、任何窗口,只要这面旗子立着就一律不计交互。
     private(set) var devToolsInteractionExempt = false
 
     init() {

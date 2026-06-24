@@ -3,7 +3,7 @@
 //  SimpleZip
 //
 //  #112 批量格式转换的确认 sheet。复用 DialogChrome 体例 + ArchiveCreateFormat 枚举,
-//  不另造格式模型。转换引擎在 Core/ArchiveConversion（extract → repack,已实测无单步转换命令）。
+//  不另造格式模型。转换引擎在 Core/ArchiveConversion（extract → repack，无单步转换命令）。
 //
 
 import AppKit

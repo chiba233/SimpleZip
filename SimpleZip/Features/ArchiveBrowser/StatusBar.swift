@@ -331,7 +331,7 @@ struct ArchiveOperationDetailsView: View {
 
 /// 高性能命令输出日志视图 —— 用 NSTextView（懒布局 + 原生滚动 / 文本选择），
 /// 远比 SwiftUI `Text` 渲染大段流式文本流畅；配合 session 端只留最近 500 行，详情面板不再卡。
-/// 0.4.2 用户报「二级滚动条瞬间接管很恶心」：日志框滚到顶/底后继续滚 → 把滚轮事件交还父级，
+/// 0.4.2 嵌套滚动：日志框滚到顶/底后继续滚 → 把滚轮事件交还父级，
 /// 外层列表无缝接管 —— 与原生 App 嵌套滚动手感一致。
 final class EdgePassthroughScrollView: NSScrollView {
     override func scrollWheel(with event: NSEvent) {

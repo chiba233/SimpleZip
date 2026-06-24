@@ -396,8 +396,8 @@ final class ProgressOutputParser: @unchecked Sendable {
         defer { lock.unlock() }
 
         // 7zz 在管道下的实时进度是退格流:`  2%\b\b\b\b    \b\b\b\b  4%…`,整个压缩期间
-        // 可以一个 \n 都没有(od 实测)。\b 必须同样当行界,否则百分比全积在 remainder 里
-        // 永不下发——单大文件创建/测试的 UI 会从头到尾卡 0%(用户实报)。
+        // 可以一个 \n 都没有。\b 必须同样当行界,否则百分比全积在 remainder 里
+        // 永不下发——单大文件创建/测试的 UI 会从头到尾卡 0%。
         let normalized = text
             .replacingOccurrences(of: "\r", with: "\n")
             .replacingOccurrences(of: "\u{08}", with: "\n")

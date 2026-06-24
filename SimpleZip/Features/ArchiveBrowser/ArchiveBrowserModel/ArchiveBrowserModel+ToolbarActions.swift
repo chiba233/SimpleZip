@@ -6,7 +6,7 @@
 //
 //  `contextualToolbarSnapshot()` 把当前选择翻成 `FileActionCatalog` 用的纯值快照(工具栏渲染 + 习惯记录共用一份)。
 //  `recordToolbarActionHabit(_:)` 把一次 catalog 动作的使用记进共享统计 —— **工具栏按钮点击**和**右键菜单里的
-//  同一动作点击**都调它(用户拍板:不学右键就没法推荐,所以右键菜单的 catalog 动作选择是主要习惯信号)。
+//  同一动作点击**都调它(不学右键就没法推荐,所以右键菜单的 catalog 动作选择是主要习惯信号)。
 //
 
 import Foundation

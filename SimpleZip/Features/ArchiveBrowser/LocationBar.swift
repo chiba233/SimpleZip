@@ -20,7 +20,7 @@ struct LocationBar: View {
     @State private var isShowingLocationCompletions = false
     @State private var isPathFieldFocused = false
     @State private var selectedLocationCompletionIndex: Int?
-    /// 地址栏（含内边距与 .bar 背景）的实测高度 —— 补全面板用它精确吸附到栏的正下方。
+    /// 地址栏（含内边距与 .bar 背景）的高度 —— 补全面板用它精确吸附到栏的正下方。
     @State private var barHeight: CGFloat = 0
 
     var body: some View {
@@ -29,8 +29,8 @@ struct LocationBar: View {
             .padding(.vertical, 6)
             .background(.bar)
             // 0.4.1 手绘补全面板（替代系统 popover）：固定吸附在地址栏正下方、与地址栏同宽，
-            // 整面液态玻璃，只有选中项有色块。定位用「实测栏高 + 顶对齐偏移」——
-            // 此前的 alignmentGuide 方案在实机上把面板叠在栏上挡住 UI（用户报废），笨办法才稳。
+    // 整面液态玻璃，只有选中项有色块。定位用「栏高 + 顶对齐偏移」——
+    // 此前的 alignmentGuide 方案在实机上把面板叠在栏上挡住 UI，笨办法才稳。
             .background(
                 GeometryReader { proxy in
                     Color.clear.preference(key: LocationBarHeightKey.self, value: proxy.size.height)
@@ -213,7 +213,7 @@ private struct LocationBarHeightKey: PreferenceKey {
 }
 
 /// 0.4.1 手绘补全面板：整面液态玻璃（ultraThin 材质），行与行之间无分隔线、无底色 ——
-/// **只有键盘 / 鼠标选中的那一行有强调色块**（用户点名的视觉规则）。
+/// **只有键盘 / 鼠标选中的那一行有强调色块**（视觉规则：只有选中行有高亮色块）。
 private struct LocationCompletionMenu: View {
     let completions: [LocationCompletion]
     let selectedIndex: Int?

@@ -126,7 +126,7 @@ nonisolated struct AIPendingCheckQueue: Codable, Equatable, Sendable {
     }
 }
 
-/// 插电后 pending 任务之间的**间隔**(秒),按活跃度:越激进越短(用户拍板 4 / 15 / 30 分钟)。
+/// 插电后 pending 任务之间的**间隔**(秒),按活跃度:越激进越短(4 / 15 / 30 分钟)。
 nonisolated enum AIPendingCheckSchedule {
     static func interval(for level: AIBackgroundActivityLevel) -> TimeInterval {
         switch level {
@@ -138,7 +138,7 @@ nonisolated enum AIPendingCheckSchedule {
     }
 }
 
-/// 只读检查**执行完后**「值不值得内联展示」的复判(用户拍板的「执行完再判」那一步)。
+/// 只读检查**执行完后**「值不值得内联展示」的复判(「执行完再判」那一步)。
 /// - hash / test 是**事实必显**(算出 sha256 / 测过了就显示),不走这里。
 /// - security / inspect 走这里:**没异常 / 不值得就不冒**(否则会弹「这个包很干净」这种废话建议)。
 ///

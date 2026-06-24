@@ -174,7 +174,7 @@ struct GPGKeyRow: View {
         return String(initials).uppercased()
     }
 
-    /// 按指纹字节和挑色 —— 调色板取系统色,平涂(box 不渐变是用户拍板的硬规矩)。
+    /// 按指纹字节和挑色 —— 调色板取系统色,平涂(纯色不渐变)。
     private var avatarColor: Color {
         let palette: [Color] = [.blue, .purple, .pink, .orange, .teal, .indigo, .green, .cyan, .mint, .brown]
         let sum = key.fingerprint.unicodeScalars.reduce(0) { $0 &+ Int($1.value) }

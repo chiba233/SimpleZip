@@ -26,7 +26,7 @@ struct SettingsControlRow<Control: View>: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 // 0.3.3 设置右侧加深：标题升到正文字号、行距和上下留白放宽 ——
-                // 跟系统设置的行密度对齐，不再挤成一团（用户点名「像老 macOS」的一部分）。
+                // 跟系统设置的行密度对齐，不再挤成一团（「像老 macOS」的一部分）。
                 Text(title)
                     .font(.body)
                 Text(description)
@@ -59,7 +59,7 @@ struct SettingsToggleRow: View {
             Toggle("", isOn: $isOn)
                 .labelsHidden()
                 // System Settings 同款小型 switch —— macOS Form 默认的 checkbox 是「老 macOS 感」
-                // 的最大来源（用户点名）。一处改，全部 pane 的开关行生效。
+                // 的最大来源。一处改，全部 pane 的开关行生效。
                 .toggleStyle(.switch)
                 .controlSize(.small)
         }

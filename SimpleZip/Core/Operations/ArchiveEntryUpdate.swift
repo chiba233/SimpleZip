@@ -57,7 +57,7 @@ extension ArchiveService {
         guard verifyOverride ?? AppPreferences.verifyAfterArchiveRewrite else { return }
         let tool = try SevenZipBackend.toolPath()
         // 读类命令(t/l)的口令口径与写不同:**不带 `-p`**,让 7zz 在 PTY 上自然提问、
-        // passwordPrompts 应答(与 SevenZipBackend.list 同配方;裸 `-p` 在 t 下会被当空口令,实测打不开)。
+        // passwordPrompts 应答(与 SevenZipBackend.list 同配方;裸 `-p` 在 t 下会被当空口令,打不开)。
         _ = try await BackendProcessRunner.runAndCapture(
             tool,
             arguments: ["t", workCopy.path, "-mmt=on"],
@@ -449,7 +449,7 @@ extension ArchiveService {
     static func normalizedEntryRelativePath(_ raw: String) throws -> String {
         // 安全校验在 **trim 后副本**上做(盘符 / `..` / 反斜杠 / 绝对路径的检测不受首尾空白干扰、不被削弱),
         // 但**返回保留首尾空白的原名** —— 归档条目名前后空格是有意义的(『 a.txt』≠『a.txt』),trim 掉返回值会让
-        // 删除/重命名匹配到另一个去空格的同名条目(用户报的删错/改错条目)。trim 只动首尾,不改 `/` 结构,故两者分段对齐。
+        // 删除/重命名匹配到另一个去空格的同名条目。trim 只动首尾,不改 `/` 结构,故两者分段对齐。
         let probe = raw.trimmingCharacters(in: .whitespaces)
         guard !probe.isEmpty, !probe.hasPrefix("/"), !probe.contains("\\") else {
             throw ArchiveError.commandFailed("Invalid entry path: \(raw)")

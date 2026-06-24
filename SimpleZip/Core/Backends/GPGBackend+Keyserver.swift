@@ -3,7 +3,7 @@
 //  SimpleZip
 //
 //  0.4.3 GPG 面板补全:密钥服务器(keys.openpgp.org)的搜索 / 接收 / 发布。
-//  全部走 `--batch` 非交互路径(实测 gpg 2.5:`--batch --with-colons --search-keys` 直接打印
+//  全部走 `--batch` 非交互路径(gpg 2.5:`--batch --with-colons --search-keys` 直接打印
 //  结果列表不进交互菜单;`--recv-keys` 输出 IMPORT_OK;`--send-keys` 上传公钥)。
 //  网络由 gpg 自带的 dirmngr 承担,SimpleZip 不自己发 HTTP。
 //
@@ -68,7 +68,7 @@ extension GPGBackend {
         )
     }
 
-    /// 解析 `--batch --with-colons --search-keys` 的输出。实测格式(gpg 2.5):
+    /// 解析 `--batch --with-colons --search-keys` 的输出。格式(gpg 2.5):
     /// ```
     /// info:1:1
     /// pub:D477…6BF7:22:256:1701906891::

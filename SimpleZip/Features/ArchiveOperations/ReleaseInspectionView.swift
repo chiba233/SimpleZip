@@ -158,7 +158,7 @@ struct ReleaseInspectionView: View {
             Divider()
 
             PinnedBottomBar {
-                // 用户点名:底栏一排文字按钮被截断 → 全部并进「导出报告」一个弹窗里选
+                // 底栏一排文字按钮被截断 → 全部并进「导出报告」一个弹窗里选
                 // (F2 四项 + 发布说明 / 全部复制 / SHA256SUMS)。
                 ReportExportControl(report: report, extraActions: exportExtraActions)
                 // A(macOS 26 AI):AI 总结风险。仅 isReady 时出现;只读报告 → 生成可编辑摘要,绝不改任何东西。

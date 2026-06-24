@@ -73,7 +73,7 @@ extension ArchiveBrowserModel {
 
     /// Task 7 整理建议的「建文件夹」段撤销 —— 和移动撤销组成**一个撤销组**(组合撤销「撤销这条 AI 建议」)。撤销整条
     /// 整理时,同组的移动撤销(LIFO 先跑)把成员移回原位、这里再把**空了**的文件夹收掉。**不用 `registerCreateUndo` 的
-    /// 创建时快照**(整理把文件移进又移出、mtime 变了,快照守卫会误判「目标被占」→ 跳过 → 文件夹删不掉,正是用户报的
+    /// 创建时快照**(整理把文件移进又移出、mtime 变了,快照守卫会误判「目标被占」→ 跳过 → 文件夹删不掉,已确认的
     /// bug);改成「只删空文件夹」既安全(里头还有别的就不删)又能在多段撤销里正确收尾。撤销 / 重做逐步写
     /// `undoRedoTransferLog` → 落活动中心(整条整理的撤销显示成一张卡:移回 N 项 + 删空文件夹)。
     func registerOrganizeFolderUndo(_ folder: URL, actionName: String) {
@@ -288,7 +288,7 @@ extension ArchiveBrowserModel {
 
     /// 0.4.3:撤销 / 重做留痕活动中心 —— 独立「撤销与重做」分组的即时记录(开始即完成)。
     /// 唯一漏斗:⌘Z / ⇧⌘Z / 菜单都走 undoFileOperation / redoFileOperation。
-    /// 用户点名要详情且要**格式化**:undo 原语执行时逐文件写 `undoRedoTransferLog`,
+    /// 要详情且要**格式化**:undo 原语执行时逐文件写 `undoRedoTransferLog`,
     /// 这里收割挂成 task.transferLog —— 跟解压 / 粘贴同一套分组卡片(图标 + 文件名 + 路径小字),历史也持久化。
     private func recordUndoRedoHistory(isUndo: Bool, actionName: String?) {
         let name = actionName ?? L10n.text("tasks.undoRedo.generic")

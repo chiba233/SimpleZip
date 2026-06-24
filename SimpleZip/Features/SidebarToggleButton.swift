@@ -28,7 +28,7 @@ struct SidebarBackdrop: NSViewRepresentable {
 }
 
 /// 上下居中侧栏的自绘行：彩色瓦片 + 标题 + 可选计数，自绘选中 / hover 高亮。
-/// 原生 List(.sidebar) 做不到「项目整体垂直居中」（用户点名要的布局），
+/// 原生 List(.sidebar) 做不到「项目整体垂直居中」，
 /// 所以行为自绘、外层仍放在 NavigationSplitView 的侧栏列里吃系统材质。
 struct CenteredSidebarRow: View {
     let title: String

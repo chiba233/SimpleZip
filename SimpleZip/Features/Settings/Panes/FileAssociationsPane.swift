@@ -26,7 +26,7 @@ struct FileAssociationsPane: View {
         Form {
             // #81:描述已抬到 hero 副标题,删掉重复的小节头 + 描述。
             Section {
-                // 0.4.3 用户拍板:按类别分组排布,同类同色(压缩包蓝 / 磁盘镜像紫 / SimpleZip 专属绿 / 分卷橙)。
+                // 0.4.3 按类别分组排布,同类同色(压缩包蓝 / 磁盘镜像紫 / SimpleZip 专属绿 / 分卷橙)。
                 associationGroup(
                     titleKey: "settings.association.group.archives",
                     systemImage: "doc.zipper",
@@ -89,7 +89,7 @@ struct FileAssociationsPane: View {
                 SettingsRowIcon(systemImage: systemImage, tint: tint)
                 Text(L10n.text(titleKey)).font(.headline)
                 Spacer(minLength: 12)
-                // 0.4.4 用户点名:每组一个「全部设为默认」—— 一键把本组所有格式关联到 SimpleZip。
+                // 0.4.4 每组一个「全部设为默认」—— 一键把本组所有格式关联到 SimpleZip。
                 if hasUnset {
                     Button {
                         setGroupDefault(for: items)
@@ -157,7 +157,7 @@ struct FileAssociationsPane: View {
             // 但同进程内 `LSCopyDefaultRoleHandlerForContentType` 短时间会读到旧缓存
             // —— 立即 refresh 看到的还是「未设为默认」，给用户「明明点了为什么没生效」的疑惑。
             // 多个时间点 retry 让 LS settle 后 UI 自动跟上，不需要用户切走 pane 再切回来。
-            // 时间点根据实测：第一次 ~300ms 大概率已经更新；1.5s 是兜底（系统负载高时 LS 慢）。
+            // 时间点经验值：第一次 ~300ms 大概率已经更新；1.5s 是兜底（系统负载高时 LS 慢）。
             for delay in [0.3, 0.8, 1.5] {
                 DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
                     refresh()
@@ -206,7 +206,7 @@ struct FileAssociationRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            // 与全设置同一套瓦片制度,但「图标」就是扩展名本身:彩色底 + 文字(用户拍板),同类同色。
+            // 与全设置同一套瓦片制度,但「图标」就是扩展名本身:彩色底 + 文字,同类同色。
             Text(association.fileExtension)
                 .font(.system(size: 10, weight: .bold, design: .rounded))
                 .foregroundStyle(.white)
@@ -239,7 +239,7 @@ struct FileAssociationRow: View {
                 }
             }
         }
-        // 0.4.3 用户点名「太紧凑」:行距放宽到新间距。
+        // 0.4.3 行距放宽到新间距,改善紧凑感。
         .padding(.vertical, 10)
     }
 }

@@ -21,7 +21,7 @@ struct WebArchiveProbeResult: Sendable, Equatable {
 
 enum WebArchiveStreamExtract {
 
-    /// 浏览器风格 User-Agent —— 不少服务器对空 / `CFNetwork/…` 默认 UA 会当爬虫直接不响应(用户报);
+    /// 浏览器风格 User-Agent —— 不少服务器对空 / `CFNetwork/…` 默认 UA 会当爬虫直接不响应;
     /// 用 Safari 风格 UA 最大化兼容(探测与下载两条请求都带)。
     private static let userAgent =
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15"

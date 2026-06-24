@@ -46,7 +46,7 @@ struct Sidebar: View {
     ///
     /// 直接用 `NSWorkspace.shared.fileLabels` + `fileLabelColors`：系统当前语言下的 7 个系统色块名 +
     /// Finder 实际渲染的精确色块颜色，跟 Finder 侧栏 1:1 对齐。
-    /// 之前尝试过用 `FavoriteTagNames` 偏好，但实测语义跟 Finder 侧栏实际显示对不上 ——
+    /// 之前尝试过用 `FavoriteTagNames` 偏好，但语义跟 Finder 侧栏实际显示对不上 ——
     /// 多 locale / 空槽位 / 重复 / 顺序错都会出问题，回到这个最朴素的实现。
     private var finderTags: [FinderTag] {
         let labels = NSWorkspace.shared.fileLabels
@@ -81,7 +81,7 @@ struct Sidebar: View {
             if !recentURLs.isEmpty {
                 Section(L10n.text("section.recents")) {
                     ForEach(recentURLs, id: \.path) { url in
-                        // 动态识别真实图标(用户点名):自定义文件夹图标 / 包 / 彩色 App 目录等
+                        // 动态识别真实图标:自定义文件夹图标 / 包 / 彩色 App 目录等
                         // 都按系统实际渲染,不再一律灰色时钟。
                         SidebarRowButton(action: { model.openFolder(url) }) {
                             sidebarFileLabel(for: url)
@@ -148,7 +148,7 @@ struct Sidebar: View {
                 }
             }
 
-            // 「压缩包」组(打开压缩包 / 打开文件夹两个按钮)已删 —— 用户拍板:工具栏 / 文件菜单 /
+            // 「压缩包」组(打开压缩包 / 打开文件夹两个按钮)已删 —— 工具栏 / 文件菜单 /
             // 拖入都能打开,侧栏占两行毫无价值。
         }
         .listStyle(.sidebar)
@@ -156,7 +156,7 @@ struct Sidebar: View {
         .onAppear(perform: refreshSidebarURLs)
         // 用户从 Finder 调过收藏切回 SimpleZip 时重读 sfl4。
         // sfl4 没有官方变化通知，App 重激活是「肯定刚操作过 Finder」的最近时间点。
-        // 图标缓存同时清掉强制重取（用户报：别的 app 更新 / 文件夹换图标后,侧栏一直显示老图标 ——
+        // 图标缓存同时清掉强制重取（别的 app 更新 / 文件夹换图标后,侧栏一直显示老图标 ——
         // NSCache 整个会话不失效,列表刷新了图标还是旧的）。generation 自增驱动行重建,Image 才会重新取图。
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             Self.iconCache.removeAllObjects()
@@ -352,7 +352,7 @@ private struct SidebarRowButton<Content: View>: View {
 
 /// 侧边栏**动作行**按钮（唯一消费者：固定当前位置）。0.4.2 重绘：白色符号 + 强调色渐变
 /// 圆角瓦片,对齐真实文件图标行的 16px 节拍 —— 与设置 / 活动中心侧栏的彩色瓦片同一套语言,
-/// 不再是孤零零的灰色模板 Label（用户报「大头针还没重绘」）。
+/// 不再是孤零零的灰色模板 Label（「大头针还没重绘」现已对齐新设计）。
 struct SidebarButton: View {
     let title: String
     let systemImage: String

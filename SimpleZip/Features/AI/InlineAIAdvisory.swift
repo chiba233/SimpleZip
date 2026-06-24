@@ -4,7 +4,7 @@
 //
 //  0.4.4 · macOS 26 AI:创建 / 解压对话框预检区的**内联自动 AI 速览**。
 //
-//  用户点名:打开创建 / 解压窗口就**静默运行**(无需手点),且**动态** —— 输入(文件数 / 格式 / 级别 /
+//  打开创建 / 解压窗口就**静默运行**(无需手点),且**动态** —— 输入(文件数 / 格式 / 级别 /
 //  目标位置)变了自动重跑。仅 `AIReportAssistant.isReady`(开关开 + macOS 26 + 模型可用)时渲染;
 //  不可用整体不出现,对话框保留确定性预检不受影响。失败静默(不在对话框里堆 AI 错误)。
 //
@@ -26,7 +26,7 @@ struct InlineAIAdvisory: View {
     // 一定触发(挂在空 ViewBuilder 上 `.task` 不会跑 —— 这是「完全不显示」的根因)。
     @State private var isLoading = true
     // 手动刷新计数:用户点刷新按钮 +1 → 并进 `.task(id:)` → 重跑(切格式时若内容没变 token 不变,
-    // 这给用户一个显式重算入口;用户点名要)。
+    // 这给用户一个显式重算入口)。
     @State private var reloadNonce = 0
     // 本次重跑是否由**手动刷新按钮**触发(区别于 token 变 / 首跑)。按钮置 true,run() 读后即清。
     // 预烘焙速览据此判断:手动 = 重烘覆盖缓存;自动 = 只读缓存绝不重生(铁律)。
@@ -41,7 +41,7 @@ struct InlineAIAdvisory: View {
 
     @ViewBuilder
     private var content: some View {
-        // isLoading 优先:手动刷新 / 动态重跑时菊花**重新出现**(用户报「点刷新没反应」—— 之前 text 分支
+        // isLoading 优先:手动刷新 / 动态重跑时菊花**重新出现**(旧代码 text 分支
         // 抢在前面,有旧结果就永远不显示菊花)。失败时 isLoading 归 false、text 不动 → 退回展示旧结果。
         if isLoading {
             HStack(spacing: 6) {
@@ -68,7 +68,6 @@ struct InlineAIAdvisory: View {
                 }
                 Spacer(minLength: 8)
                 // 手动重算:切了格式 / 级别想重新让 AI 看一眼,点这个。立刻置 isLoading → 菊花马上出现。
-                // 字号不设(与上方预检刷新按钮一致 —— 用户报两个刷新按钮大小不一)。
                 Button {
                     pendingForced = true   // 手动重烘:预烘焙速览据此重生并覆盖缓存(自动重跑绝不会)
                     isLoading = true

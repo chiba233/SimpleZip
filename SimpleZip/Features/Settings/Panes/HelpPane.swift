@@ -6,8 +6,7 @@
 //
 //  0.4.2「设置 → 帮助」：图文并茂的使用指南，活动中心的「帮助」大项也渲染同一个视图（不重画）。
 //  0.4.3 改造:主题卡按功能分类收进抽屉;贴士覆盖新功能。
-//  视觉(用户点名「外层和内层除了边框完全看不出来」+「这个页面可以无限制手绘,越好看越好」):
-//  帮助页用**自己的** HelpDrawer(不动公共 DialogDrawer)——外层按分类色做渐变叠层、
+//  视觉:帮助页用**自己的** HelpDrawer(不动公共 DialogDrawer)——外层按分类色做渐变叠层、
 //  渐变描边与彩色阴影,内层主题卡保持实底,层次一眼分明;展开收起走弹簧 + 内容淡入上移,
 //  卡片悬停轻浮起,hero 图标带缓慢旋转的渐变光环。仅此页放开手绘限制。
 //
@@ -79,7 +78,7 @@ struct HelpPane: View {
                 HelpHero()
                     .padding(.bottom, 6)
 
-                // 首要内容（用户点名）：格式能力表 —— 自己一个抽屉,默认展开。
+                // 首要内容：格式能力表 —— 自己一个抽屉,默认展开。
                 HelpDrawer(
                     title: L10n.text("settings.formatMatrix.title"),
                     systemImage: "tablecells",
@@ -128,7 +127,7 @@ struct HelpPane: View {
     }
 }
 
-/// 页头:救生圈 hero。无光环(旋转动画实测闪烁鬼畜,静态环也被用户裁掉)——渐变瓦片 + 彩色阴影足矣。
+/// 页头:救生圈 hero。无光环(旋转动画触发闪烁,静态环被裁掉)——渐变瓦片 + 彩色阴影足矣。
 private struct HelpHero: View {
     var body: some View {
         HStack(spacing: 14) {
@@ -183,7 +182,7 @@ private struct HelpDrawer<Content: View>: View {
         VStack(alignment: .leading, spacing: 0) {
             Button {
                 // 展开收起用克制的 easeInOut:弹簧 + scale/move 组合转场在 ScrollView 里
-                // 会跟 LazyVGrid 布局打架,实测鬼畜(用户点名)。
+                // 会跟 LazyVGrid 布局打架,出现鬼畜。
                 withAnimation(.easeInOut(duration: 0.22)) {
                     isExpanded.toggle()
                 }

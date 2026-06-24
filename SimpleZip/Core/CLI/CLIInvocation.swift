@@ -40,7 +40,7 @@ enum CLIInvocation: Equatable {
     case open(paths: [String])
     case check(paths: [String])
     case compare(left: String, right: String)
-    /// 创建归档。`options.template` 与创建对话框「套用模板」同一目录(用户拍板的绑定对象);
+    /// 创建归档。`options.template` 与创建对话框「套用模板」同一目录;
     /// 无模板时自动套用该格式在 app 里保存的默认值(设置 → 压缩,与 Finder 一键压缩同口径),
     /// 其余旗标在其上覆盖。
     case create(output: String, inputs: [String], options: CLICreateOptions)
@@ -79,7 +79,7 @@ enum CLIInvocation: Equatable {
         case invalidValue(option: String, value: String)
 
         /// CLI 输出固定英文:进程经 PATH 符号链接运行时 Bundle.main 解析不到 app bundle
-        /// (实测 bundlePath 落在符号链接所在目录),L10n 不可用;脚本/CI 也需要稳定输出。
+        /// (bundlePath 落在符号链接所在目录),L10n 不可用;脚本/CI 也需要稳定输出。
         var message: String {
             switch self {
             case .unknownCommand(let command):

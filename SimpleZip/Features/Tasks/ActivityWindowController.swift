@@ -36,7 +36,7 @@ final class ActivityWindowController {
             return
         }
 
-        // 沉浸式标题栏（用户报：设置沉浸、活动中心不沉浸）：设置走 SwiftUI Settings 场景自动配好，
+        // 沉浸式标题栏（设置沉浸、活动中心不沉浸）：设置走 SwiftUI Settings 场景自动配好，
         // 这里是自建 NSWindow —— 之前的 .utilityWindow 老式标题栏 + 不透内容是不沉浸的根源。
         // fullSizeContentView + 透明标题栏 + 隐藏标题文本（标题保留给 Mission Control / 辅助功能），
         // 侧栏毛玻璃就能一直铺到窗口顶。
@@ -48,7 +48,7 @@ final class ActivityWindowController {
             defer: false
         )
         window.title = L10n.text("tasks.window.title")
-        // 0.4.2 用户点名:活动中心要有标题文本(与其他窗口一致)。
+        // 0.4.2 活动中心要有标题文本(与其他窗口一致)。
         window.titleVisibility = .visible
         window.titlebarAppearsTransparent = true
         window.minSize = NSSize(width: 760, height: 560)

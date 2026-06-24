@@ -52,7 +52,7 @@ enum DiagnosticsCopier {
     /// 外加后端版本与文件系统现场。
     /// **同步弹面板 → 异步收集写入**。绝不能反过来在 `MainActor.run`/Task 上下文里跑 `runModal()`：
     /// 模态事件循环会占住主 actor 执行器,所有要 hop 回 MainActor 的工作(含面板回调)排队 →
-    /// 整个 app 冻结、点哪都没反应(用户报的卡死)。
+    /// 整个 app 冻结、点哪都没反应(会卡死主线程)。
     @MainActor
     static func exportReport(session: ArchiveOperationDetailsSession, errorMessage: String?) {
         let panel = NSSavePanel()

@@ -7,7 +7,7 @@
 //  Finder 右键服务（NSServices）的激活管理。macOS 对第三方服务**默认不激活**，
 //  用户得去 系统设置 → 键盘 → 键盘快捷键 → 服务 手动勾选（用户反馈「这真的很蠢」）。
 //  激活状态存在 `pbs` 偏好域的 `NSServicesStatus` 字典里，
-//  键 = "bundleID - 菜单名 - message"（格式已对照本机 `defaults read pbs` 实测确认），
+//  键 = "bundleID - 菜单名 - message"（格式已对照本机 `defaults read pbs` 确认），
 //  值带 enabled_context_menu / enabled_services_menu 两个位。
 //  这里直接读写该字典并 NSUpdateDynamicServices() 让 pbs 立即重读 ——
 //  与在系统设置里勾选完全等效，用户在 app 里就能选择激活哪些集成。

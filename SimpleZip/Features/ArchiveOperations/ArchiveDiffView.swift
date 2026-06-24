@@ -128,7 +128,7 @@ struct ArchiveDiffView: View {
     }
 
     var body: some View {
-        // 0.4.2 用户点名：比较窗也套 0.4.1 的现代弹窗体例 —— hero 头 + 滚动内容 + 钉底操作栏。
+        // 0.4.2 比较窗也套 0.4.1 的现代弹窗体例 —— hero 头 + 滚动内容 + 钉底操作栏。
         VStack(spacing: 0) {
             DialogHero(
                 systemImage: "arrow.left.arrow.right",
@@ -143,7 +143,7 @@ struct ArchiveDiffView: View {
                 .padding(.bottom, 12)
 
             if displayedReport.result.hasDifferences {
-                // 0.4.2 用户报空白:高度贴内容、到 560 才滚 —— 差异少时窗口跟着矮。
+                // 0.4.2 高度贴内容、到 560 才滚 —— 差异少时窗口跟着矮。
                 HeightCappedScrollView(maxHeight: 560) {
                     ArchiveDiffSections(report: displayedReport, reviewedPaths: $reviewedPaths)
                         .padding(.horizontal, 20)
@@ -377,7 +377,7 @@ struct ArchiveDiffSections: View {
                         .monospacedDigit()
                 }
                 // 不用 OutlineGroup：它在 List 之外不给子级缩进（只换折叠三角，内容跟父级同一 x），
-                // 层级完全看不出来 —— 用户反馈。改成递归 DisclosureGroup，每层子级显式缩进。
+                // 层级完全看不出来。改成递归 DisclosureGroup，每层子级显式缩进。
                 ForEach(nodes) { node in
                     ArchiveDiffNodeView(node: node, reviewedPaths: reviewedPaths)
                 }
@@ -440,7 +440,7 @@ private struct ArchiveDiffNodeView: View {
                         ArchiveDiffNodeView(node: child, reviewedPaths: reviewedPaths)
                     }
                 }
-                .padding(.leading, 16)   // 每层级缩进一档，层级肉眼可分 —— 用户反馈修复
+                .padding(.leading, 16)   // 每层级缩进一档，层级肉眼可分
             } label: {
                 nodeRow
             }

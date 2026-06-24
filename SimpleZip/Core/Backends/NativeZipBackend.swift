@@ -59,7 +59,7 @@ enum NativeZipBackend {
     ///
     /// 加密 zip 例外:unzip 对 AES 条目只会「skipping … need PK compat. v5.1」、对 ZipCrypto 等
     /// stdin 口令 —— 两种输出都不含「需要口令」的诊断词,`errorSuggestsPasswordRequirement`
-    /// 永远不命中,GUI / CLI 都不会弹口令重试(CLI check 实测漏)。检出加密(含 mixed)且 7zz
+    /// 永远不命中,GUI / CLI 都不会弹口令重试。检出加密(含 mixed)且 7zz
     /// 可用时整体交给 7zz t:它报 "Cannot open encrypted archive…",统一密码中心的判定词接得上。
     nonisolated static func test(_ archive: URL, operationID: UUID? = nil, outputObserver: (@Sendable (String) -> Void)? = nil) async throws {
         // 同 extract:detectZipEncryption 同步读整个中央目录,是第一个 await 前的同步前导,被 @MainActor
@@ -86,8 +86,8 @@ enum NativeZipBackend {
 
     // MARK: - extract
 
-    /// #19 跟进(用户拍板):纯 `.tar` **整包**解压走系统 bsdtar —— 7zz 解 tar 会丢 macOS
-    /// 扩展属性(xattr 自检样本实测红),系统 tar 原生往返 PAX 头里的 xattr(创建侧本就走系统 tar)。
+    /// #19 跟进:纯 `.tar` **整包**解压走系统 bsdtar —— 7zz 解 tar 会丢 macOS
+    /// 扩展属性(xattr),系统 tar 原生往返 PAX 头里的 xattr(创建侧本就走系统 tar)。
     /// bsdtar 默认拒绝绝对路径与 `..` 成员(不加 -P),外层再叠 validateExtractedTree。
     /// 选条目 / flatten 仍走 7zz(7zz 列出的条目名与 tar 存储名不保证逐字节一致,不冒险)。
     nonisolated static func extractWholeTar(
@@ -200,7 +200,7 @@ enum NativeZipBackend {
         _ = try await BackendProcessRunner.runAndCapture(
             "/usr/bin/tar",
             // 安全:relativeNames(源文件名)以 - 开头会被 tar 当开关。排除项是选项放 `--` 前,
-            // `--` 之后 tar 一律当文件名(已实测 macOS tar 支持 `--`)。
+            // `--` 之后 tar 一律当文件名(macOS tar 支持 `--`)。
             arguments: ["-cvf", destination.path] + excludeArguments + ["--"] + relativeNames,
             currentDirectory: currentDirectory,
             progressParser: progressParser,
@@ -248,7 +248,7 @@ enum NativeZipBackend {
         }
         arguments.append(destination.path)
         // 安全:relativeNames(源文件名)以 - 开头会被 zip 当开关。排除模式是选项(放 `--` 前),
-        // `--` 之后 zip 一律当文件名。已实测 macOS zip 支持「archive -x 模式 -- 文件」这个顺序。
+        // `--` 之后 zip 一律当文件名。macOS zip 支持「archive -x 模式 -- 文件」这个顺序。
         if !excludePatterns.isEmpty {
             arguments.append("-x")
             arguments.append(contentsOf: excludePatterns)
@@ -305,7 +305,7 @@ enum NativeZipBackend {
             if overwriteBehavior == .skipExisting {
                 arguments.insert("-k", at: 0)
             }
-            arguments.append("--")   // 安全:条目名不可信,`--` 之后 tar 一律当成员名(已实测)
+            arguments.append("--")   // 安全:条目名不可信,`--` 之后 tar 一律当成员名
             arguments.append(contentsOf: entries)
             _ = try await BackendProcessRunner.runAndCapture(
                 "/usr/bin/tar",
@@ -316,8 +316,8 @@ enum NativeZipBackend {
                 outputRetentionLimit: BackendProcessRunner.diagnosticsOutputRetentionLimit
             )
         } else {
-            // 安全:unzip(Info-ZIP)**不支持 `--`** 终止选项(已实测),以 - 开头的条目名会被当开关 ——
-            // 例如条目 `-d/evil` 会被解析成 `-d /evil` 重定向解压目录(路径穿越,已实测复现)。bundled 7zz 是
+            // 安全:unzip(Info-ZIP)**不支持 `--`** 终止选项,以 - 开头的条目名会被当开关 ——
+            // 例如条目 `-d/evil` 会被解析成 `-d /evil` 重定向解压目录(路径穿越,可复现)。bundled 7zz 是
             // 首选且用 `--` 安全处理这类名;原生 unzip 仅在 7zz 不可用时兜底。这里 fail-closed:option 样条目直接拒。
             let optionLikeEntries = entries.filter { $0.hasPrefix("-") }
             guard optionLikeEntries.isEmpty else { throw ArchiveError.unsafeArchiveEntries(optionLikeEntries) }
@@ -356,7 +356,7 @@ enum NativeZipBackend {
             arguments.insert("-k", at: 0)
         }
         if !entries.isEmpty {
-            arguments.append("--")   // 安全:条目名不可信,`--` 之后 tar 一律当成员名(已实测);整包时无位置参数,免 `--`
+            arguments.append("--")   // 安全:条目名不可信,`--` 之后 tar 一律当成员名;整包时无位置参数,免 `--`
             arguments.append(contentsOf: entries)
         }
         _ = try await BackendProcessRunner.runAndCapture(

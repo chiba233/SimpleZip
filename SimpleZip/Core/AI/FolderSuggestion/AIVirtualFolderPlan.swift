@@ -647,7 +647,7 @@ nonisolated struct AIVirtualFolderGroupPlan: Codable, Equatable, Sendable {
     }
 }
 
-/// 模型给**单个节点**的一条 AI 建议(白皮书建议四 + 用户点名:「ai suggestion 必须 ai 给明确信号才弹,不然只能
+/// 模型给**单个节点**的一条 AI 建议(白皮书建议四:「ai suggestion 必须 ai 给明确信号才弹,不然只能
 /// 右键;每个文件不该全都有展开;把全部功能给 ai 让它自己选」)。模型从 `allowedSuggestionDescriptors` 词表里给某个
 /// 候选挑一个动作 token + 一句理由 —— **不拼路径 / 不拼负载**,负载由 App 按 token + 候选回查的路径安全合成。
 /// 一个节点**有建议才可展开**(无建议没展开箭头);常驻压缩 / 哈希被这套取代。

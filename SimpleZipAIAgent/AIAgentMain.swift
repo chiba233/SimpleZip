@@ -38,7 +38,7 @@ struct AIAgentMain {
         }
         // 🔒 进程级**硬看门狗**:从此刻起算(`--config-selftest` 已同步退出,走不到这),无论后续 Task / run loop /
         // dispatchMain 是否卡死,到点**强制退出** —— 杜绝「launchd 拉起后跑完不退 / 单个操作(7zz 挂、模型 XPC 不回)
-        // 卡死」导致的孤儿进程长驻(用户点名:进程必须有时间锁,任何情况超时必杀)。`maxBackgroundRunSeconds` 是
+        // 卡死」导致的孤儿进程长驻(进程必须有时间锁,任何情况超时必杀)。`maxBackgroundRunSeconds` 是
         // Task **内部**的协作式 deadline(靠 `isCancelled` 在操作间检查),阻塞操作不生效;这条看门狗在独立线程上
         // `sleep` 到点 `exit`,**不依赖** run loop / GCD(它们可能正是卡住的那个),所以一定杀得掉。取配置预算 + 60s
         // 余量(读不到配置则按默认 300s);各短命令(probe/query/test-backend/background-index)正常会更早 `exit(0)`,
@@ -52,7 +52,7 @@ struct AIAgentMain {
         if CommandLine.arguments.contains("--background-index") {
             // --force:绕间隔自节流 + app/agent 前台锁让位(测试用;门控 / 红线仍生效)。
             let force = CommandLine.arguments.contains("--force")
-            // async:烘焙要直调端上模型(异步)。A18:绝不阻塞主线程等,Task 跑完直接 exit,主线程跑 run loop 泵队列。
+            // async:烘焙要直调端上模型(异步)。不阻塞主线程等,Task 跑完直接 exit,主线程跑 run loop 泵队列。
             Task {
                 let summary = await AIAgentBackgroundIndex.runOnce(force: force, log: { line in
                     agentLog(line)   // stderr 滚动(Console / 终端可见)
@@ -70,9 +70,9 @@ struct AIAgentMain {
         // 单独回答地基问题「端上模型能否在非 App 的独立进程里跑」。便于命令行直接验证:
         //   .../Contents/MacOS/SimpleZipAIAgent --probe
         if CommandLine.arguments.contains("--probe") {
-            // ⚠️ A18:**绝不**用 DispatchSemaphore 阻塞主线程等模型 —— FoundationModels 内部异步 / XPC
-            // 回复要靠主 run loop 泵才能送达,阻塞主线程 = run loop 不泵 = respond 永远不回 = 死锁
-            // (实测:sema.wait() 版本 0% CPU 卡死)。改成让 Task 跑完直接 exit,主线程跑 run loop 服务队列。
+            // **绝不**用 DispatchSemaphore 阻塞主线程等模型 —— FoundationModels 内部异步 / XPC
+            // 回复要靠主 run loop 泵才能送达,阻塞主线程 = run loop 不泵 = respond 永远不回 = 死锁。
+            // 改成让 Task 跑完直接 exit,主线程跑 run loop 服务队列。
             Task {
                 let result = await AIAgentService.probeText()
                 agentLog("DIRECT PROBE → \(result)")
@@ -94,8 +94,8 @@ struct AIAgentMain {
             RunLoop.main.run()
         }
         // `--test-backend <归档路径>`:在 agent(独立)进程里跑一次 `ArchiveService.list`(真起 7zz),验证
-        // **后端能在 agent 进程跑通**(A19:嵌入 helper 时 Bundle.main 解析到 app bundle → 找得到 Resources/Tools/7zz)。
-        // 这是用户点名的坑(测试 / 哈希 / 列归档要跑后端)。用法:.../SimpleZipAIAgent --test-backend /path/to/x.zip
+        // **后端能在 agent 进程跑通**(嵌入 helper 时 Bundle.main 解析到 app bundle → 找得到 Resources/Tools/7zz)。
+        // 这是关键验证点(测试 / 哈希 / 列归档要跑后端)。用法:.../SimpleZipAIAgent --test-backend /path/to/x.zip
         if let tIndex = CommandLine.arguments.firstIndex(of: "--test-backend"), tIndex + 1 < CommandLine.arguments.count {
             let path = CommandLine.arguments[tIndex + 1]
             Task {

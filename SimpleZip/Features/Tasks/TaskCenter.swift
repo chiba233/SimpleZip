@@ -124,7 +124,7 @@ final class TaskCenter: ObservableObject {
     /// CLI 进程侧:把一条**已完成**的命令记录同步进活动中心。
     /// app 正在运行 → 发分布式通知(上面的 observer 接住,实时可见);
     /// 没运行 → 直接合并写进 app 的偏好域(`activityHistory`),下次启动出现在历史里。
-    /// CLI 进程经 PATH 符号链接运行时 `Bundle.main` 不指向 app bundle(实测),所以偏好域与
+    /// CLI 进程经 PATH 符号链接运行时 `Bundle.main` 不指向 app bundle,所以偏好域与
     /// 「app 是否在跑」都以显式传入的 bundleID 为准。两个 CLI 进程同时直写有理论竞态 ——
     /// 后写覆盖、只影响一条历史记录,接受;app 在跑时统一走通知,无竞态。
     nonisolated static func recordExternalCLITask(
@@ -563,7 +563,7 @@ private nonisolated struct PersistedTask: Codable {
     let hashReport: HashReport?
     let hashComparisons: [HashOverwriteResult]?
     let transferLog: [TransferLogEntry]?
-    /// 0.4.4(用户报「重启后比较详情丢了」):归档比较的结构化结果一并落盘。Optional 容错同上。
+    /// 0.4.4:归档比较的结构化结果一并落盘。Optional 容错同上。
     let diffReport: ArchiveDiffReport?
     /// 0.4.4:报告类任务(发布检查/元数据)的报告本体 —— 重启后「打开报告」仍可用。
     let reportAttachment: TaskReportAttachment?

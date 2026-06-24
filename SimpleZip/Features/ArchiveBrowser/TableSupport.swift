@@ -125,7 +125,7 @@ func configureTableColumns<Column: TableColumnDescriptor>(_ columns: [Column], f
 
     // 把每个幸存列的宽度按描述符钉回去。关键:去重「保留先出现的」——在 macOS 26 上 `outlineTableColumn = nil`
     // 删不掉的那个**旧 name 列**就是「先出现的」,被保留;新加的(宽度正确 420)反而被当重复删掉。旧 name 列带着
-    // 上几轮 autoresize 累积的旧宽度,不重置就会**每切一次列越变越宽**(用户报「名称列特别长」)。这里统一钉回描述符宽度。
+    // 上几轮 autoresize 累积的旧宽度,不重置就会**每切一次列越变越宽**(名称列会特别长)。这里统一钉回描述符宽度。
     let widthByID = Dictionary(uniqueKeysWithValues: uniqueColumns.map { ($0.identifier, $0) })
     for tableColumn in tableView.tableColumns {
         guard let descriptor = widthByID[tableColumn.identifier.rawValue] else { continue }
@@ -166,7 +166,7 @@ func makeTableCell(
     let cellID = NSUserInterfaceItemIdentifier(identifier)
     let reused = tableView.makeView(withIdentifier: cellID, owner: owner) as? NSTableCellView
     // 真复用快路径：以前这里对复用 cell 也全拆 textField/imageView 重建 + 重新 activate 约束，
-    // 复用名存实亡 —— /Applications 滚动时每行每列每帧都在重建视图树（#16 实测主线程大头之一）。
+    // 复用名存实亡 —— /Applications 滚动时每行每列每帧都在重建视图树（#16 主线程大头之一）。
     // 同 identifier ⇒ 同列同布局，结构参数匹配时只更新内容。
     let wantedIconSize = icon == nil ? CGFloat(0) : iconSize
     if let reusable = reused as? ReusableTableCellView,

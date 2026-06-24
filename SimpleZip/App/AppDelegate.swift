@@ -24,7 +24,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // 「网络包边下边解」时若 bsdtar 提前退出(解完 / 坏包出错),其 stdin 读端关闭,URLSession 下一块
         // 写入就会崩。忽略后 write 改为返回 EPIPE → FileHandle.write 抛错,由流式解压的 catch 接住清理。
         signal(SIGPIPE, SIG_IGN)
-        // 0.4.2 用户报：批量重命名等对话框的输入框点空白处不会失焦——SwiftUI TextField 在 macOS
+        // 0.4.2 批量重命名等对话框的输入框点空白处不会失焦——SwiftUI TextField 在 macOS
         // 上没有这个原生行为,且全 app 的 sheet 都中招。应用级一次性修复:任何 mouseDown 落在
         // 「正在编辑的文本」(字段编辑器 / TextEditor)之外时,把第一响应者交还窗口 = 提交并取消焦点
         // （Finder 同款）。事件原样放行,点中的控件照常响应;点在文本自己(含其滚动条)上不受影响。
@@ -55,7 +55,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.servicesProvider = self
         // app/agent 互斥:取「前台活跃」锁并长期持有 —— 后台周期索引 agent 开跑前会探它,App 在前台时让位(避免
         // App 开着也在索引时,后台 agent 重复 / 竞争地写共享派生索引)。非阻塞(LOCK_NB)→ 主线程调不卡;无条件取
-        // (锁只是「App 在运行」的标记、非 AI 数据,省得用户中途开关 AI 留下空窗)。bundle id 用约定值(A19:不靠
+        // (锁只是「App 在运行」的标记、非 AI 数据,省得用户中途开关 AI 留下空窗)。bundle id 用约定值(不靠
         // Bundle.main),与 agent 算到同一把锁。进程退出 / 崩溃 OS 自动释放,无需显式解锁。
         if let lockURL = AIForegroundLock.lockURL(appBundleID: AIAgentConfiguration.appBundleID) {
             aiForegroundLock.acquireAndHold(at: lockURL)
@@ -72,7 +72,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         // 运行状态自检:开了「静默后台索引」时,启动确保周期后台索引 LaunchAgent 处于该有的状态 —— 未注册(首次 /
         // 记录丢失)→ 注册;已注册但 **app 版本变了**(更新后 helper 二进制变 → 系统对它的启动校验可能陈旧 → launchd
-        // spawn failed)→ 重注册刷新(治用户点名的「发布包也罕见出现 stale BTM/LWCR」)。🔴 用户在登录项关掉的
+        // spawn failed)→ 重注册刷新(治「发布包也罕见出现 stale BTM/LWCR」)。🔴 用户在登录项关掉的
         // (.requiresApproval)绝不偷偷重开。Release 也跑(发布包同样会陈旧)。off-main(内部各调用已 off-main,A18)。
         if AppPreferences.aiAssistantEnabled, AppPreferences.aiBackgroundSilentIndexEnabled {
             let info = Bundle.main.infoDictionary
@@ -121,7 +121,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // `beginUncleanExitTrackingIfFirstForeground`)。**绝不在 didFinishLaunching 做** —— App Intents 后台 helper
         // 也走 didFinishLaunching,而被杀的 helper 让每次启动都判「非正常退出」→ 弹 NSAlert;helper 无可见窗口时
         // 走 `runModal` **阻塞主线程** → XPC 超时 → Shortcuts 报「Couldn't communicate with a helper application」
-        //(1.0.1 实测 `sample` 钉死:主线程 100% 卡在 `presentUncleanExitNotice → -[NSAlert runModal] → _doModalLoop`)。
+        // (主线程阻塞在 `presentUncleanExitNotice → -[NSAlert runModal] → _doModalLoop`)。
         // helper 从不 becomeActive,把检测挪到前台即彻底规避;顺带不再让被杀的 helper 把 cleanShutdownKey 污染成
         // false(否则连累下次真启动误报)。
 
@@ -151,9 +151,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// App 进入前台活跃。**只做一件事**:给后台 AI 索引置「已进前台」旗标(幂等、纯 bool 赋值)。
     ///
     /// 刻意不在这里启动任何后台工作:`becomeActive` 发生在 app 启动瞬间,与「窗口状态恢复 resize」同处一个
-    /// 窗口布局 / 显示提交周期;实测在此起后台活会改变启动时序,诱发 SwiftUI(macOS 27 beta)ScrollView 在
+    /// 窗口布局 / 显示提交周期;在此起后台活会改变启动时序,诱发 SwiftUI(macOS 27 beta)ScrollView 在
     /// 布局周期内重入请求约束更新的崩溃(`_postWindowNeedsUpdateConstraints` 抛 NSException → abort)。
-    /// 后台 AI 的实际启动**仍由 `ContentView.onAppear` 触发**(实测安全);这里只立 helper 判定旗标:
+    /// 后台 AI 的实际启动**仍由 `ContentView.onAppear` 触发**(该路径安全);这里只立 helper 判定旗标:
     /// App Intents 后台 helper 从不 becomeActive,旗标恒 false → `runIfEnabled` 跳过扫描,不会用 LaunchServices
     /// 风暴占住 helper(那会让它没能在 XPC 超时内响应 intent → Shortcuts 报「Couldn't communicate…」)。
     func applicationDidBecomeActive(_ notification: Notification) {
@@ -163,7 +163,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// 只在**首次进前台**触发一次:异常退出检测 + 本次会话「干净退出」跟踪。
     /// App Intents 后台 helper 从不 becomeActive,于是 helper:① 绝不弹「非正常退出」NSAlert(无可见窗口时是
-    /// `runModal` 阻塞主线程 → 卡死 helper → XPC 超时 → Shortcuts「Couldn't communicate…」,实测采样钉死);
+    /// `runModal` 阻塞主线程 → 卡死 helper → XPC 超时 → Shortcuts「Couldn't communicate…」,堆栈采样可证);
     /// ② 绝不把 `cleanShutdownKey` 污染成 false(被杀的 helper 否则让下次真启动误报非正常退出)。
     private func beginUncleanExitTrackingIfFirstForeground() {
         guard !didStartUncleanExitTracking else { return }
@@ -239,12 +239,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// 异常退出后的提示：临时资源已自动清理 + 中断任务已在活动中心标出，可导出诊断报告。
     /// 0.4.3 修「启动卡死假象」:以前无条件 `runModal` —— 启动 800ms 后若 app 不在前台
     /// (开机自启 / 焦点被别的 app 抢走),模态面板開在别人后面,主线程困在模态循环,
-    /// 整个 app 看起来挂了,用户只能 SIGTERM 强杀(实测调试器停在 runModal 上)。
+    /// 整个 app 看起来挂了,用户只能 SIGTERM 强杀。
     /// 现在:有主窗口就挂 **sheet**(不卡全局、永远贴着自己窗口可见);没窗口才回退
     /// runModal,且先显式把 app 拉到前台。
     private func presentUncleanExitNotice() {
         // 纵深防御:只有 app 真在前台才弹。无前台会话(App Intents helper)走到这里会落进下面 `else` 的
-        // `runModal()` —— 无窗口、无用户、永不返回,直接卡死主线程(Shortcuts「Couldn't communicate…」的死因)。
+        // `runModal()` —— 无窗口、无用户、永不返回,直接卡死主线程。这是 Shortcuts「Couldn't communicate…」的死因。
         guard NSApp.isActive else { return }
         let alert = NSAlert()
         alert.alertStyle = .warning

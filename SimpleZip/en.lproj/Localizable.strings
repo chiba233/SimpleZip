@@ -6,7 +6,7 @@
 "welcome.button.finish" = "Start Using SimpleZip";
 "welcome.stepLabel" = "Step %d of %d";
 "welcome.intro.title" = "Get the key settings sorted in a few steps";
-"welcome.intro.body" = "SimpleZip is a native macOS archive manager. The next few steps walk you through the switches new users miss most often. You can replay this assistant any time from SimpleZip → Run Welcome Assistant Again.";
+"welcome.intro.body" = "SimpleZip is a native macOS archive manager. The steps below cover settings most new users find useful. You can replay this assistant any time from SimpleZip → Run Welcome Assistant Again.";
 "welcome.intro.note" = "Every setting here can also be changed later from SimpleZip → Settings.";
 "welcome.language.title" = "Pick the interface language";
 "welcome.language.body" = "The app's UI language is independent of the system language. Changing it applies immediately; the macOS top menu bar follows after the next relaunch.";
@@ -24,11 +24,11 @@
 "welcome.fileAssociations.setAllDone" = "SimpleZip is now the default for all supported archive types.";
 "welcome.fileAssociations.setAllPartial" = "Set as default, except: %@";
 "welcome.hiddenFiles.title" = "Hidden files";
-"welcome.hiddenFiles.body" = "Show hidden files in the browser. When on, they're tucked into a collapsible \"Hidden Files\" group instead of cluttering the list — choose what counts as hidden and how the group remembers its collapsed state.";
+"welcome.hiddenFiles.body" = "Show hidden files in the browser. When on, they are grouped into a separate collapsible \"Hidden Files\" section instead of mixing with regular files. Customize which files count as hidden and how the group remembers collapsed state.";
 "welcome.rowDensity.title" = "List size";
 "welcome.rowDensity.body" = "How tall list rows are, with matching icon and text sizes. Applies to both the file and archive browsers.";
 "welcome.grouping.title" = "Grouping (optional)";
-"welcome.grouping.body" = "Optionally split the browser list into collapsible sections. Set a global default, or remember a grouping per folder (then set it via right-click in any folder). Leave as None to keep a flat list.";
+"welcome.grouping.body" = "Optionally split the browser list into collapsible sections. Set a global default, or remember grouping per folder. Select None for a flat list.";
 "welcome.safety.title" = "Safety policy";
 "welcome.safety.body" = "Archive contents are untrusted input. By default SimpleZip prompts you before any of the three things below. You can adjust each rule later in Settings → Security.";
 "welcome.safety.suspiciousPath" = "Suspicious paths (traversal / absolute / Windows drive / UNC)";
@@ -42,7 +42,7 @@
 "welcome.backend.rar.available" = "RAR ✓ Ready";
 "welcome.backend.rar.missing" = "RAR ⓘ Unavailable (only needed for creating .rar)";
 "welcome.gpg.title" = "GPG (PGP signing) — optional";
-"welcome.gpg.body" = "GPG lets you sign archives so recipients can verify origin and integrity, and lets you encrypt to specific recipients' public keys. Entirely optional — turning it off keeps SimpleZip behaving as if GPG isn't there at all; you can opt in here anytime.";
+"welcome.gpg.body" = "GPG provides archive signing and recipient-specific encryption. All GPG entry points are hidden when turned off, and can be re-enabled in Settings at any time.";
 "welcome.gpg.enable" = "Enable GPG integration";
 "welcome.gpg.enable.description" = "When on: the Create Archive sheet exposes a \"GPG sign\" option, opening a .siz shows signer info, and Settings → GPG can manage keys. When off: every GPG entry point disappears from the main UI.";
 "welcome.gpg.backendCheck" = "GPG backend";
@@ -50,8 +50,8 @@
 "welcome.gpg.missing" = "GnuPG ✗ Not installed";
 "welcome.gpg.pinentry.warning" = "⚠ GnuPG is present but pinentry-mac is missing. Signing will work; decryption / unlocking private keys will hang because gpg-agent has no native GUI prompt. Consider `brew install pinentry-mac`.";
 "welcome.gpg.passphraseNote" = "ℹ SimpleZip does NOT manage or cache your GPG private-key passphrase — unlocking is handled entirely by your local gpg-agent + pinentry-mac. If GPG-related issues come up, check your gpg / pinentry / key trust configuration first.";
-"welcome.completion.title" = "All set";
-"welcome.completion.body" = "Key settings are configured. You can start using SimpleZip from the Dock, Finder, or by dragging a folder onto the main window.\n\nChange any of these settings later from Settings, and replay this assistant from the SimpleZip menu.";
+"welcome.completion.title" = "Done";
+"welcome.completion.body" = "Key settings are configured. You can start using SimpleZip from the Dock, Finder, or by dragging a folder onto the main window.\n\nChange these settings later in Settings, and replay this assistant from the SimpleZip menu.";
 "welcome.backupRestore.title" = "Restore from a previous backup?";
 "welcome.backupRestore.body" = "If you previously exported a SimpleZip preferences JSON from Settings → Backup & Restore, you can import it now and skip the later manual choices. Otherwise click Continue.";
 "welcome.backupRestore.importReplaceHint" = "Importing replaces your current settings with the backup's.";
@@ -73,7 +73,7 @@
 "error.siz.versionTooNew" = "This .siz was created by a newer version of SimpleZip (format v%1$@; this version supports up to v%2$@). Update SimpleZip to open it normally.";
 "error.szs.versionTooNew" = "This .szs was created by a newer version of SimpleZip (format v%1$@; this version supports up to v%2$@). Update SimpleZip to open it normally.";
 "container.versionTooNew.title" = "Created by a Newer Version of SimpleZip";
-"container.versionTooNew.message" = "“%1$@” uses format version v%2$@, but this copy of SimpleZip only understands up to v%3$@ — that's why it won't open. Updating SimpleZip is the safe fix. You can also force it open: fields this version doesn't know will be ignored, so signature or encryption details may be incomplete.";
+"container.versionTooNew.message" = "“%1$@” uses format version v%2$@, but this copy of SimpleZip only supports up to v%3$@. Update SimpleZip to open it; alternatively, force open (unknown fields will be ignored; signature or encryption details may be incomplete).";
 "container.versionTooNew.forceOpen" = "Open Anyway";
 "error.siz.missingInnerArchive" = ".siz container doesn't contain the inner archive: %@";
 "error.siz.invalidContainerEntry" = ".siz container contains an unsafe or unsupported entry: %@";
@@ -147,7 +147,7 @@
 "updates.changelog.version" = "Version %@";
 "updates.changelog.current" = "CURRENT";
 "settings.gpg.enabledTitle" = "Enable GPG integration";
-"settings.gpg.enabledDescription" = "When on, the Create Archive sheet offers a signing checkbox, opening a .siz container shows signer info, and key management is available in Settings. When off, every GPG entry point is hidden so users who don't use GPG aren't bothered.";
+"settings.gpg.enabledDescription" = "When enabled, the Create Archive sheet offers a signing checkbox, opening a .siz container shows signer info, and key management is available in Settings. When disabled, all GPG entry points are hidden.";
 "settings.gpg.backend.title" = "GPG Backend";
 "settings.gpg.resolvedPath" = "GPG path: %@";
 "settings.gpg.resolvedVersion" = "GnuPG version: %@";
@@ -180,7 +180,7 @@
 "settings.gpg.keys.fingerprintCopied" = "Copied public key fingerprint to clipboard.";
 "settings.gpg.keys.contextCopyFingerprint" = "Copy public key fingerprint";
 "settings.gpg.keys.contextCopyPublicKey" = "Copy Public Key";
-"settings.gpg.keys.publicKeyCopied" = "Public key copied to the clipboard — paste it to whoever needs to verify or encrypt for you.";
+"settings.gpg.keys.publicKeyCopied" = "Public key copied to the clipboard. Share it with anyone who needs to verify your signatures or encrypt files for you.";
 "settings.gpg.keys.filter.prompt" = "Search keys: name, email, or fingerprint";
 "settings.gpg.keys.filter.noMatch" = "No keys match “%1$@”.";
 "settings.gpg.keys.clipboardMenu" = "Clipboard";
@@ -284,7 +284,7 @@
 "settings.gpg.defaults.signingStrategy.label" = "Signing key strategy";
 "settings.gpg.defaults.signingStrategy.silent" = "Silently use default key";
 "settings.gpg.defaults.signingStrategy.ask" = "Ask each time";
-"settings.gpg.defaults.signingStrategy.silentDescription" = "Archives are signed with the key marked as \"default\" in the keyring, no prompts. The normal default for single-key users.";
+"settings.gpg.defaults.signingStrategy.silentDescription" = "Sign archives automatically using the default private key. Best for single-key users.";
 "settings.gpg.defaults.signingStrategy.askDescription" = "When creating an archive, a key picker appears below \"Sign with GPG\" so you can choose which private key signs this specific archive. Needed when you use multiple keys (work / personal / per-project).";
 // Sign-key picker in the create dialog
 "archive.gpgSign.keyLabel" = "Signing key";
@@ -363,7 +363,7 @@
 "szs.instructions.fileCount" = "Files covered:";
 "szs.instructions.created" = "Created:";
 "szs.instructions.encrypted" = "The listed files are GPG-encrypted (.gpg) — you'll need a recipient private key or the passphrase to decrypt them.";
-"szs.instructions.withSimpleZip" = "With SimpleZip: just open this .szs — it verifies the signature and checks every file's SHA-256 for you.";
+"szs.instructions.withSimpleZip" = "With SimpleZip: open this .szs to verify the signature and check every file's SHA-256.";
 "szs.instructions.manualHeader" = "Without SimpleZip (any system with gpg + shasum):";
 "szs.instructions.manualSha" = "then check each file's SHA-256 against the list in this manifest, e.g.:";
 "szs.instructions.moreFiles" = "  …and %@ more file(s) listed in this manifest.";
@@ -505,7 +505,7 @@
 "settings.gpg.newKey.subkey.encryptFixed" = "Encrypt — encryption subkey (automatic)";
 "settings.gpg.newKey.subkey.encryptFixedDetail" = "gpg automatically generates a dedicated encryption subkey so you can decrypt content others send you.";
 "settings.gpg.newKey.subkey.authOption" = "Authenticate — authentication subkey";
-"settings.gpg.newKey.subkey.authOptionDetail" = "Optional. Lets you use the GPG key as an SSH key (gpg-agent speaks the ssh-agent protocol). Leave off if you don't plan to use the key for SSH authentication.";
+"settings.gpg.newKey.subkey.authOptionDetail" = "Optional. Use the GPG key as an SSH key (gpg-agent provides the ssh-agent protocol). Leave empty if not using the key for SSH authentication.";
 // Delete confirmation alert
 "settings.gpg.keys.deletePublicTitle" = "Delete \"%@\" public key?";
 "settings.gpg.keys.deleteSecretTitle" = "Delete \"%@\" key (including private key)?";
@@ -1032,7 +1032,7 @@
 "help.topic.aiAssist.title" = "Smart presets & toolbar";
 "help.topic.aiAssist.body" = "In the Create and Extract dialogs, apply recommended settings in one tap. The toolbar also reorders itself for the file at hand, putting the action you most likely want first.";
 "help.topic.aiBackground.title" = "Background preread & privacy";
-"help.topic.aiBackground.body" = "AI prereads only the folders you whitelist, and only while your Mac is idle. Nothing is uploaded, encrypted contents are never read, and it only explains and suggests — it never deletes or approves anything for you. Turn it off or clear it anytime in Settings → AI.";
+"help.topic.aiBackground.body" = "AI pre-reads only the folders you allow, and only while your Mac is idle. Nothing is uploaded, encrypted contents are not read, and it only explains and suggests. Turn it off or clear it anytime in Settings → AI.";
 "help.topic.fastExtract.title" = "Streaming fast extraction";
 "help.topic.fastExtract.body" = "When extracting ZIP or tar-family archives, opt into streaming fast extraction — sequential reading that's noticeably quicker for large archives and network volumes. Just tick it in the Extract options.";
 "help.topic.webExtract.title" = "Download & extract from a URL";
@@ -1314,13 +1314,13 @@
 "settings.ai.privacy.section" = "Privacy";
 "settings.ai.privacy.note" = "The AI assistant runs entirely on your Mac. Passwords, encrypted contents and keys are never sent to it.";
 "settings.ai.privacy.disclosure.title" = "AI Privacy Notice";
-"settings.ai.privacy.point.data" = "Data we access: Only after you turn on the relevant switches and add folders to the allow-list does the background read metadata (name, size, dates, type) of non-encrypted files in those folders. If you also enable content pre-reading, it reads the opening text of documents and the entry list inside archives, always redacted first. Your feedback on suggestions (Not interested, taps) is recorded on this device only.";
+"settings.ai.privacy.point.data" = "Data accessed: Only after you enable the relevant toggles and add folders to the allow-list does the background read metadata (name, size, dates, type) of non-encrypted files in those folders. If content pre-reading is also enabled, it reads opening text of documents and entry lists inside archives, always redacted first. Feedback on suggestions (Not interested, taps) is stored on this device only.";
 "settings.ai.privacy.point.never" = "What we never access: The contents of encrypted archives, passwords, keys, decrypted plaintext, and full sensitive paths are never read or stored.";
 "settings.ai.privacy.point.use" = "What it is used for: Only to generate explanations, classifications, one-line summaries, action recommendations and tidy-up suggestions for your files, on your device. Never for ads, never sold, no cross-app profiling.";
 "settings.ai.privacy.point.model" = "Model we use: Apple’s on-device model (Apple Intelligence, requires macOS 26 or later on a supported device). All computation runs locally on your Mac.";
 "settings.ai.privacy.point.flow" = "How data flows: It never leaves your Mac. Nothing is uploaded to any server, sent to third parties, or used to train any model.";
-"settings.ai.privacy.point.promise" = "Our commitments: Every AI feature is off by default and requires you to opt in; derived data is stored only on this Mac and excluded from preferences backup; you can clear it any time; raw feedback is kept for at most 30 days.";
-"settings.ai.privacy.point.guarantee" = "Our guarantee: The AI only explains, classifies and suggests. It never deletes files, approves operations, or automatically performs any risky write for you; every move, creation or write needs your explicit confirmation.";
+"settings.ai.privacy.point.promise" = "Every AI feature is off by default and requires opt-in; derived data is stored only on this Mac and excluded from preferences backup; you can clear it any time; raw feedback is kept for at most 30 days.";
+"settings.ai.privacy.point.guarantee" = "The AI only explains, classifies and suggests. It does not delete files, approve operations, or automatically perform writes; every move, creation or write requires explicit confirmation.";
 "settings.automation.shortcuts.section" = "Shortcuts & Siri";
 "settings.automation.shortcuts.title" = "Shortcuts Actions";
 "settings.automation.shortcuts.description" = "Seven Shortcuts actions — open archives, files, release packages, tasks and settings, find which archive contains a file, and change a setting.";
@@ -2118,7 +2118,7 @@
 "health.aiAgent.title" = "Background AI service";
 "health.aiAgent.ok" = "Registered — background indexing runs when SimpleZip is closed.";
 "health.aiAgent.notRegistered" = "Background indexing is turned on, but the service isn't registered yet.";
-"health.aiAgent.requiresApproval" = "Turned off in Login Items. SimpleZip won't switch it back on for you — re-enable it in System Settings if you want background indexing.";
+"health.aiAgent.requiresApproval" = "Turned off in Login Items. Re-enable in System Settings to permit background indexing.";
 "health.aiAgent.notFound" = "The background service is missing from the app (a build problem).";
 "health.aiAgent.repair" = "Repair Background Service";
 "health.aiAgent.openLoginItems" = "Open Login Items";
@@ -2844,15 +2844,15 @@
 "tasks.aiWorkbench.automation.open" = "Open Shortcuts";
 
 "welcome.ai.title" = "On-device intelligence";
-"welcome.ai.body" = "SimpleZip can use Apple Intelligence on your Mac to explain reports, classify archives, and suggest next steps — all on-device. It never decides for you and never unlocks or changes anything on its own.";
-"welcome.ai.privacyNote" = "Everything runs on your Mac. SimpleZip only explains, classifies, and suggests — it never decides for you, and never reads encrypted archive contents.";
+"welcome.ai.body" = "Apple Intelligence on your Mac can explain reports, classify archives, and suggest next steps — all on-device.";
+"welcome.ai.privacyNote" = "Everything runs locally on your Mac. Only explains, classifies, and suggests; encrypted content is not read.";
 "dupArchives.needTwo" = "Need at least two archives in this folder to find duplicates.";
 "welcome.ai.background.body" = "Let SimpleZip prepare summaries and picks ahead of time, quietly in the background. All optional.";
 
 "update.window.title" = "What's New";
 "update.hero.title" = "Updated to SimpleZip %@";
 "update.hero.body" = "Set up what's new in a few steps.";
-"update.done.title" = "All set!";
+"update.done.title" = "Done";
 "update.done.body" = "The new features are ready to use.";
 
 /* 0.4.5 AppIntents(Shortcuts UI):标题 / 参数 / 类型 / 描述本地化(英文字面量即键) */

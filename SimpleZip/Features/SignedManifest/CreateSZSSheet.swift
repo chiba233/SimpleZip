@@ -206,7 +206,7 @@ struct CreateSZSSheet: View {
         HStack(alignment: .center, spacing: 8) {
             DialogRowLabel(L10n.text("szs.create.signingKeyLabel"), systemImage: "signature", tint: .green, width: labelColumnWidth)
             Spacer(minLength: 12)
-            // 值钉到右缘 —— 与本对话框其他行(选择按钮列)同一条右基线(用户点名)。
+            // 值钉到右缘 —— 与本对话框其他行(选择按钮列)同一条右基线。
             GPGSecretKeyMenu(
                 selection: $signingKeyFingerprint,
                 secretKeys: availableSecretKeys,
@@ -252,7 +252,7 @@ struct CreateSZSSheet: View {
         }
         if encryptFiles {
             // 说明 / 警告紧贴所属控件(同一值列、小间距 6),不再用「空标签 + 浮动说明行」——
-            // 孤儿说明行隔着 16pt 行距浮在卡片里,正是用户点名的「不优雅」。
+            // 孤儿说明行隔着 16pt 行距浮在卡片里显得突兀。
             HStack(alignment: .top, spacing: 8) {
                 drawerFieldLabel("archive.gpgEncrypt.recipientsLabel", systemImage: "person.2.fill")
                 VStack(alignment: .leading, spacing: 6) {

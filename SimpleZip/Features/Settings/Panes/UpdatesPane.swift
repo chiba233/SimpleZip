@@ -117,7 +117,7 @@ struct UpdatesPane: View {
             }
         }
         .formStyle(.grouped)
-        // 更新日志的每个版本折叠行整行可点展开(用户点名,与设置其它折叠组、活动中心同款)。
+        // 更新日志的每个版本折叠行整行可点展开(与设置其它折叠组、活动中心同款)。
         .disclosureGroupStyle(.wholeRow)
         .settingsScrollAnchors()
         .onAppear {
@@ -196,7 +196,7 @@ final class ChangelogFeed: ObservableObject {
         /// 跨行的两个 `~`(如 `~/.Trash` 与 `~/文稿`)会被 GFM 配成删除线区间,把中间几条
         /// 更新整段画上横线(用户截图实锤);`__MACOSX` 这类双下划线同理有配对风险。
         /// 转义只做在反引号代码段**之外** —— 代码段内不解析反斜杠转义,会把 `\~` 原样
-        /// 漏显出来(实测 129 处)。CHANGELOG 约定从不写删除线/下划线强调,转义零损失。
+        /// 漏显出来(验证 129 处)。CHANGELOG 约定从不写删除线/下划线强调,转义零损失。
         ///
         /// `### 分类标题`(0.4.4 起 CHANGELOG 按 feat/UX/bugfix… 分类):inlineOnly 模式不渲染
         /// 块级 ATX 标题,会把 `### feat` 原样露出井号。渲染前把这种行就地转成粗体行(`**feat**`)——

@@ -355,7 +355,7 @@ enum ArchiveJunkFiles {
     /// 0.4.2：解压「跳过 macOS 元数据垃圾」—— 在 **staging 树**上删垃圾（解压先进 staging 再合并，
     /// 所以这里删的全是本次解压产物，绝不会碰目标目录原有文件）。返回删除条目数。
     ///
-    /// **必须走 POSIX `readdir`**：实测 Foundation 的目录枚举（enumerator / contentsOfDirectory）
+    /// **必须走 POSIX `readdir`**：Foundation 的目录枚举（enumerator / contentsOfDirectory）
     /// 会把 AppleDouble `._*` 文件**整个藏起来**（盘上存在、`ls`/`fileExists` 可见，枚举就是不吐）——
     /// 清垃圾恰恰要看见这些文件。`__MACOSX` 整目录删；目录判定用 lstat 语义（不跟符号链接下钻）。
     @discardableResult

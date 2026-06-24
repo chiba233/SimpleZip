@@ -52,7 +52,7 @@ struct ArchiveCreationOptionsView: View {
     @State private var smartcardPresent: Bool?
     @State private var isCheckingSmartcard = false
     private let compressionDefaultsStore = CompressionDefaultsStore()
-    /// 「使用发布助手」(套用模板旁,用户点名):关掉本对话框、带着当前请求转进发布助手。
+    /// 「使用发布助手」(套用模板旁):关掉本对话框、带着当前请求转进发布助手。
     /// nil = 不显示按钮(调用方没接)。
     var openReleaseAssistant: (() -> Void)? = nil
     let create: (ArchiveCreationRequest) -> Void
@@ -174,14 +174,14 @@ struct ArchiveCreationOptionsView: View {
                 subtitle: L10n.format("archive.create.subtitle", "\(request.sourceURLs.count)")
             )
 
-            // 0.4.1（用户拍板）：常用选项直出（基本 / 密码），不常用选项全部进抽屉（高级 / 7-Zip /
+            // 0.4.1 常用选项直出（基本 / 密码），不常用选项全部进抽屉（高级 / 7-Zip /
             // 排除 / GPG）。高度自适应内容，maxHeight 兜底防超屏 —— 不再写死 sheet 高度。
             ScrollViewReader { scrollProxy in
                 ScrollView {
                     VStack(alignment: .leading, spacing: 18) {
                         templateMenuRow
                         basicsSection
-                        // 0.4.2 用户点名：预检是高频 UI，不进二级抽屉 —— 常驻概要条，
+                        // 0.4.2 预检是高频 UI，不进二级抽屉 —— 常驻概要条，
                         // 出现即自动统计，排除规则 / 分卷 / 格式变更自动重算。
                         preflightStrip
                         if request.options.format.supportsPassword {
@@ -241,7 +241,7 @@ struct ArchiveCreationOptionsView: View {
             }
         }
         .frame(width: 700)
-        // 点输入框以外的任意空白 → 释放第一响应者（用户报：焦点一直黏在输入框上，UX 很差）。
+        // 点输入框以外的任意空白 → 释放第一响应者（焦点一直黏在输入框上，UX 很差）。
         // 手势挂在整个 sheet 上：控件自己吃掉点击，只有空白区会落到这里。
         .onTapGesture {
             NSApp.keyWindow?.makeFirstResponder(nil)
@@ -640,7 +640,7 @@ struct ArchiveCreationOptionsView: View {
                 }
             }
             if !hidden(.threadCount) {
-                // 数值文本钉死在 ▲▼ 按钮左侧（用户报：值会到处飘）。
+                // 数值文本固定在 ▲▼ 按钮左侧(避免布局漂移)。
                 LabeledContent {
                     HStack(spacing: 8) {
                         Text(threadCountLabel)
@@ -779,7 +779,7 @@ struct ArchiveCreationOptionsView: View {
         }
     }
 
-    /// 0.4.2（用户点名升一级）：创建前预检 —— 常驻概要条。出现即自动统计；
+    /// 0.4.2 创建前预检 —— 常驻概要条。出现即自动统计；
     /// 排除规则 / 分卷 / 格式变更自动重算（onChange 挂在本条上）。输出名冲突即时显示。
     @ViewBuilder
     private var preflightStrip: some View {
@@ -787,7 +787,7 @@ struct ArchiveCreationOptionsView: View {
             HStack(alignment: .firstTextBaseline, spacing: 14) {
                 if let dryRun {
                     // 概要项进自适应网格：每项**强制单行**（lineLimit(1)+fixedSize），
-                    // 放不下换列不换行 —— 0.4.2 用户报「有的挤成两行有的一行」。
+                    // 放不下换列不换行 —— 0.4.2 修复项内换行导致排版不齐。
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), alignment: .leading)], alignment: .leading, spacing: 8) {
                         Label(
                             L10n.format(
@@ -856,7 +856,7 @@ struct ArchiveCreationOptionsView: View {
             }
             // 打开窗口即静默跑的内联 AI 速览(预估耗时 + 格式/级别建议 + 冲突提醒)。动态:数据/格式/级别变了重跑。仅 isReady 时出现。
             if let dryRun {
-                // 统计区 ↔ AI 区之间一道很薄的分割线(用户点名);仅 AI 可用、确实会出速览时才画,避免悬空线。
+                // 统计区 ↔ AI 区之间一道很薄的分割线;仅 AI 可用、确实会出速览时才画,避免悬空线。
                 AIGate {
                     Divider().opacity(0.5).padding(.vertical, 1)
                 }
@@ -931,7 +931,7 @@ struct ArchiveCreationOptionsView: View {
     /// 内容进 `.siz` 「收件人说明」最前面并随签名防篡改；留空则只生成自动的验签 / 解密说明。
     @ViewBuilder
     private var deliveryNoteRow: some View {
-        // 用户拍板：标签和输入框必须两行（标签在上、输入框整行在下），不搞「标签 + 右侧输入框」。
+        // 标签和输入框必须两行（标签在上、输入框整行在下），不搞「标签 + 右侧输入框」。
         VStack(alignment: .leading, spacing: 4) {
             Label(L10n.text("archive.gpgSign.deliveryNote.label"), systemImage: "text.bubble.fill")
                 .font(.caption.weight(.medium))
@@ -981,7 +981,7 @@ struct ArchiveCreationOptionsView: View {
     /// placeholder 「可选 · 对称密码」+ 下方 hint 已经说清楚「留空 = 不设密码」。
     @ViewBuilder
     private var encryptionPassphraseRow: some View {
-        // 标签在上、输入框整行在下（用户拍板的两行布局），提示再占一行。
+        // 标签在上、输入框整行在下（两行布局），提示再占一行。
         VStack(alignment: .leading, spacing: 4) {
             Label(L10n.text("archive.gpgEncrypt.passphraseLabel"), systemImage: "lock.rectangle.fill")
                 .font(.caption.weight(.medium))
@@ -1009,7 +1009,7 @@ struct ArchiveCreationOptionsView: View {
                 autoLabelKey: "archive.gpgSign.key.auto",
                 missingFingerprintKey: "archive.gpgSign.key.missingFingerprint"
             )
-            // 0.4.2 #30：选中的签名密钥在智能卡上 → 明确预告（需插卡 / 可能弹 PIN）+ 实测卡在不在位。
+            // 0.4.2 #30：选中的签名密钥在智能卡上 → 明确预告（需插卡 / 可能弹 PIN）+ 检测卡在不在位。
             if selectedSigningKeyUsesSmartcard {
                 smartcardStatusRow
             }

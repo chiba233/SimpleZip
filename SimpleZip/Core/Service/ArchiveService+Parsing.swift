@@ -10,7 +10,7 @@ import Foundation
 extension ArchiveService {
     // nonisolated:纯字节解析(读 ZIP 尾部 + 解析 central directory),无 MainActor 状态 → 可在后台线程跑。
     // 关键:解压对话框 preflight 经 `Task.detached` 调它检测加密**方法**;若它是 MainActor 隔离,detached 会跳回
-    // 主线程跑冻死 UI(用户报)。整条解析链(readZipCentralDirectory / zipAESDetection / Data.zip*)同标。
+    // 主线程跑冻死 UI。整条解析链(readZipCentralDirectory / zipAESDetection / Data.zip*)同标。
     // 只读尾部(EOCD + 中央目录),不读整个文件 —— 否则网络卷上会把整包全拖一遍(见 readZipCentralDirectory)。
     nonisolated static func detectZipEncryption(in archive: URL) -> ZipEncryptionDetection {
         guard archive.pathExtension.lowercased() == "zip" else {
@@ -123,9 +123,9 @@ extension ArchiveService {
             }
     }
 
-    /// 0.4.1 #114（**只读**；实测 bundled 7zz 不支持写注释参数,绝不瞎猜后端旗标）：
+    /// 0.4.1 #114（**只读**；bundled 7zz 不支持写注释参数,绝不瞎猜后端旗标）：
     /// 从 `l -slt` 输出抽**归档级**注释（头部块的 Comment；条目块的不算）。
-    /// 7-Zip 对多行值用花括号形式：`Comment = `（空值行）后跟 `{`、内容若干行、`}`（实测 zip 注释如此输出）；
+    /// 7-Zip 对多行值用花括号形式：`Comment = `（空值行）后跟 `{`、内容若干行、`}`（zip 注释如此输出）；
     /// 单行注释直接 `Comment = xxx`。只扫到条目分隔线 `----------` 为止 —— 之后是条目区。
     nonisolated static func parseArchiveHeaderComment(_ output: String) -> String {
         let lines = output
@@ -155,7 +155,7 @@ extension ArchiveService {
         return ""
     }
 
-    /// zstd 单流的内层文件名合成 —— 与 7zz 解压产物命名**完全一致**(实测):
+    /// zstd 单流的内层文件名合成 —— 与 7zz 解压产物命名**完全一致**:
     /// `a.txt.zst → a.txt`、`sample.tar.zst → sample.tar`、`foo.tzst → foo.tar`。
     nonisolated static func singleStreamInnerName(forArchiveNamed archiveName: String) -> String {
         let ns = archiveName as NSString
@@ -241,10 +241,10 @@ extension ArchiveService {
 
         private func flush() {
             guard let rawPath = values["Path"] else {
-                // zstd 单流(0.4.3 实测):`-slt` 的条目块**没有 Path**,只有空的 Size/Packed Size 行
+                // zstd 单流:`-slt` 的条目块**没有 Path**,只有空的 Size/Packed Size 行
                 // (gzip/xz 都带 Path,唯独 zstd 不带)。7zz 自己在普通 `l` 输出和解压时按
                 // 「归档名去掉 .zst / .tzst → stem.tar」合成内层名 —— 这里照同一规则合成,
-                // 否则 zst/tar.zst 打开永远是空列表。按名解选中条目实测可用(7zz 接受合成名)。
+                // 否则 zst/tar.zst 打开永远是空列表。按名解选中条目可用(7zz 接受合成名)。
                 if headerType == "zstd", !headerArchiveName.isEmpty,
                    values.keys.contains("Size") || values.keys.contains("Packed Size") {
                     let inner = ArchiveService.singleStreamInnerName(forArchiveNamed: headerArchiveName)

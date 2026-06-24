@@ -258,7 +258,7 @@ struct FormatPresetEditorSheet: View {
 
             Divider()
             PinnedBottomBar {
-                // #37:「按我最常用的来」—— 始终显示;没有该格式的使用统计时置灰(灰着也比藏起来强,用户点名)。
+                // #37:「按我最常用的来」—— 始终显示;没有该格式的使用统计时置灰(灰着也比藏起来强)。
                 // 有数据时把众数值勾上并填进各行,用户仍可改后保存。
                 Button {
                     if let usageSuggestion {

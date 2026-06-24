@@ -77,7 +77,7 @@ extension ArchiveBrowserModel {
         }
     }
 
-    /// 0.4.2：.gpg 解压确认请求（非 nil = 弹对话框）。用户点名「不能静默解压」——
+    /// 0.4.2：.gpg 解压确认请求（非 nil = 弹对话框）。不能静默解压 ——
     /// 解压前给正规对话框：看清产物名、可改目标目录。
     struct GPGExtractRequest: Identifiable {
         let id = UUID()
@@ -106,7 +106,7 @@ extension ArchiveBrowserModel {
         case .privateKey:
             pendingGPGKeyImport = GPGKeyImportRequest(sourceURL: url, isPrivateKey: true)
         case .encryptedMessage:
-            // 0.4.2 用户点名：不静默解 —— 弹解压对话框（产物名 + 可改目标目录）再动手。
+            // 0.4.2 不静默解 —— 弹解压对话框（产物名 + 可改目标目录）再动手。
             gpgExtractRequest = GPGExtractRequest(url: url, destinationURL: url.deletingLastPathComponent())
         case .detachedSignature, .clearSigned, .unknown:
             errorMessage = L10n.text("gpgFile.notDecryptable.message")

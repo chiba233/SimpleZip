@@ -14,7 +14,7 @@ import Foundation
 /// (文件后端)都 conform,让"体量大、非偏好"的数据(AI 派生缓存、归档清单缓存、活动历史、AI 工作区快照…)能把
 /// 持久化后端从偏好域换成文件:偏好域(plist)有 CFPreferences 的 **4 MB 单值硬上限**,且整份 domain 随每次进程
 /// 启动加载并在每次写时整体重序列化 —— 大对象一旦塞进去,任何写都 fault + 反复重序列化,拖垮**每一次**启动
-/// (App Intents 后台 helper 因此没能在连接窗口内 ready → Shortcuts 报「Couldn't communicate…」,实测)。
+/// (App Intents 后台 helper 因此没能在连接窗口内 ready → Shortcuts 报「Couldn't communicate…」)。
 /// 生产一律走文件后端;测试可注入内存 `UserDefaults`(快、隔离),无需碰盘。
 nonisolated protocol KeyValueDataStore {
     func data(forKey key: String) -> Data?
@@ -41,7 +41,7 @@ extension UserDefaults: KeyValueDataStore {
 /// `set(_:forKey:)` / `removeObject(forKey:)`,让从偏好搬迁是机械替换、最小 diff。
 ///
 /// 只持不可变的 `directory`、无共享可变状态 → 跨上下文安全。按 bundle id 隔离目录:dev(`.dev`)与正式版各用各的,
-/// 互不污染。**agent 进程必须传显式 `directory:`**(A19:agent 的 `Bundle.main` 指向符号链接母目录、不可信,
+/// 互不污染。**agent 进程必须传显式 `directory:`**(agent 的 `Bundle.main` 指向符号链接母目录、不可信,
 /// 默认 init 的 `Bundle.main.bundleIdentifier` 会落错域)—— App 共享路径 = `Application Support/<App bundle id>/AIDerivedData`,
 /// 由 agent 侧据约定 App bundle id 显式拼出后传入。App 进程继续用默认 init(`Bundle.main` 即 App 自身,正确)。
 nonisolated final class AIDerivedDataStore: KeyValueDataStore {

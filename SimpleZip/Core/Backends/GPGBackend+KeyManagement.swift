@@ -267,7 +267,7 @@ extension GPGBackend {
     /// 依次索要 **当前口令 / 新口令 / 新口令确认**，全部从 command-fd 0（stdin）读。
     /// **新旧口令都走 stdin、都不进 argv** —— `ps` / 活动监视器看不到任何口令，修掉了「旧口令曾走
     /// `--passphrase` arg、被 `ps` 看见」的纰漏，与全 app「密钥只走 stdin」惯例一致。
-    /// 已对 GnuPG 2.5.x 实测 loopback `--passwd`：旧口令失效、新口令生效、exit 0。
+    /// GnuPG 2.5.x loopback `--passwd`：旧口令失效、新口令生效、exit 0。
     static func changePassphrase(
         fingerprint: String,
         oldPassphrase: String,

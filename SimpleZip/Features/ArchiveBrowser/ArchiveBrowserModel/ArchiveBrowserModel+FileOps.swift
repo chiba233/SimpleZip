@@ -1013,7 +1013,7 @@ extension ArchiveBrowserModel {
 
     func deleteSelectedFiles() {
         // 文件夹和标签两种模式列出的都是真实文件,都可删 —— 旧 guard 只认 .folder,
-        // 标签视图里删除**静默无操作**(用户报的 bug)。归档模式的条目删除走归档自己的入口。
+        // 标签视图里删除**静默无操作**(已修复,现在标签模式下删除也生效)。归档模式的条目删除走归档自己的入口。
         switch mode {
         case .folder, .tag:
             break

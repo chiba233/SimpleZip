@@ -152,13 +152,13 @@ extension ArchiveBrowserModel {
             expandedFolderOwnerPath = ownerPath
             expandedFolderChildrenByPath = [:]
         }
-        // 列举 + 建项**整体离开主线程**(用户 lldb 实测:大目录/慢卷时 contentsOfDirectory 的
+        // 列举 + 建项**整体离开主线程**(大目录/慢卷时 contentsOfDirectory 的
         // getattrlistbulk 循环把主线程钉死,启动 init→reload 即冻屏)。主线程只取偏好/虚拟模式快照,
         // 后台算完按 generation 守卫回主线程提交;等价守卫原样保留(见 applyLoadedFolder)。
         loadTask?.cancel()
         // 异步列举的中间帧守卫:mode 已切到新文件夹、items 还是旧的 —— 表层见此标志跳过重建
         // (保持上一帧),applyLoadedFolder 在同一事务里提交 items + 清标志,一帧成型。
-        // 旧同步版本天然没有中间帧(用户报「先闪未分组再闪分组」的根因,探针实测两次 reload)。
+        // 旧同步版本天然没有中间帧(中间帧导致「先闪未分组再闪分组」)。
         folderListingInFlight = true
         let generation = nextLoadGeneration()
         let showHidden = AppPreferences.showHiddenFiles
@@ -262,7 +262,7 @@ extension ArchiveBrowserModel {
         if openArchiveExternalChange != nil { openArchiveExternalChange = nil }
     }
 
-    /// presenter 回调收口(主 actor)。跟列表时的戳比对,**真变了才发布**(A17:相等不刷 objectWillChange);
+    /// presenter 回调收口(主 actor)。跟列表时的戳比对,**真变了才发布**(相等不刷 objectWillChange);
     /// presentedItemDidChange 可能一次写入触发多回,比对挡住重复。
     private func handleOpenArchiveFileEvent(_ event: OpenArchiveFilePresenter.Event) {
         guard case .archive(let url) = mode else { return }
@@ -287,7 +287,7 @@ extension ArchiveBrowserModel {
     /// loadFolder 后台列举完成后的主线程提交。
     /// 列表内容（按稳定标识 url + 目录标志 + 大小 + 修改时间）没变就**一个 @Published 都不碰**。
     ///
-    /// 关键 / 顶部 global 菜单栏闪烁的真根因（debug log 实测确认）：FileItem.id 每次都是新 UUID，
+    /// 关键 / 顶部 global 菜单栏闪烁的真根因:FileItem.id 每次都是新 UUID，
     /// 无脑赋值会让等价列表看起来「变了」。FSEvents watcher 在 Desktop / Downloads / 家目录这类被
     /// .DS_Store / Spotlight / 缩略图缓存等无关写入持续触发的目录上，会**每 ~120ms 触发一次 loadFolder**
     /// （去抖周期），形成自维持反馈环。`fileItems` 早有等价守卫，但 `archiveItems = []` 和
@@ -357,7 +357,7 @@ extension ArchiveBrowserModel {
         defer { endAsyncLoad(generation: generation) }
 
         let force = isForced(url)
-        // #14:打开性能计时。普通 var 落在 lastOpenMetrics(A17:reload 路径禁 @Published;
+        // #14:打开性能计时。普通 var 落在 lastOpenMetrics(reload 路径禁 @Published;
         // 只在用户点「复制打开性能报告」时读取,不驱动渲染)。
         let listStart = Date()
         var passwordPrompted = false
@@ -431,7 +431,7 @@ extension ArchiveBrowserModel {
             prewarmSpaceAnalysis(for: items, url: url, generation: generation)
             // #34:把非加密条目名 / 元数据写进归档清单缓存(供「文件 X 在哪个包」搜索)。
             updateArchiveListingCache(for: items, url: url)
-            // 压缩 tar 壳(tar.gz/tgz/tar.zst/tzst/tar.bz2/tar.xz)默认**直接打开内层 tar**(用户拍板):
+            // 压缩 tar 壳(tar.gz/tgz/tar.zst/tzst/tar.bz2/tar.xz)默认**直接打开内层 tar**:
             // 唯一 .tar 条目时自动走双击下钻 —— 地址栏显示 …/foo.tar.zst/foo.tar 虚拟链;
             // 壳层不进返回栈(「上一级」直接回真实文件夹,不在壳层弹跳),全程不露 /tmp。
             // 内层 tar 扩展名是 "tar"、不在壳名单里 → 不会递归触发。
@@ -503,7 +503,7 @@ extension ArchiveBrowserModel {
 
     /// #34:把这次打开的归档清单(只非加密条目名 + 元数据)写进缓存,供「文件 X 在哪个包」搜索(#35)。
     /// 关掉开关时 store.record 会自己早退;这里只过滤掉临时解压出来的嵌套 / 壳层归档(路径在系统临时目录、
-    /// 瞬时且无搜索价值)。JSON 编码 + UserDefaults 写丢后台跑,不占主线程(A18);[ArchiveItem] 是值类型可安全捕获。
+    /// 瞬时且无搜索价值)。JSON 编码 + UserDefaults 写丢后台跑,不占主线程;[ArchiveItem] 是值类型可安全捕获。
     private func updateArchiveListingCache(for items: [ArchiveItem], url: URL) {
         guard AppPreferences.archiveListingCacheEnabled else { return }
         let tempPath = FileManager.default.temporaryDirectory.resolvingSymlinksInPath().path
@@ -619,7 +619,7 @@ extension ArchiveBrowserModel {
 
 // MARK: - #14 打开性能(0.4.4)
 
-/// 一次归档打开的性能快照。**挂普通 var**(A17:loadArchive 在 reload 路径上,@Published 会
+/// 一次归档打开的性能快照。**挂普通 var**(loadArchive 在 reload 路径上,@Published 会
 /// 跟 FSEvents 风暴共振);渲染不读它,只有「复制打开性能报告」按钮按需取。
 struct ArchiveOpenMetrics {
     let archiveName: String

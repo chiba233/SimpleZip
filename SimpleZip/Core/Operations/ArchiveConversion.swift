@@ -2,7 +2,7 @@
 //  ArchiveConversion.swift
 //  SimpleZip
 //
-//  #112 批量格式转换 —— **实测确认 7zz 无单步转格式命令**，转换 = 解压到临时目录 → 重新压缩。
+//  #112 批量格式转换 —— 7zz 无单步转格式命令，转换 = 解压到临时目录 → 重新压缩。
 //  本引擎纯编排现有 `ArchiveService.extract` / `createArchive`：不引入新后端参数、不瞎猜 7zz 旗标。
 //  安全：临时工作目录用系统 temp + UUID，转换完成 / 失败都清理（A7）。
 //

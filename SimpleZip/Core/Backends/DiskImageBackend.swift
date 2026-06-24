@@ -241,7 +241,7 @@ enum DiskImageBackend {
                     totalUnitCount: total
                 )
             )
-            // 安全:DMG 是不可信输入。copyItem 会**原样保留**符号链接(实测:复制成指向同一目标的 link),
+            // 安全:DMG 是不可信输入。copyItem 会**原样保留**符号链接:复制成指向同一目标的 link),
             // 若 DMG 顶层有指向挂载点外的 symlink(典型如 `Applications`→/Applications,或恶意的 ../../etc/passwd),
             // 复制进用户目录后用户一跟随就读到挂载点外的敏感文件 → 路径逃逸。解析后逃出挂载点的 symlink 一律跳过。
             if Self.symlinkEscapesMount(item, mountPoint: mountPoint) { continue }

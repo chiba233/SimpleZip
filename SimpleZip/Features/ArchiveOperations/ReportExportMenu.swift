@@ -4,7 +4,7 @@
 //
 //  0.4.4 F2:统一报告导出控件 —— 放进各报告 sheet 的 PinnedBottomBar:
 //  复制摘要 / 复制为 GitHub Issue / 导出 Markdown… / 导出 JSON…。
-//  用原生 Menu 下拉(用户拍板):confirmationDialog 在 macOS 上塞不下「4 选项 + 取消」——
+//  用原生 Menu 下拉:confirmationDialog 在 macOS 上塞不下「4 选项 + 取消」——
 //  加取消会把「导出 JSON」挤掉。Menu 稳定显示全部项,点菜单外 / Esc 即取消(天然反悔出口),
 //  也是 macOS 选导出格式的标准控件。保存走 NSSavePanel(照 ArchiveDiffView.exportReport 体例)。
 //
@@ -15,7 +15,7 @@ import UniformTypeIdentifiers
 
 /// 统一导出按钮。`report` 是任何接了 ReportExportable 的报告值。
 /// `extraActions`:宿主报告特有的导出/复制项(发布说明、SHA256SUMS 等)挂进同一个弹窗 ——
-/// 底栏只占一个按钮,不再排一排截断的文字按钮(用户点名)。
+/// 底栏只占一个按钮,不再排一排截断的文字按钮。
 struct ReportExportControl: View {
     struct ExtraAction: Identifiable {
         let id = UUID()
@@ -32,7 +32,7 @@ struct ReportExportControl: View {
     var extraActions: [ExtraAction] = []
 
     var body: some View {
-        // 与创建对话框「套用模板」同款下拉(用户点名):默认 Menu 样式 = 带 chevron 的 bordered 按钮,
+        // 与创建对话框「套用模板」同款下拉:默认 Menu 样式 = 带 chevron 的 bordered 按钮,
         // .fixedSize 不被拉伸。复制类 / 导出类 / 宿主特有项用 Divider 分组。
         Menu {
             Button(L10n.text("report.copySummary")) { copySummary() }

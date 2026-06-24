@@ -101,7 +101,7 @@ public nonisolated struct AIAgentConfiguration: Codable, Sendable, Equatable {
     #endif
 
     /// 读 / 写 **App 偏好域**(`appBundleID`)的 UserDefaults —— 跨进程共享(scope 白名单 / 运行遥测等)统一走它。
-    /// 关键(A19 + 实测 bug):当**当前进程的 `Bundle.main.bundleIdentifier` 恰好等于 `appBundleID`** 时
+    /// 当**当前进程的 `Bundle.main.bundleIdentifier` 恰好等于 `appBundleID`** 时
     /// —— App 自己,或 agent 被 launchd 当**嵌入 helper**(`SimpleZip.app/Contents/MacOS/SimpleZipAIAgent`)
     /// 直接拉起、其 `Bundle.main` 解析到 app bundle —— `UserDefaults(suiteName: appBundleID)` 会被系统判为
     /// 「拿自己的 bundle id 当 suite」而**失效**(返回读不到数据的实例 + 控制台告警),后台索引就会读到空白名单。

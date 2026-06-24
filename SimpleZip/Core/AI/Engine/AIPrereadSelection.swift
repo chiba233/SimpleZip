@@ -2,7 +2,7 @@
 //  AIPrereadSelection.swift
 //  SimpleZip
 //
-//  0.4.5 #80:**AI 驱动的预读选择**(用户拍板,见 memory ai_suggestion_inline_direction)。
+//  0.4.5 #80:**AI 驱动的预读选择**(见 memory ai_suggestion_inline_direction)。
 //
 //  旧逻辑(`summarizeIfWorthwhile`)用**死规则**挑要不要读内容:只有 md / 配置 / 校验自动读,text / 源码要命中
 //  marker 才读 —— 文件一多,用户关心的文件「到死都排不上」。新逻辑:文件太多读不完,就用**确定性 AI 排序**

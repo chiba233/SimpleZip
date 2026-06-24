@@ -288,7 +288,7 @@ enum SelfTestSampleRunner {
 
     private static func duplicatePathSample(in temp: URL) async -> SampleResult {
         // 两层断言:①列表层不静默去重(两份同名条目都可见);②安全报告命中 duplicateEntryPath
-        // (解压时后者静默覆盖前者,用户拍板升级为报告类别)。
+        // (解压时后者静默覆盖前者,升级为报告类别)。
         let name = "重复路径:列表可见 + 安全报告命中"
         do {
             let zip = temp.appendingPathComponent("dup.zip")

@@ -23,8 +23,8 @@ struct SIZSignatureSheet: View {
     /// 语义由宿主决定：主窗口宿主 = 「打开浏览」；独立浮窗宿主 = 「解压」。
     ///
     /// **返回值 = 错误文案（nil 表示成功）**：成功时宿主负责关闭 sheet；失败（如解密密码错误）返回错误串，
-    /// sheet **内联红字**显示并保留，让用户改密码 / 换密钥重试。之前 fire-and-forget + 宿主走 errorMessage，
-    /// 弹的 alert 被 sheet 盖住 → 用户看不到任何提示（用户反馈的 bug）。
+    /// sheet **内联红字**显示并保留，让用户改密码 / 换密钥重试。旧代码 fire-and-forget + 宿主走 errorMessage，
+    /// 弹的 alert 被 sheet 盖住 → 用户看不到任何提示。
     let onOpen: (_ decryptionKey: String?, _ decryptionPassphrase: String?) async -> String?
     let onCancel: () -> Void
 
@@ -44,7 +44,7 @@ struct SIZSignatureSheet: View {
     @State private var inlineError: String?
     /// 「收件人说明」(#110)折叠展开状态 —— 默认收起,信息密度优先,用户想看再展开。
     @State private var showInstructions = false
-    /// 实测的说明正文高度（GeometryReader 量）—— 用于「自适应高度,到上限才滚动」。
+    /// 说明正文高度（GeometryReader 量）—— 用于「自适应高度,到上限才滚动」。
     @State private var instructionsContentHeight: CGFloat = 0
     /// 说明正文的最大显示高度；超过就在面板内滚动，避免超长留言把 sheet 撑出屏幕。
     private let maxInstructionsHeight: CGFloat = 260
@@ -280,7 +280,7 @@ struct SIZSignatureSheet: View {
 
             if showInstructions {
                 VStack(alignment: .leading, spacing: 8) {
-                    // 自适应高度：GeometryReader 量正文真实高度，frame 取 min(实测, 上限)。
+                    // 自适应高度：GeometryReader 量正文真实高度，frame 取 min(内容高度, 上限)。
                     // 内容短 → 刚好贴合不留白；内容长(超长留言) → 到上限后面板内滚动，绝不撑出屏幕。
                     ScrollView {
                         Text(text)

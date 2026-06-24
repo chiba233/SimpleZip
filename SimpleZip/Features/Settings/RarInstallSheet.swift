@@ -64,7 +64,7 @@ struct RarInstallDocumentView: View {
             // 必须用**可压缩**的普通 ScrollView,不能用 HeightCappedScrollView：
             // 这个 sheet 的高度被宿主窗口钳制(设置窗很矮),而 HeightCapped 量出长文后
             // 给自己定的是 540 的**刚性**高度 —— 两份一叠远超可用空间,VStack 不压缩刚性
-            // 子视图,整页元素直接叠印(实测截图「彻底炸了」)。协议 / README 永远是长文本,
+            // 子视图,整页元素直接叠印(屏幕截图显示彻底炸了)。协议 / README 永远是长文本,
             // min/max 弹性高度让两份文档在矮窗里均分空间、各自滚动,高窗里贴到上限。
             ScrollView {
                 // 空字符串会让 Text 折叠成 0 行，给个空格保留最小高度。

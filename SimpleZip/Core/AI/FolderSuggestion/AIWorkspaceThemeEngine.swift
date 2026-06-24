@@ -2,7 +2,7 @@
 //  AIWorkspaceThemeEngine.swift
 //  SimpleZip
 //
-//  0.4.5 #80 #89:推荐主题的**跨位置语义聚类器**(白皮书建议四 + 用户拍板的统一框架)。
+//  0.4.5 #80 #89:推荐主题的**跨位置语义聚类器**(白皮书建议四的统一框架)。
 //
 //  ⚠️ 本质(我反复理解错、被连骂过):**一个虚拟目录 = 一个主题;跨物理位置,按语义把看起来八竿子打不着的
 //  文件 / 归档内条目 / 任务 / 报告 / 动作聚到一起。** 同一主题的成员来自五湖四海(Desktop/Downloads/
@@ -95,7 +95,7 @@ nonisolated enum AIWorkspaceThemeEngine {
 
         // ① 名字 token / CJK 2-gram 倒排桶 → 只在**共享 token / gram** 的候选间产生 pair,每对算一次 Jaccard / 子串。
         //    高频桶(> maxTokenBucket,如 release/backup/test 出现在几百个文件)只作排序信号、**不作连通边**,
-        //    避免制造巨量 pair(用户点名的复杂度根因)。CJK 子串("论文"⊂"论文修订")改 2-gram 召回,不再两两扫。
+        //    避免制造巨量 pair(复杂度根因)。CJK 子串("论文"⊂"论文修订")改 2-gram 召回,不再两两扫。
         var buckets: [String: [Int]] = [:]
         for (i, item) in items.enumerated() {
             for t in item.tokens { buckets[t, default: []].append(i) }

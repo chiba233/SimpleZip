@@ -99,7 +99,7 @@ final class OperationTask: ObservableObject, Identifiable {
     /// 归档比较任务的结构化结果 —— 活动中心详情用它渲染和比较弹窗同款的分区树（不是命令输出）。
     /// 0.4.4 起随历史持久化(条目过万的超大比较除外,见 PersistedTask)。
     var diffReport: ArchiveDiffReport?
-    /// 0.4.4(用户报「重启后查不了详情」):报告类任务的报告本体,随历史持久化 ——
+    /// 0.4.4:报告类任务的报告本体,随历史持久化 ——
     /// 重启后「打开报告」直接渲染落盘数据,不必重跑。运行时 openReport 闭包仍然优先
     /// (它弹在浏览器窗口、与本次会话状态一致);闭包没了(重启)才用这份。
     var reportAttachment: TaskReportAttachment?
@@ -120,7 +120,7 @@ final class OperationTask: ObservableObject, Identifiable {
     /// 0.4.4 C:「从失败步继续」—— 发布助手在产物已打出、后续步骤失败时挂上;跳过重新打包,
     /// 对既有产物续跑检查/校验/清单。运行时态(不持久化,重启后不可续跑)。
     var resumeFromFailure: (() -> Void)?
-    /// 0.4.4(用户点名):报告类任务(发布检查 / 目录检查 / 元数据 / 空间分析)结束后从活动中心
+    /// 0.4.4:报告类任务(发布检查 / 目录检查 / 元数据 / 空间分析)结束后从活动中心
     /// **重新打开报告**,不必重跑。运行时态(不持久化,重启后历史任务需重跑获取)。
     var openReport: (() -> Void)?
     /// 0.4.4 D:「以新参数重跑…」—— 仅创建类任务:重开创建对话框并预填同样的请求,改完再跑。

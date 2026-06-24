@@ -168,7 +168,7 @@ struct WindowAccessor: NSViewRepresentable {
     /// 主窗口工具栏的「图标 / 图标和文字」显示模式：
     /// - 持久化：直接观察 `displayMode` 并写进稳定 key；SwiftUI 生成的 toolbar identifier 不稳定，不能只靠
     ///   `autosavesConfiguration`；
-    /// - 首次默认 = **图标和文字**（用户拍板：纯图标根本看不懂哪个是哪个）——
+    /// - 首次默认 = **图标和文字**（纯图标根本看不懂哪个是哪个）——
     ///   只在该 toolbar 从未保存过配置时设置，已有保存值则尊重用户的选择。
     /// SwiftUI 不暴露 NSToolbar.displayMode，所以从宿主 NSWindow 上配；toolbar 由 SwiftUI
     /// 异步挂上，updateNSView 会反复进来；用 coordinator 绑定当前 toolbar 的 KVO，避免静态持有窗口。

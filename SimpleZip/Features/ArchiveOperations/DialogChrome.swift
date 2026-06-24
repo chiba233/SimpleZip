@@ -4,7 +4,7 @@
 //
 //  0.4.1 弹窗体例的共享组件：创建 / 解压 / 权限等 sheet 共用。
 //  为什么不用 Form(.grouped)：grouped Form 底下是 List，**贪婪布局** —— sheet 必须写死高度，
-//  内容短时下面一大片固定空白（用户点名的问题）。这里手绘同款分区卡片外观，高度贴内容。
+//  内容短时下面一大片固定空白。这里手绘同款分区卡片外观，高度贴内容。
 //
 
 import SwiftUI
@@ -101,7 +101,7 @@ struct DialogSection<Content: View>: View {
                     .foregroundStyle(.secondary)
                     .padding(.leading, 14)
             }
-            // 行间距放宽到 16(原 12)—— 用户报「间距太小、重叠」。卡片内边距同步加大。
+            // 行间距放宽到 16(原 12)—— 原间距太小、容易重叠。卡片内边距同步加大。
             VStack(alignment: .leading, spacing: 16) {
                 content()
             }
@@ -182,7 +182,7 @@ struct DialogToggleRow: View {
 }
 
 /// 文本输入框在白色卡片上的描边增强 —— 系统 .roundedBorder 的浅灰描边几乎隐形
-/// (用户报「密码输入框饱和度太低,几乎看不清」)。
+/// (密码输入框饱和度太低,几乎看不清)。
 extension View {
     func dialogFieldEmphasis() -> some View {
         overlay(
@@ -277,8 +277,7 @@ struct HeroChromeCard<Content: View>: View {
     @State private var isHovering = false
 
     var body: some View {
-        // 用户拍板(0.4.4 #17 多轮):容器**纯色无任何渐变**——左深右浅的斜向渐变和白色高光层
-        // 全部被「不是让你删渐变吗」打回;底色保持极浅,描边均匀同色。
+        // 容器**纯色无任何渐变**——底色保持极浅,描边均匀同色。
         let card = content()
             .background(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
@@ -353,8 +352,8 @@ struct DialogFooter<Leading: View>: View {
 }
 
 /// 对话框骨架(design system:TaskDialogShell)—— hero + 内容滚动区 + Divider + 钉底操作栏,
-/// 一个 sheet 一份声明,不再各自手拼 padding / Divider / footer(用户点名的病:
-/// 「每个弹窗都差不多,但每个都自己写一份 padding / icon / color / footer」)。
+/// 一个 sheet 一份声明,不再各自手拼 padding / Divider / footer(避免每个弹窗都各自写一份
+/// padding / icon / color / footer)。
 /// 内容区自动带标准缩进(水平 20 / 底 16)与 18 行距;底栏即 DialogFooter(h20/v12 + .bar)。
 struct TaskDialogShell<Content: View, FooterLeading: View>: View {
     let heroSystemImage: String
@@ -432,7 +431,7 @@ extension TaskDialogShell where FooterLeading == EmptyView {
 }
 
 /// 高度贴内容、到上限才出现滚动的 ScrollView —— 报告类弹窗用。
-/// 动机（0.4.2 用户报）：裸 ScrollView 是贪婪布局,内容短时弹窗下面一大片空白；
+/// 动机（0.4.2 裸 ScrollView 是贪婪布局,内容短时弹窗下面一大片空白）；
 /// 这里量出内容实高,frame 取 min(内容, 上限)。
 struct HeightCappedScrollView<Content: View>: View {
     let maxHeight: CGFloat
@@ -461,7 +460,7 @@ private struct ContentHeightKey: PreferenceKey {
     }
 }
 
-/// 整行可点的折叠组样式(用户点名:点 header 任意位置都展开,像活动中心)。
+/// 整行可点的折叠组样式(点 header 任意位置都展开,像活动中心)。
 /// 默认 DisclosureGroup 只有三角 / label 文字可点,右侧空白点不动 —— 这里把 label 包成
 /// **全宽 Button**,点 header 任意处都切换;左侧旋转 chevron 作指示(与格式矩阵 / 活动中心同款指示器)。
 /// 套在 pane 根视图上即可传播到其下所有 DisclosureGroup(环境式样式),不必逐个改结构。

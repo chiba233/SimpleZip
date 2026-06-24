@@ -91,7 +91,7 @@ struct ExtractSelectionOptionsView: View {
     }
 }
 
-/// 0.4.2：`.gpg` 解压确认对话框 —— 用户点名「不能静默解」。展示解密产物名 + 可改目标目录，
+/// 0.4.2：`.gpg` 解压确认对话框 —— 不能静默解。展示解密产物名 + 可改目标目录，
 /// 确认后走任务化解密（活动中心 / 可重跑）。轻量 sheet,套统一弹窗体例。
 struct GPGExtractOptionsView: View {
     @State var request: ArchiveBrowserModel.GPGExtractRequest
@@ -101,7 +101,7 @@ struct GPGExtractOptionsView: View {
     var body: some View {
         VStack(spacing: 0) {
             DialogHero(
-                // "lock.open.doc" 不是合法 SF Symbol(渲染成空白,用户报"只有颜色没图标")。
+                // "lock.open.doc" 不是合法 SF Symbol(渲染成空白,只有颜色没图标)。
                 systemImage: "lock.open.fill",
                 colors: [.teal, .blue],
                 title: L10n.text("gpgExtract.title"),

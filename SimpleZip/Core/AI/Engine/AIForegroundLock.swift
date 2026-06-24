@@ -13,7 +13,7 @@
 //
 //  这是 **best-effort 让位、不是硬互斥**:App 写派生索引是原子写、agent 单轮有界,所以极少见的「agent 探完未占 →
 //  App 紧接着启动 → 短暂重叠」最坏只是跑了一轮冗余,不会损坏数据。锁文件两边据**同一个 App bundle id** 算到同一处
-//  (`<App Support>/<App bundle id>/ai-foreground.lock`,与 AIDerivedData 同级);A19:agent 不可信自己的
+//  (`<App Support>/<App bundle id>/ai-foreground.lock`,与 AIDerivedData 同级);agent 不可信自己的
 //  `Bundle.main`,故 bundle id 由调用方显式传入(app / agent 都传 `AIAgentConfiguration.appBundleID`,值一致)。
 //
 

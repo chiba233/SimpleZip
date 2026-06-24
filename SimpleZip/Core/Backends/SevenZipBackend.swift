@@ -359,7 +359,7 @@ enum SevenZipBackend {
             ]
         }
         // SwiftPM 测试没有 app bundle:按源码相对路径补仓库内置 7zz,保证测试跑的就是出货引擎——
-        // 否则会落到机器上的系统 p7zip(实测 17.05 连 `-mtm=off` 都不认,可复现压缩测试直接 E_INVALIDARG)。
+        // 否则会落到机器上的系统 p7zip(已知 17.05 连 `-mtm=off` 都不认,可复现压缩测试直接 E_INVALIDARG)。
         // 发布构建里这个编译期路径不存在,resolve() 的 isExecutableFile 检查自然跳过,零影响。
         let repoTool = URL(fileURLWithPath: #filePath)  // …/SimpleZip/Core/Backends/SevenZipBackend.swift
             .deletingLastPathComponent()                // Backends

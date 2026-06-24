@@ -114,7 +114,7 @@ nonisolated final class ArchiveListingCacheStore {
     /// 持久化后端。**默认走文件存储**(`AIDerivedDataStore`,落盘 `Application Support/<bundle>/DerivedData/`),
     /// 绝不再进 `UserDefaults` 偏好域 —— 清单数据体量大(大包上万条目),进偏好会撑破 CFPreferences 的 4 MB 单值
     /// 硬上限、且整份 domain 随每次启动加载 / 每次写重序列化,拖垮启动(App Intents 后台 helper 因此连接超时 →
-    /// Shortcuts 报「Couldn't communicate…」,实测 measure 钉死)。测试可注入内存 `UserDefaults`(也 conform
+    /// Shortcuts 报「Couldn't communicate…」)。测试可注入内存 `UserDefaults`(也 conform
     /// `KeyValueDataStore`),无需碰盘。
     private let defaults: KeyValueDataStore
     private let storageKey = AppPreferences.Key.archiveListingCache
@@ -207,10 +207,10 @@ nonisolated final class ArchiveListingCacheStore {
         defaults.removeObject(forKey: storageKey)
     }
 
-    /// 一次性迁移清理:历史版本把清单缓存写进了 `UserDefaults.standard`(无字节上限,实测撑到 4 MB+),撑爆
+    /// 一次性迁移清理:历史版本把清单缓存写进了 `UserDefaults.standard`(无字节上限,撑到 4 MB+),撑爆
     /// CFPreferences 的 4 MB 单值硬上限后,主 domain 的任何写都 fault 并反复整体重序列化,拖垮每次启动 ——
     /// App Intents 后台 helper 因此没能在连接窗口内 ready,Shortcuts 报「Couldn't communicate with a helper
-    /// application」(实测 measure 钉死:失败 helper 启动 0.9s 即被这坨拖到连接超时)。缓存现改存独立文件(见
+    /// application」(失败 helper 启动 0.9s 即被这坨拖到连接超时)。缓存现改存独立文件(见
     /// `defaults` 默认后端);**启动最早期**把遗留在 standard 的旧 key 删掉,主 domain plist 立刻缩回正常体积。
     /// 清单缓存可重建(下次打开归档自动重列),丢弃无害。幂等(无旧 key 则空操作)。
     static func purgeLegacyStandardStorage() {

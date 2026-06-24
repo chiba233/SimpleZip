@@ -91,10 +91,10 @@ struct GPGPane: View {
             }
         }
         .formStyle(.grouped)
-        // 间距/控件尺寸与其它设置 pane 一致(全部 .small 紧凑 Form)—— 用户点名 GPG 间距不合格、要对齐其他 UI。
+        // 间距/控件尺寸与其它设置 pane 一致(全部 .small 紧凑 Form)—— GPG 间距与其它 UI 对齐。
         // 现代感来自密钥行的头像/排版,不靠把控件放大。
         .controlSize(.small)
-        // 「高级 — 后端详情 / 智能卡」折叠组整行可点展开(用户点名,像活动中心)。
+        // 「高级 — 后端详情 / 智能卡」折叠组整行可点展开(与活动中心同款)。
         .disclosureGroupStyle(.wholeRow)
         .settingsScrollAnchors()
         // 拖 .asc/.gpg 公钥文件到面板任意位置 = 导入(GPG Keychain 同款交互)。落点钥匙串弹对话框让用户选。
@@ -338,7 +338,7 @@ struct GPGPane: View {
                 keyGroupsView
             }
 
-            // 操作按钮组(0.4.3 用户点名「按钮大一些、多个图标、别紧凑」):带图标 Label、常规尺寸、分两行呼吸。
+            // 操作按钮组(0.4.3):带图标 Label、常规尺寸、分两行呼吸。
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 10) {
                     Button {
@@ -346,7 +346,7 @@ struct GPGPane: View {
                     } label: {
                         Label(L10n.text("settings.gpg.newKey.button"), systemImage: "plus")
                     }
-                    // 文件导入合并成一个按钮(用户拍板):点击 → 同剪贴板的「选目标钥匙串」对话框 → 文件面板。
+                    // 文件导入合并成一个按钮:点击 → 同剪贴板的「选目标钥匙串」对话框 → 文件面板。
                     Button {
                         showsFileImportDialog = true
                     } label: {
@@ -918,7 +918,7 @@ struct GPGPane: View {
                         )
                     }
                 }
-                // 二级内容统一缩进,与其它折叠组同口径(用户点名「子项没做缩进」)。
+                // 二级内容统一缩进,与其它折叠组同口径。
                 .padding(.leading, 34)
             } label: {
                 // 高级抽屉头 = 一级,彩色瓦片(开启智能卡等内层行 = 二级,保持单色)。

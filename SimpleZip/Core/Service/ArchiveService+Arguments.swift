@@ -44,7 +44,7 @@ extension ArchiveService {
         // 安全（审计 P1，switch 注入）：归档条目名是**不可信输入**。恶意包可以把条目命名成
         // `-snl` / `-o/tmp/elsewhere` 等 7zz 开关样子,直接拼进 argv 会被当开关解释（重定向解压 / 改安全行为）。
         // 所有开关放 `--` 之前、所有位置参数（条目名）放 `--` 之后,7zz 从此把后面的一律当文件名。
-        // `-o<dest>` 等开关必须在 `--` 前。已实测 bundled 7zz 支持 `--`。
+        // `-o<dest>` 等开关必须在 `--` 前。bundled 7zz 支持 `--`。
         var arguments = [command, archive.path]
         // `-mmt=on`：让 7zz 按可用核心数多线程解压（ZIP 等「每文件独立」的格式能并行多个文件）。
         // 默认解压偏单线程、大量文件时跑不满 CPU；对不支持并行的格式 7zz 自行忽略，无副作用。
@@ -105,7 +105,7 @@ extension ArchiveService {
         if let volumeSize = try normalizedSevenZipVolumeSize(from: options.sevenZipVolumeSize) {
             arguments.append("-v\(volumeSize)")
         }
-        // 0.4.3 #10:可复现压缩 —— 不存修改时间(实测同输入多次打包得到相同 SHA-256;
+        // 0.4.3 #10:可复现压缩 —— 不存修改时间(同输入多次打包得到相同 SHA-256;
         // 条目顺序 7zz 本就稳定排序)。条目时间在解压侧呈现为 DOS 纪元 1980-01-01。
         if options.reproducibleArchive == true {
             arguments.append("-mtm=off")

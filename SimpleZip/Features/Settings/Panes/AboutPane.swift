@@ -20,7 +20,7 @@ struct AboutPane: View {
     }
 
     var body: some View {
-        // 0.4.2 用户拍板：关于**必须一页显示、绝不出现滚动条** —— 不包任何滚动容器,
+        // 0.4.2 关于**必须一页显示、绝不出现滚动条** —— 不包任何滚动容器,
         // 间距按设置窗最小高度（660pt）压实。
         aboutContent
     }
@@ -35,7 +35,7 @@ struct AboutPane: View {
                             .frame(width: 104, height: 104)
                             .shadow(color: .black.opacity(0.25), radius: 12, y: 6)
                     }
-                    // 0.4.2 用户点名：标题改液态玻璃风格,玻璃色跟 macOS 主题强调色。
+                    // 0.4.2 标题改液态玻璃风格,玻璃色跟 macOS 主题强调色。
                     appTitle
                     Text(versionLine)
                         .font(.callout.weight(.medium))
@@ -114,7 +114,7 @@ struct AboutPane: View {
             .font(.system(size: 42, weight: .bold, design: .rounded))
     }
 
-    /// 液态玻璃**字形**（用户点名：像系统激活欢迎字那样,玻璃是字本身、不是垫底）：
+    /// 液态玻璃**字形**（玻璃是字本身、不是垫底）：
     /// 玻璃层按文字轮廓 mask —— 笔画里是折射的主题色玻璃,字外完全透明。老系统退回主题色渐变字。
     @ViewBuilder
     private var appTitle: some View {
@@ -138,7 +138,7 @@ struct AboutPane: View {
         }
     }
 
-    /// 链接卡(欢迎助手 / 帮助页同款叠层 chrome,用户点名):色调渐变底 + 顶部高光 +
+    /// 链接卡(欢迎助手 / 帮助页同款叠层 chrome):色调渐变底 + 顶部高光 +
     /// 渐变描边 + 彩色阴影 + 发光瓦片;悬停只加深阴影,不缩放容器(防鬼畜)。
     @ViewBuilder
     private func aboutLinkCard(title: String, systemImage: String, colors: [Color], action: @escaping () -> Void) -> some View {
@@ -192,7 +192,7 @@ struct AboutPane: View {
                 .fixedSize(horizontal: false, vertical: true)
         }
         // maxHeight:.infinity 必须配合外层 HStack 的 fixedSize(vertical:true) 用 —— 单独用会把窗口
-        // 剩余空间全吃进卡片(用户报"被异常拉高");钉住后它只负责把三张卡撑到一样高(用户报"不一样高真的好丑")。
+        // 剩余空间全吃进卡片(卡片被异常拉高);钉住后它只负责把三张卡撑到一样高(避免高度不一致)。
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .padding(12)
         .background(

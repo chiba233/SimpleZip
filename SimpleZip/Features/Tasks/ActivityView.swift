@@ -91,7 +91,7 @@ struct ActivityView: View {
                 Spacer(minLength: 12)
             }
             .padding(.horizontal, 10)
-            // 自适应宽（用户拍板「不要定死」）：fixedSize 让侧栏取**最宽一行的内容宽度**，
+            // 自适应宽（不固定死）：fixedSize 让侧栏取**最宽一行的内容宽度**，
             // 文字与计数永远完整；minWidth 只是极短文字时的下限。毛玻璃铺满到窗口顶（沉浸式标题栏）。
             .frame(minWidth: 220)
             .fixedSize(horizontal: true, vertical: false)
@@ -145,7 +145,7 @@ struct ActivityView: View {
             } else if selectedPane == .workspace {
                 // 0.4.4 #15:临时工作区(hero 头 + grouped Form,与设置 pane 同款骨架)。
                 // #79:hero 与 Form 同装进一条钉宽 720 的列、整列居中 —— 宽窗/全屏下 Form 不再自己跑去居中、
-                // 把 hero 甩在左上(用户报「活动中心工作区/设置也有同样错位」)。两者同宽同列,横向对齐。
+                // 把 hero 甩在左上(宽窗/全屏下 Form 错位)。两者同宽同列,横向对齐。
                 VStack(spacing: 0) {
                     HStack {
                         paneHero(selectedPane)
@@ -282,7 +282,7 @@ struct ActivityView: View {
     /// #17:pane 顶部的小 hero 头 —— 渐变发光图标瓦片 + 标题 + 副标题(纯静态,无 hover)。
     private func paneHero(_ pane: ActivityPane) -> some View {
         HStack(spacing: 12) {
-            // 用户拍板:hero 瓦片维持第一轮调浅后的深度(0.65/0.45,辉光 0.30)——
+            // hero 瓦片维持第一轮调浅后的深度(0.65/0.45,辉光 0.30)——
             // 第三轮「彩色瓦片再浅」只指内容区小瓦片,hero 不在内(改太浅被打回)。
             RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .fill(
@@ -340,7 +340,7 @@ struct ActivityView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             // 用 ScrollView + LazyVStack 而不是 List：List 底下的 NSTableView 会缓存行高，
-            // 任务行展开「详情」后行高不重算 → 内容撑不开卡片被截断（用户报的 bug）。
+            // 任务行展开「详情」后行高不重算 → 内容撑不开卡片被截断（已知 bug）。
             // LazyVStack 行高随内容自然生长，展开多少撑多少。
             // 队列管理②跟进：等并发槽的任务单独一组放最上（带组头），不再混在运行中靠状态行区分。
             let waiting = tasks.filter { $0.status.isRunning && $0.isAwaitingSlot }
@@ -897,7 +897,7 @@ struct ActivityView: View {
     }
 
     private func filterMenu(for category: OperationTask.Category) -> some View {
-        // 用户拍板:筛选小图标删掉(太丑)—— 只留下拉本体。
+        // 筛选小图标删掉—— 只留下拉本体。
         Picker("", selection: Binding(
             get: { filter(for: category) },
             set: { setFilter($0, for: category) }
@@ -1168,7 +1168,7 @@ struct ActivityView: View {
     }
 
     // 0.4.2 活动中心设置开关 —— @AppStorage(自定义 Binding 在被长持有的活动中心视图树里
-    // 会读到陈旧快照,用户报「重开窗口开关复位」;@AppStorage 响应式且与 UserDefaults 双向同步)。
+    // 会读到陈旧快照,重开窗口开关复位;@AppStorage 响应式且与 UserDefaults 双向同步)。
     @AppStorage(AppPreferences.Key.tasksOpenOnFailure) private var openOnFailure = false
     @AppStorage(AppPreferences.Key.tasksPlaySoundOnFinish) private var playSound = false
     /// 0.4.4 #10:长任务完成后发系统通知(默认关)。

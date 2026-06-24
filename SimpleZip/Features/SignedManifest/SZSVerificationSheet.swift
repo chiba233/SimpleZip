@@ -36,7 +36,7 @@ struct SZSVerificationSheet: View {
     @State private var verifyGeneration: Int = 0
     /// #110「收件人说明」折叠展开状态 —— 默认收起。
     @State private var showInstructions = false
-    /// 实测的说明正文高度（GeometryReader 量）—— 用于「自适应高度,到上限才滚动」。
+    /// 说明正文高度（GeometryReader 量）—— 用于「自适应高度,到上限才滚动」。
     @State private var instructionsContentHeight: CGFloat = 0
     /// 说明正文最大显示高度；超过就在面板内滚动，避免超长留言把 sheet 撑出屏幕。
     private let maxInstructionsHeight: CGFloat = 280
@@ -144,8 +144,7 @@ struct SZSVerificationSheet: View {
         .onAppear { verifyNow() }
     }
 
-    /// 签名者细节（签名者名 / fingerprint / 源文件）—— 用对齐的 label+value 行，跟 manifest 块同一风格,
-    /// 不再把名字 / 公钥指纹各甩一行裸 Text（用户报「邮箱和公钥不在同一行太丑」）。
+    /// 签名者细节（签名者名 / fingerprint / 源文件）—— 用对齐的 label+value 行，跟 manifest 块同一风格。
     @ViewBuilder
     private var signerDetailBlock: some View {
         VStack(alignment: .leading, spacing: 4) {

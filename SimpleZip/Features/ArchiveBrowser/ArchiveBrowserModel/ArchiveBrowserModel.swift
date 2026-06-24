@@ -22,10 +22,10 @@ final class ArchiveBrowserModel: ObservableObject {
         didSet { recordAIWorkspaceViewingTransition(from: oldValue, to: mode) }
     }
     /// 异步文件夹列举进行中(0.4.3):mode 已发布、新 items 未到 —— FileTable 见此标志跳过
-    /// 中间帧重建(否则「新 folderKey + 旧 items」闪一帧未分组视图,用户报的分组闪烁)。
+    /// 中间帧重建(否则「新 folderKey + 旧 items」闪一帧未分组视图,表现为分组闪烁)。
     /// **故意不是 @Published**:FSEvents 在桌面/下载这类目录上每 ~120ms 静默 reload 一次,
-    /// 标志每轮 true→false;发布它 = 把「菜单栏被相同值通知风暴冲掉」的老 bug 原样招回来
-    /// (上线当天用户实测复发,改回普通 var 后归零)。渲染由 mode / fileItems 自己驱动,
+    /// 标志每轮 true→false;发布它 = 把「菜单栏被相同值通知风暴冲掉」的老 bug 原样招回来。
+    /// 渲染由 mode / fileItems 自己驱动,
     /// 中间帧守卫只需要在渲染那一刻**读到值**,不需要值的变化去触发渲染。
     /// 只在 +Loading 的 loadFolder / applyLoadedFolder / 错误分支改动。
     var folderListingInFlight = false
@@ -48,20 +48,20 @@ final class ArchiveBrowserModel: ObservableObject {
     var archiveListingStamp: FileStateStamp?
     /// 0.4.4 #11:已打开归档被外部(Finder / 其他 App)改写 / 移动 / 删除时的横幅状态。
     /// **事件驱动**(NSFilePresenter 回调里跟 `archiveListingStamp` 比对、相等不发布),
-    /// 绝不在 reload / applyLoadedFolder 路径上变动 —— 不触 A17 的 @Published 风暴。nil = 无外部改动。
+    /// 绝不在 reload / applyLoadedFolder 路径上变动 —— 不触发 @Published 风暴。nil = 无外部改动。
     @Published var openArchiveExternalChange: OpenArchiveExternalChange?
     /// 盯当前打开归档文件的 presenter(普通 var)。开档时挂、离档 / 换档时停。
     /// 非 private:begin/stop 方法在 +Loading.swift 扩展里(跨文件同类型需 internal)。
     var openArchivePresenter: OpenArchiveFilePresenter?
     /// 0.4.4 #41:打开大归档时**后台预热**的空间分析,按 load generation 标记新鲜度。
-    /// 非 @Published(用户点「空间分析」时按需读,不驱动渲染 → A17 安全);命中且同代 = 报告瞬开、
+    /// 非 @Published(用户点「空间分析」时按需读,不驱动渲染);命中且同代 = 报告瞬开、
     /// 且不在主线程现算(大包 10 万条 analyze 不再卡点击那一下)。换档 generation 变 → 自动作废。
     var prewarmedSpaceAnalysis: (generation: Int, analysis: ArchiveSpaceAnalysis)?
     /// 0.4.2 #11：批量重命名 sheet（非 nil = 显示）。右键多选文件条目触发。
     @Published var batchRenameRequest: BatchRenameRequest?
     /// 0.4.2 #15：发布包检查报告 sheet（非 nil = 显示）。右键单个归档触发，检查跑完赋值。
     @Published var releaseInspectionReport: ReleaseInspectionReport?
-    /// 0.4.4 #11:发布目录检查报告(用户主动触发,非 reload 路径 —— A17 不适用)。
+    /// 0.4.4 #11:发布目录检查报告(用户主动触发,非 reload 路径)。
     @Published var releaseDirectoryAuditReport: ReleaseDirectoryAuditReport?
     /// 0.4.4 #43:可复现构建深度报告 sheet(右键文件夹触发,双打包比对完赋值)。
     @Published var reproducibilityReport: ReproducibilityReport?
@@ -77,7 +77,7 @@ final class ArchiveBrowserModel: ObservableObject {
     @Published var sensitiveFileReport: SensitiveFileReport?
     /// 0.4.4 #69:近似重复文件报告(菜单触发;确定性扫描,AI 仅在报告里解释)。
     @Published var nearDuplicateReport: NearDuplicateReport?
-    /// 0.4.4 #14:最近一次归档打开的性能快照。**普通 var,绝不 @Published**(A17:
+    /// 0.4.4 #14:最近一次归档打开的性能快照。**普通 var,绝不 @Published**(
     /// loadArchive 每次打开都写它;只有「复制打开性能报告」按需读,不参与渲染)。
     var lastOpenMetrics: ArchiveOpenMetrics?
     /// 发布助手(工具菜单):打包→检查→校验文件→可选签名一条流的待确认配置。
@@ -242,7 +242,7 @@ final class ArchiveBrowserModel: ObservableObject {
     /// 0.4.1 文件夹原位展开：已展开文件夹的子级清单（key = 文件夹标准化路径）。
     /// **模型必须知道展开的子级** —— 选区解析（selectedFileItems）/ 右键 / 各操作都从这里取。
     /// 上一版把子级只存在 NSOutlineView 节点树里（模型不知道 → 选中子行解析成空选区、右键全失灵），
-    /// 被 revert（9775479）；这次注册表就是真值，节点树只是它的视图缓存。
+    /// 已重写；这次注册表就是真值，节点树只是它的视图缓存。
     /// 故意**不加 @Published**：数据源回调里懒加载登记不能触发 SwiftUI 发布；
     /// 子级内容真变化时由 refreshExpandedFolderChildren 显式 objectWillChange.send() 驱动重建。
     var expandedFolderChildrenByPath: [String: [FileItem]] = [:]
@@ -269,7 +269,7 @@ final class ArchiveBrowserModel: ObservableObject {
     @Published var extractArchiveRequest: ExtractArchiveRequest?
     @Published var extractSelectionRequest: ExtractSelectionRequest?
     /// 地址栏输入网络归档 URL 触发的「下载并解压」请求 —— 非 nil 时 ContentView 弹 WebExtractSheet。
-    /// 只在用户提交地址栏时设置(非 FSEvents reload 路径,A17 不涉及)。
+    /// 只在用户提交地址栏时设置(非 FSEvents reload 路径)。
     @Published var webExtractRequest: WebExtractRequest?
     /// 右键「权限与属主…」的待确认请求 —— 非 nil 时 ContentView 弹 FilePermissionsEditorSheet。
     @Published var permissionsEditRequest: FilePermissionsEditRequest?

@@ -32,7 +32,7 @@ struct DevToolsView: View {
     // 0.4.3 #12:自检样本结果(运行时现造恶意样本对真实后端断言)。
     @State private var sampleResults: [SelfTestSampleRunner.SampleResult] = []
     @State private var isRunningSamples = false
-    // 0.4.4 #6:格式兼容性实验室(用户选小文件夹,对真实后端逐格式实测保真度)。
+    // 0.4.4 #6:格式兼容性实验室(选小文件夹,对真实后端逐格式验证保真度)。
     @State private var formatLabResults: [FormatLabRunner.FormatResult] = []
     @State private var isRunningFormatLab = false
     // 0.4.5 #80/#89:AI 可用数据快照(只读)—— 助手、归档记忆、Spotlight、后台预索引、动态工作区、活动任务源。
@@ -289,7 +289,7 @@ struct DevToolsView: View {
         }
     }
 
-    // 0.4.4 #6:格式兼容性实验室 —— 选小文件夹,对 zip/7z/tar/tar.gz 实测
+    // 0.4.4 #6:格式兼容性实验室 —— 选小文件夹,对 zip/7z/tar/tar.gz 验证
     // 结构/权限/xattr/symlink/时间戳/注释/可复现(样本复制进临时区加探针,原文件夹只读)。
     @ViewBuilder
     private var sectionFormatLab: some View {

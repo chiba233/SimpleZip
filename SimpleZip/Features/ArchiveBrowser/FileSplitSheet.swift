@@ -44,7 +44,7 @@ struct FileSplitSheet: View {
         }
     }
 
-    // 0.4.2 用户点名：数值支持小数（1.5 GB / 4.7 GB 刻 DVD 这类都是真实需求）+ 补 KB 档。
+    // 0.4.2 数值支持小数（1.5 GB / 4.7 GB 刻 DVD 这类都是真实需求）+ 补 KB 档。
     @State private var sizeValue = 100.0
     @State private var sizeUnit = SizeUnit.megabytes
 

@@ -36,7 +36,7 @@ struct FileTable: View {
     @AppStorage(AppPreferences.Key.collapseVolumeSets) private var collapseVolumeSets = true
 
     var body: some View {
-        // A17：分组 / 密度的实际值由下面的 coordinator 直接读 `AppPreferences`（所以把它们传给 representable
+        // 分组 / 密度的实际值由下面的 coordinator 直接读 `AppPreferences`（所以把它们传给 representable
         // 是死参，已删）。但**必须在 body 里读到这几个 @AppStorage**，否则在 Settings 改它们时不再触发本视图
         // 重渲染 → updateNSView 不跑 → 表格不重新分组 / 不调行高。这行丢弃读纯粹维持那条重绘依赖，别删。
         let _ = (fileGroupingScope, fileGroupBy, hiddenWithGrouping, rowDensity, backgroundStore.folderGroupsGeneration, backgroundStore.organizeGeneration)
@@ -273,7 +273,7 @@ struct FileNSOutlineView: NSViewRepresentable {
         /// Esc 取消标记 —— doCommandBy 里置位，controlTextDidEndEditing 据此跳过改名。
         var renameCancelled = false
         /// 内联重命名进行中时，外部内容变化（FSEvents 把新建文件的写入当成内容变化触发 reload）被推迟；
-        /// 编辑结束后补刷一次。否则刚弹出的输入框会被 reloadData / endActiveRename 拆掉（用户报的新建文件输入框偶发消失）。
+        /// 编辑结束后补刷一次。否则刚弹出的输入框会被 reloadData / endActiveRename 拆掉（新建文件输入框偶发消失）。
         var needsReloadAfterRename = false
 
         // 顶层节点：可能是文件叶子（不分类时）和/或区块（分类组 / 隐藏组）。
@@ -289,7 +289,7 @@ struct FileNSOutlineView: NSViewRepresentable {
         /// 0.4.1 文件夹原位展开：当前展开的文件夹（标准化路径）。reloadData 重建节点后据此重展开
         /// （expandRememberedFolders）。会话内、当前文件夹内有效；换文件夹 / 改配置随 configSignature 重置。
         private var expandedFolderPaths: Set<String> = []
-        /// 0.4.2 #4 跟进：已展开分卷集的首卷路径（用户报「分卷抽屉不会记忆是否收起」——
+        /// 0.4.2 #4 跟进：已展开分卷集的首卷路径（分卷抽屉需要在 reload 后记忆是否收起——
         /// reload 重建节点后由 enforceExpansion 按此回放,与文件夹展开记忆同机制;受设置开关门控）。
         private var expandedVolumeSetPaths: Set<String> = []
         // folder / 折叠策略 / GroupBy / 共存策略 任一变 → 重置展开状态。
@@ -462,7 +462,7 @@ struct FileNSOutlineView: NSViewRepresentable {
             // 只把「**之前就在快照里、现在哈希变了**」的行当作建议变化 → 定点刷新抽屉。
             // **新出现的行**(展开父文件夹后才可见、lastSuggestionHashByPath 里还没有)抽屉是刚现建的、内容已最新,
             // 绝不能再 reloadItem(reloadChildren:) —— 否则会把用户**刚展开的嵌套抽屉**(a/b 文件夹里某文件的 AI 建议)
-            // 在下一次任意 updateNSView(如点一下令选区变化)时折叠回去(用户报「展开 c 的 ai 建议一点击就自动收起」)。
+            // 在下一次任意 updateNSView(如点一下令选区变化)时折叠回去(展开的 AI 建议抽屉点击后就自动收起了)。
             let changedPaths = Set(currentSuggestions.filter { path, hash in
                 guard let previous = lastSuggestionHashByPath[path] else { return false }
                 return previous != hash
@@ -1436,7 +1436,7 @@ struct FileNSOutlineView: NSViewRepresentable {
             // 只读虚拟浏览（.gpg / .szs 解密出的临时内容）不收任何拖入。
             guard model.manifestVirtualMode == nil else { return [] }
 
-            // Finder 语义（用户报「不会正确捕获」的修复）：
+            // Finder 语义（修复拖放目标解析失败）：
             // - 精确悬停在「文件夹行」上 → 定点投递进该文件夹（系统高亮那一行）；
             // - 悬停在文件行 / 行间 / 空白 → **重定向**为「放进当前浏览的文件夹」（整表高亮）。
             //   旧实现不重定向，悬在文件行上目标解析失败 → 直接显示禁止符，列表大半是死区。
@@ -1713,7 +1713,7 @@ struct FileNSOutlineView: NSViewRepresentable {
             menu.addItem(menuItem(L10n.text("file.cut"), systemImage: "scissors", action: #selector(cutSelected)))
             menu.addItem(menuItem(L10n.text("file.paste"), systemImage: "clipboard", action: #selector(pasteFiles)))
             menu.addItem(menuItem(L10n.text("file.moveTo"), systemImage: "folder.badge.gearshape", action: #selector(moveSelected)))
-            // 标签视图专属：从当前标签移除（文件本体不动）—— 用户报「无法从标签里移除」的补全。
+            // 标签视图专属：从当前标签移除（文件本体不动）—— 补上「从标签里移除」功能。
             if case .tag(let tagName) = model.mode {
                 menu.addItem(menuItem(L10n.format("file.removeFromTag", tagName), systemImage: "tag.slash", action: #selector(removeFromTagSelected)))
             }
@@ -2369,9 +2369,9 @@ struct FileNSOutlineView: NSViewRepresentable {
 
         // MARK: - 图标异步缓存（#16 /Applications 卡顿修复）
 
-        /// `icon(forFile:)` 取多分辨率 ICNS + 在 cell 里按 18pt 真正绘制（解码），/Applications 101 项实测
-        /// 107ms + 236ms，全落在主线程 cell 构建。改为：命中缓存直接用预栅格化位图；未命中先给类型级
-        /// 占位图标（实测 ~0.2ms/项），后台取真图标并栅格化（解码一并搬离主线程），回主线程原位刷新可见行。
+        /// `icon(forFile:)` 取多分辨率 ICNS + 在 cell 里按 18pt 真正绘制（解码），/Applications 101 项
+        /// 约 107ms + 236ms，全落在主线程 cell 构建。改为：命中缓存直接用预栅格化位图；未命中先给类型级
+        /// 占位图标（约 0.2ms/项），后台取真图标并栅格化（解码一并搬离主线程），回主线程原位刷新可见行。
         private func icon(for item: FileItem, size: CGFloat) -> NSImage {
             if item.isDirectory, !item.isSymbolicLink, !model.canShowPackageContents(item) {
                 return NSWorkspace.shared.icon(for: .folder)

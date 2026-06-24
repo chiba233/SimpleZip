@@ -187,7 +187,7 @@ struct ReleaseAssistantSheet: View {
             }
 
             DialogSection(L10n.text("releaseAssistant.section.source")) {
-                // 值一侧全部顶到右缘(用户点名):label + Spacer + 值,与解压家族同款。
+                // 值一侧全部顶到右缘:label + Spacer + 值,与解压家族同款。
                 // LabeledContent 在普通 VStack 里只按自然宽度排,右缘会参差。
                 HStack(alignment: .center, spacing: 12) {
                     DialogRowLabel(L10n.text("releaseAssistant.sourceFolder"), systemImage: "hammer.fill", tint: .orange)

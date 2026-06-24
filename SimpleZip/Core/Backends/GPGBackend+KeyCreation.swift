@@ -31,7 +31,7 @@ extension GPGBackend {
             }
         }
 
-        /// 加密子密钥算法。`--quick-generate-key <uid> ed25519 default` 不会自动建加密子密钥(实测 gpg 2.5),
+        /// 加密子密钥算法。`--quick-generate-key <uid> ed25519 default` 不会自动建加密子密钥(gpg 2.5),
         /// 所以 createKey 用这个显式 `--quick-add-key ... encrypt`。
         var encryptionSubkeyAlgorithm: String { subkeyAlgorithm(for: .encrypt) }
     }
@@ -147,7 +147,7 @@ extension GPGBackend {
 
         if !primaryFingerprint.isEmpty {
             // **加密子密钥必须显式追加**：`--quick-generate-key <uid> ed25519 default` 造出的主密钥只有
-            // sign+certify(caps `scSC`)、没有加密子密钥(实测 gpg 2.5：ed25519/EdDSA 本身不能加密，
+            // sign+certify(caps `scSC`)、没有加密子密钥(gpg 2.5：ed25519/EdDSA 本身不能加密，
             // gpg 也不替你补一个 cv25519)。对话框承诺「加密 — encryption subkey(自动)」，这里把它真正建出来。
             // 跑一次 `--quick-add-key <fp> <algo> <usage> <expire>`，passphrase 走同款 loopback stdin。
             func addSubkeyDuringCreation(algorithm subkeyAlgorithm: String, usage: String) async throws {

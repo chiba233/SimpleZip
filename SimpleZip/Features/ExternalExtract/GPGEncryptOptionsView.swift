@@ -101,12 +101,11 @@ struct GPGEncryptOptionsView: View {
                         .pickerStyle(.radioGroup)
                     }
                 }
-                // 收件人公钥单独成卡 —— 内含「添加菜单 + chip 行」，挤在别的控件旁边会重叠（用户报间距问题）。
+                // 收件人公钥单独成卡 —— 内含「添加菜单 + chip 行」，挤在别的控件旁边会重叠。
                 DialogSection(L10n.text("gpgEncrypt.section.recipients")) {
                     recipientsRow
                 }
                 // 对称密码单独成卡;科普性长段落不进卡片 —— 卡片里只放「控件 + 紧贴它的说明」,
-                // 孤儿段落浮在卡片中间正是用户点名的「不优雅」。挪出来当脚注,与小节标题同缩进。
                 DialogSection(L10n.text("gpgEncrypt.section.passphrase")) {
                     encryptionPassphraseRow
                 }
@@ -168,8 +167,7 @@ struct GPGEncryptOptionsView: View {
 
     @ViewBuilder
     private var encryptionPassphraseRow: some View {
-        // 输入框与标签同一行、钉右缘(用户点名「不能单起一行」);说明在下一行**横跨整行**
-        // (用户:「备注不能只显示在右边」)。
+        // 输入框与标签同一行、钉右缘;说明在下一行**横跨整行**。
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .center, spacing: 12) {
                 DialogRowLabel(L10n.text("archive.gpgEncrypt.passphraseLabel"), systemImage: "lock.rectangle.fill", tint: .orange)

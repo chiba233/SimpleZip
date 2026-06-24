@@ -98,7 +98,7 @@ struct ColumnsPane: View {
                 .settingsAnchor("view.hiddenGroupCollapse")
             }
 
-            // 0.4.3 用户拍板重写:分组也折叠化,逻辑说人话 ——
+            // 0.4.3 分组也折叠化,逻辑说人话 ——
             // 「分组方式」一个 picker + 「按文件夹单独记忆」一个开关,替代原「分组范围 + 全局默认分组方式」
             // 两个互相指涉的下拉(用户原话:个人都看不懂)。存储不变(scope/groupBy 同 key)。
             Section(L10n.text("settings.section.grouping")) {
@@ -216,7 +216,7 @@ struct ColumnsPane: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
-                // 0.4.3 用户拍板:两块列开关改**折叠组**(默认收起)—— 页面不再被几十个 toggle 撑高,
+                // 0.4.3 两块列开关改**折叠组**(默认收起)—— 页面不再被几十个 toggle 撑高,
                 // 标签 = 彩色瓦片 + 标题,与「分组」区的小标题同一套一级图标制度。
                 DisclosureGroup {
                     Grid(alignment: .leading, horizontalSpacing: 20, verticalSpacing: 6) {
@@ -297,7 +297,7 @@ struct ColumnsPane: View {
             }
 
             // 预览紧跟在列开关后面（用户反馈：列设置和预览分开导致没法一屏边调边看）;
-            // 列+预览整块按用户拍板挪到视图页最后,常改的呈现选项在上。
+            // 列+预览整块挪到视图页最后,常改的呈现选项在上。
             Section(L10n.text("settings.columns.preview")) {
                 VStack(alignment: .leading, spacing: 14) {
                     ColumnsPreviewTable(

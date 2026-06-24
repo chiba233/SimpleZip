@@ -35,7 +35,7 @@ struct WelcomeAssistantView: View {
 
     @State private var currentStep: Int = 0
 
-    /// 总页数。0.3.3 用户拍板「压到 6 页」后 0.4.3 加回 Finder 右键集成,0.4.5 加 AI 一页 ——
+    /// 总页数。0.3.3 压到 6 页后 0.4.3 加回 Finder 右键集成,0.4.5 加 AI 一页 ——
     /// 0 欢迎（hero + 版本检查 + 备份导入）/ 1 通用（语言 + 常规）/ 2 便利（预设密码 + 自动解压 + 文件关联）/
     /// 3 Finder 右键集成 / 4 安全策略 / 5 引擎（后端 + GPG）/ 6 AI（端上智能,默认隐私优先）/ 7 完成。
     /// 每个设置仍直接绑 @AppStorage，改的瞬间落盘。AI 卡(`WelcomeAIStep`)被更新助手复用(只显示新增卡)。
@@ -75,7 +75,7 @@ struct WelcomeAssistantView: View {
         // 高度随首页紧凑化回落(760 → 700):按最高的「便利」三段页核算,留 ViewThatFits 兜底。
         .frame(width: 780, height: 700)
         .background(
-            // 多层柔光底(帮助页华丽化的同一波,用户点名欢迎助手也要):顶部主题色 + 右下紫晕,
+            // 多层柔光底(帮助页华丽化的同一波):顶部主题色 + 右下紫晕,
             // 渐变只上窗口背景与外壳容器,内容卡保持实底拉层次。深浅色模式都成立。
             ZStack {
                 Color(nsColor: .windowBackgroundColor)
@@ -115,7 +115,7 @@ struct WelcomeAssistantView: View {
     private var progressHeader: some View {
         VStack(spacing: 0) {
             HStack(spacing: 12) {
-                // 0.4.2 用户点名：真 app 图标放左上角 header（hero 区不再放图标）。
+                // 0.4.2 真 app 图标放左上角 header（hero 区不再放图标）。
                 if let icon = NSApp.applicationIconImage {
                     Image(nsImage: icon)
                         .resizable()
@@ -183,9 +183,9 @@ struct WelcomeAssistantView: View {
         }
     }
 
-    /// 欢迎页 hero:帮助页 HelpHero 同款(用户点名欢迎助手按帮助页华丽标准)——
+    /// 欢迎页 hero:帮助页 HelpHero 同款 ——
     /// 渐变图标瓦片 + 彩色光晕 + 大标题,保持横排紧凑不挤下面两段(0.4.2 滚动条教训)。
-    /// 瓦片用 sparkles(代表助手本身),真 app 图标仍只在左上 header(0.4.2 拍板不重复)。
+    /// 瓦片用 sparkles(代表助手本身),真 app 图标仍只在左上 header。
     private var welcomeHero: some View {
         HStack(spacing: 14) {
             Image(systemName: "sparkles")
@@ -235,7 +235,7 @@ struct WelcomeAssistantView: View {
                 Button(L10n.text("welcome.button.next")) {
                     // 必须在 action 里 clamp：按钮显隐的守卫是「渲染期」的，按住回车 / 快速连点时
                     // 旧按钮还在屏上、新状态没渲染，裸 += 会把 currentStep 顶过界 ——
-                    // 越界后 default 分支连续渲染完成页，往回走就「多出两页」（用户报的 bug）。
+                    // 越界后 default 分支连续渲染完成页，往回走就「多出两页」（已知 bug）。
                     withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
                         currentStep = min(currentStep + 1, totalSteps - 1)
                     }
@@ -316,7 +316,7 @@ struct WelcomeCardBody: View {
 // MARK: - 步骤子视图
 
 /// 通用步骤外壳:标题 + 描述 + 自定义内容块。
-/// 帮助页 HelpDrawer 同款华丽 chrome(用户点名欢迎助手也按帮助页标准手绘):
+/// 帮助页 HelpDrawer 同款华丽 chrome:
 /// 外层 = 步骤色斜向渐变底 + 顶部白高光 + 渐变描边 + 彩色阴影,头部渐变发光瓦片;
 /// 内容卡保持实底 —— 内外层次一眼分明。悬停只动阴影不缩放(鬼畜教训)。
 private struct WelcomeStepShell<Content: View>: View {
@@ -407,7 +407,7 @@ private struct WelcomeStepShell<Content: View>: View {
                     lineWidth: 1.2
                 )
         )
-        // 悬停只动阴影,不缩放 —— 容器 scaleEffect 实测鬼畜(帮助页教训)。
+        // 悬停只动阴影,不缩放 —— 容器 scaleEffect 触发鬼畜(帮助页教训)。
         .shadow(color: tint.opacity(isHovering ? 0.22 : 0.10), radius: isHovering ? 11 : 7, y: 5)
         .onHover { hovering in
             withAnimation(.easeOut(duration: 0.18)) {
@@ -571,7 +571,7 @@ private struct WelcomeGeneralStep: View {
         ) {
             VStack(alignment: .leading, spacing: 20) {
                 section(L10n.text("welcome.startupLocation.title"), caption: L10n.text("welcome.startupLocation.body")) {
-                    // 用户点名:下拉和「选择自定义文件夹」同一排,不再上下堆。
+                    // 下拉和「选择自定义文件夹」同一排,不再上下堆。
                     HStack(spacing: 10) {
                         Picker("", selection: $startupLocation) {
                             ForEach(simpleLocations, id: \.rawValue) { location in
@@ -879,7 +879,7 @@ private struct WelcomeFileAssociationsStep: View {
 }
 
 private struct WelcomeSafetyStep: View {
-    // 0.4.2 用户点名「只读太蠢」：三个策略改成 Picker 直接改（@AppStorage Binding 从主 view 透传,
+    // 0.4.2 三个策略改成 Picker 直接改（@AppStorage Binding 从主 view 透传,
     // 改的瞬间落盘）;新增「删除文件前二次确认」开关(与 设置 → 通用 同 key)。
     @Binding var suspiciousPathPolicy: String
     @Binding var symbolicLinkPolicy: String
@@ -921,8 +921,8 @@ private struct WelcomeSafetyStep: View {
         }
     }
 
-    /// 开关行,与上面策略行同构（左图标 + 标题/副文,右侧控件）—— 用户报独立 Toggle+Divider 长相对不上。
-    /// 安全策略页图标 = 圆角矩形瓦片、统一固定红色（用户拍板）。
+    /// 开关行,与上面策略行同构（左图标 + 标题/副文,右侧控件）。
+    /// 安全策略页图标 = 圆角矩形瓦片、统一固定红色。
     private func toggleRow(icon: String, title: String, detail: String, isOn: Binding<Bool>) -> some View {
         HStack(spacing: 12) {
             safetyTile(icon)
@@ -1051,7 +1051,7 @@ private struct WelcomeFinderFavoritesSyncStep: View {
     }
 }
 
-/// Finder 右键集成步骤（0.4.3 用户点名加页）：macOS 对第三方服务默认不激活,首启时
+/// Finder 右键集成步骤（0.4.3 加页）：macOS 对第三方服务默认不激活,首启时
 /// 直接挑要哪些「… 用 SimpleZip」右键项。逐服务开关 + 立即重新注册按钮与
 /// 设置 → 通用 → Finder 右键集成完全同一份状态（pbs NSServicesStatus 写穿,文案同 key 复用）。
 private struct WelcomeFinderServicesStep: View {
@@ -1544,7 +1544,7 @@ private struct WelcomeCompletionStep: View {
                 .font(.system(size: 44, weight: .semibold))
                 .foregroundStyle(.white)
                 .frame(width: 92, height: 92)
-                // 帮助页华丽化同一波:完成徽章升级渐变 + 大光晕(用户点名欢迎助手按帮助页标准)。
+                // 帮助页华丽化同一波:完成徽章升级渐变 + 大光晕。
                 .background(
                     LinearGradient(colors: [.green, .mint], startPoint: .topLeading, endPoint: .bottomTrailing),
                     in: Circle()

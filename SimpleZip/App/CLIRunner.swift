@@ -6,7 +6,7 @@
 //  main.swift 调用:不起 NSApplication、不建窗口,跑完返回退出码直接结束进程。
 //  真后端、真退出码、可进脚本/CI;每条完成的命令同步记录进活动中心(见 TaskCenter.recordExternalCLITask)。
 //
-//  CLI 输出固定英文:经符号链接运行时 Bundle.main 不指向 app bundle(实测 bundlePath 落在
+//  CLI 输出固定英文:经符号链接运行时 Bundle.main 不指向 app bundle(bundlePath 落在
 //  链接所在目录、resource 全 nil),L10n 解析不到;脚本解析也需要稳定输出。
 //
 
@@ -23,8 +23,8 @@ enum CLIRunner {
 
     /// 退出码约定(与 usage 同步):0 成功;1 操作失败/有差异;2 用法或环境错误。
     /// async + 主 actor:ArchiveService 的入口在 app target 默认隔离下是 MainActor 函数,
-    /// 同步阻塞主线程等它必死锁(首版冒烟实测)。main.swift 用 `Task { @MainActor in … }` + `RunLoop.main.run()`
-    /// 驱动(**不是** `dispatchMain()` —— 它会停车真主线程,口令小窗弹不出;见 main.swift 注释,A18)。
+    /// 同步阻塞主线程等它必死锁。main.swift 用 `Task { @MainActor in … }` + `RunLoop.main.run()`
+    /// 驱动(**不是** `dispatchMain()` —— 它会停车真主线程,口令小窗弹不出)。
     static func run(arguments: [String]) async -> Int32 {
         var commandArguments = Array(arguments.dropFirst())
         if commandArguments.first == "--cli" { commandArguments.removeFirst() }
@@ -133,7 +133,7 @@ enum CLIRunner {
               let bundleID = bundle.bundleIdentifier else { return nil }
 
         // 7zz 解析走现成的 SIMPLEZIP_7ZZ_PATH 钩子 —— CLI 进程的 Bundle.main 找不到资源。
-        // 实测内置 7zz 在 Contents/Resources/7zz;Tools/ 子目录是历史备选,一并兜底。
+        // 内置 7zz 在 Contents/Resources/7zz;Tools/ 子目录是历史备选,一并兜底。
         let sevenZipCandidates = [
             bundleURL.appendingPathComponent("Contents/Resources/7zz"),
             bundleURL.appendingPathComponent("Contents/Resources/Tools/7zz")
@@ -158,7 +158,7 @@ enum CLIRunner {
         }
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/open")
-        // 安全:`--` 终止选项,以 - 开头的路径不被 open 当 flag(已实测 open 支持 `--`)。
+        // 安全:`--` 终止选项,以 - 开头的路径不被 open 当 flag(open 支持 `--`)。
         process.arguments = ["-a", environment.appBundleURL.path, "--"] + urls.map(\.path)
         do {
             try process.run()
@@ -238,7 +238,7 @@ enum CLIRunner {
         return failures == 0 ? 0 : 1
     }
 
-    /// 加密归档的口令流程(用户拍板:CLI 也弹小窗,不拉起主窗口、绝不走命令行参数/终端回显):
+    /// 加密归档的口令流程(CLI 也弹小窗,不拉起主窗口、绝不走命令行参数/终端回显):
     /// 先空口令试,后端报「需要口令」→ 弹 NSAlert + SecureField,最多三次;取消 → CancellationError。
     private static func testWithPasswordPrompts(_ url: URL, observer: @escaping @Sendable (String) -> Void) async throws {
         try await SignedContainerService.withToolAdaptedArchive(url) { target in
@@ -473,7 +473,7 @@ enum CLIRunner {
                 printError("simplezip: .\(options.format.pathExtension) does not support encryption.")
                 return 2
             }
-            // 口令来源(用户拍板,绝不走 argv):① SIMPLEZIP_PASSWORD 环境变量;② tty 交互(无回显)。
+            // 口令来源(绝不走 argv):① SIMPLEZIP_PASSWORD 环境变量;② tty 交互(无回显)。
             guard let password = encryptionPassword() else {
                 printError("simplezip: --encrypt needs a password — set SIMPLEZIP_PASSWORD or run on an interactive terminal.")
                 return 2
@@ -1460,8 +1460,7 @@ enum CLIRunner {
     }
 
     private nonisolated static func printError(_ message: String) {
-        // 管道下 stdout 全缓冲、stderr 无缓冲,不先排空 stdout 会乱序(冒烟实测:
-        // 错误详情跑到「Testing ... FAILED」前面)。
+        // 管道下 stdout 全缓冲、stderr 无缓冲,不先排空 stdout 会乱序(错误详情跑到「Testing ... FAILED」前面)。
         fflush(stdout)
         FileHandle.standardError.write(Data((message + "\n").utf8))
     }
@@ -1507,7 +1506,7 @@ enum CommandLineToolInstaller {
 
     /// 安装(覆盖旧链接):先试直接写;/usr/local/bin 不可写(Apple Silicon 默认 root 属主)时
     /// 弹**系统管理员授权对话框**(`do shell script … with administrator privileges`,标准 macOS
-    /// 凭据弹窗 —— 用户点名要这个)。授权被取消抛 `.cancelled`;脚本失败抛 `.failed`,
+    /// 凭据弹窗)。授权被取消抛 `.cancelled`;脚本失败抛 `.failed`,
     /// UI 再给可复制的手动命令兜底。
     static func install() throws {
         let fileManager = FileManager.default

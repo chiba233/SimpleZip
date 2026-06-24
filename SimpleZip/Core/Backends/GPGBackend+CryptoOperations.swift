@@ -173,7 +173,7 @@ extension GPGBackend {
     ) async throws {
         let tool = try resolve()
         // 安全:不先删 outputURL。写到同目录唯一临时文件,gpg 成功后再原子替换;失败 / pinentry 取消则原文件原样保留。
-        // (旧代码先 removeItem outputURL,覆盖已有 .szs 时一旦签名失败 / 取消,用户旧文件就没了 —— 用户报的数据丢失。)
+        // (旧代码先 removeItem outputURL,覆盖已有 .szs 时一旦签名失败 / 取消,旧文件就没了。)
         let tempOutput = Self.atomicSignTempURL(besideOutput: outputURL)
         var arguments: [String] = ["--batch", "--yes", "--clearsign"]
         // 签名密钥在 SimpleZip 私有环时,必须用它的独立 `--homedir`,否则 `--local-user <fp>` 在 ~/.gnupg
@@ -419,7 +419,7 @@ extension GPGBackend {
     ///
     /// 为什么必须这么做：gpg `--verify` 的 `TRUST_*` 是**计算出的 validity**（看签名网 + 别的 key 的 ownertrust 推），
     /// 对「用户给导入公钥设了完全/勉强信任、但没用自己的密钥签过它」的情形，validity 仍是 UNDEFINED →
-    /// 之前会把**完全信任**的 key 误判成「公钥已导入但未信任」（用户报的 bug）。
+    /// 之前会把**完全信任**的 key 误判成「公钥已导入但未信任」。
     /// 信任徽章应当跟「信任」下拉一致 —— 都读 ownertrust：勉强/完全/终极 → 受信任；永不 / 未定义 → 不受信任。
     /// 读不到 ownertrust（无指纹 / gpg 出错）时保留原 validity-based 判定，不至于更糟。
     private static func applyOwnertrust(to result: GPGVerifyResult) async -> GPGVerifyResult {

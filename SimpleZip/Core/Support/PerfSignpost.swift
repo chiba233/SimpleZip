@@ -6,7 +6,7 @@
 //
 //  **零行为影响、零用户可见** —— 仅供开发期用 Instruments 的 "Points of Interest" 轨道排性能。
 //  category 用 "PointsOfInterest" 让区间落在该轨道。OSSignposter 自 macOS 12 起可用,部署目标 13 满足,
-//  无需 @available。命中点(用户点名):后端子进程等待、列目录、安全扫描、比较、发布检查、空间分析、图标解码。
+//  无需 @available。命中点:后端子进程等待、列目录、安全扫描、比较、发布检查、空间分析、图标解码。
 //
 //  用法:能用单个闭包包住的 → `PerfSignpost.interval("name") { … }`;
 //  跨多步、不便单闭包的(如子进程 run→喂stdin→读输出→wait)→ `let s = begin(…); defer { end(…, s) }`。

@@ -20,7 +20,7 @@ struct ActivityTaskRow: View {
     var onOpenAttachment: ((TaskReportAttachment) -> Void)?
     /// 后台预烘焙的失败解释缓存。nil = 没烤好 / 指纹不匹配,行内 AI 按钮不显示,避免前台实时生成。
     var cachedFailureExplanation: String?
-    /// 复制反馈文案（nil = 不显示）。0.4.2 用户报「复制命令也显示诊断信息已复制」—— 按按钮分流。
+    /// 复制反馈文案（nil = 不显示）。0.4.2 按按钮分流不同文案。
     @State private var copiedConfirmationText: String?
     /// 0.4.4(用户反馈):命令输出框按内容真实高度收缩、封顶 300pt(不再固定 300)。0 = 还没测到。
     @State private var commandLogHeight: CGFloat = 0
@@ -41,18 +41,18 @@ struct ActivityTaskRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            // 用户拍板:卡头整行任意位置可点 = 展开/收起(帮助页同款手感);
+            // 卡头整行任意位置可点 = 展开/收起(帮助页同款手感);
             // 行内按钮(重跑/暂停/取消)自己接管点击,不受影响。
             HStack(alignment: .top, spacing: 12) {
-                // 用户反馈:左侧彩色图标长得像按钮,点了没反应 —— 让它真的能点:
+                // 左侧彩色图标长得像按钮,点了没反应 —— 让它真的能点:
                 // 有详情时点击 = 展开 / 收起(与右侧 ⓘ 同款),没详情保持纯装饰。
                 Button {
                     if hasDetails {
                         isShowingDetails.toggle()
                     }
                 } label: {
-                    // #17 跟进(用户拍板,两轮):圆角矩形彩色瓦片;活动中心内容区瓦片**纯色不渐变**,
-                    // 且再浅 30%(0.7 透明度)。侧栏瓦片(渐变实底)用户点名保留,不在此列。
+                    // #17 跟进:圆角矩形彩色瓦片;活动中心内容区瓦片**纯色不渐变**,
+                    // 且再浅 30%(0.7 透明度)。侧栏瓦片(渐变实底)保留,不在此列。
                     RoundedRectangle(cornerRadius: 7, style: .continuous)
                         .fill(iconColor.opacity(0.7))
                         .overlay(
@@ -70,7 +70,7 @@ struct ActivityTaskRow: View {
                         .font(.callout.weight(.semibold))
                         .lineLimit(1)
                         .truncationMode(.middle)
-                    // 状态与相对时间戳同一排(用户点名):「完成 · 2 小时前」。状态可截断,时间固定不被挤掉。
+                    // 状态与相对时间戳同一排:「完成 · 2 小时前」。状态可截断,时间固定不被挤掉。
                     // 时间戳与 #60 时间窗筛选同源(task.startedAt);运行中任务就是「现在」,只显示状态、不显示时间。
                     HStack(spacing: 5) {
                         Text(statusText)
@@ -154,7 +154,7 @@ struct ActivityTaskRow: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            // 0.4.4 用户报「几百个文件的哈希结果把卡片撑到天上」:详情封顶 320pt,
+            // 0.4.4 详情封顶 320pt:
             // 贴内容生长、超过才内滚(HeightCappedScrollView —— 短内容仍无二级滚动条)。
             HeightCappedScrollView(maxHeight: 320) {
                 LazyVStack(alignment: .leading, spacing: 8) {
@@ -395,8 +395,8 @@ struct ActivityTaskRow: View {
     @ViewBuilder
     private var trailingControls: some View {
         HStack(spacing: 6) {
-            // 0.4.4:报告类任务 → 「查看报告」重开报告 sheet(用户点名:不该为看报告重跑一遍)。
-            // 重启后闭包没了 → 用随历史落盘的报告附件重开(用户报「重启后查不了详情」)。
+            // 0.4.4:报告类任务 → 「查看报告」重开报告 sheet。
+            // 重启后闭包没了 → 用随历史落盘的报告附件重开。
             if !task.status.isRunning, task.openReport != nil || task.reportAttachment != nil {
                 Button {
                     if let openReport = task.openReport {
@@ -491,7 +491,7 @@ struct ActivityTaskRow: View {
             // 哈希信息的任务。这样文件操作平平无奇的复制/移动不再出空面板，失败的也不再卡「正在等待命令输出…」，
             // 而哈希结果 / 粘贴时的源·目标哈希这类有用信息照样能展开看。
             if hasDetails {
-                // 用户拍板:详情开关换帮助页同款 —— 分类色 chevron + 淡色圆底,展开旋转 90°。
+                // 详情开关换帮助页同款 —— 分类色 chevron + 淡色圆底,展开旋转 90°。
                 Button {
                     isShowingDetails.toggle()
                 } label: {
@@ -554,7 +554,7 @@ struct ActivityTaskRow: View {
         }
     }
 
-    /// 小控制图标的统一彩色瓦片样式(用户拍板:活动中心所有小图标都走彩色圆底,
+    /// 小控制图标的统一彩色瓦片样式:活动中心所有小图标都走彩色圆底,
     /// 与详情 chevron 同款 —— 不再是裸灰描线)。语义色:复制蓝/导出青/命令紫/重跑蓝/
     /// 续跑绿/暂停橙/取消红。
     static func controlIcon(_ systemName: String, tint: Color) -> some View {
@@ -694,7 +694,7 @@ private struct TransferLogGroup: View {
                     } else {
                         VStack(alignment: .leading, spacing: 1) {
                             HStack(spacing: 6) {
-                                // 用户拍板:详情(折叠抽屉)内的图标同样换圆角矩形彩色小瓦片(纯色,浅 30%)。
+                                // 详情(折叠抽屉)内的图标同样换圆角矩形彩色小瓦片(纯色,浅 30%)。
                                 RoundedRectangle(cornerRadius: 4.5, style: .continuous)
                                     .fill(tint.opacity(0.7))
                                     .overlay(

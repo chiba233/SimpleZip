@@ -69,7 +69,7 @@ enum AIReportAssistant {
     }
 
     /// 当前界面语言的英文名(给 prompt 指定输出语言用)。app 语言覆盖优先,否则取实际加载的本地化。
-    /// **结构化生成里给人看的字段(目录名 / 理由)也要按这个本地化**(用户报 AI 文件夹名固定英文)。
+    /// **结构化生成里给人看的字段(目录名 / 理由)也要按这个本地化**。
     nonisolated static var uiLanguageName: String {
         let code: String
         let raw = UserDefaults.standard.string(forKey: "appLanguage") ?? AppLanguage.system.rawValue

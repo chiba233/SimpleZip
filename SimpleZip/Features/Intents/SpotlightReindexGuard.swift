@@ -2,7 +2,7 @@
 //  SpotlightReindexGuard.swift
 //  SimpleZip
 //
-//  0.4.5 启动卡顿修复:Spotlight 索引**持久化 + 指纹没变就整轮跳过**(用户实测冷启动卡顿主因)。
+//  0.4.5 启动卡顿修复:Spotlight 索引**持久化 + 指纹没变就整轮跳过**（启动冷启动卡顿主因）。
 //
 //  以前每次冷启动 6 个索引器各自 `Task.detached` 并发**全量删 + 全量写**(如 20 个归档 × 每包 400 文件 =
 //  8000 条 CSSearchableItem),没有任何「上次已索引、数据没变就跳过」守卫 → 6 路 IPC 同时砸 `corespotlightd`,

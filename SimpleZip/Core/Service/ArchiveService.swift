@@ -11,8 +11,8 @@ import UniformTypeIdentifiers
 
 /// 归档命令服务：封装 zip/unzip/7zz 调用，让界面层不直接接触命令行细节。
 enum ArchiveService {
-    /// 可打开(读取)的扩展名。后半段是**只读家族**(2026-06 实测内置 7zz 26.01):
-    /// zst/tzst(zstd,7zz 只读——`a -tzstd` 实测 E_NOTIMPL;tar.zst 与 tar.gz 同款双层管道)、
+    /// 可打开(读取)的扩展名。后半段是**只读家族**(bundled 7zz 26.01):
+    /// zst/tzst(zstd,7zz 只读——`a -tzstd` 返回 E_NOTIMPL;tar.zst 与 tar.gz 同款双层管道)、
     /// iso(Iso/Udf 自动识别)、cab、cpio、xar、pkg(xar 容器)。这些格式 7zz 不能写,
     /// 写门控(ArchiveWriteRestriction.readOnlyFormat)自动给出只读解释。
     // nonisolated:`resolvedArchiveInput` 等 nonisolated 路由路径要读它(后端选型);纯 String 字面量常量,无隔离需求。
@@ -293,7 +293,7 @@ enum ArchiveService {
                 try ArchiveSafety.validateExtractedTree(at: destination)
             }
         case .sevenZip:
-            // #19 xattr 往返:纯 .tar 整包解压改走系统 tar(恢复 PAX xattr;7zz 会丢,自检样本实测)。
+            // #19 xattr 往返:纯 .tar 整包解压改走系统 tar(恢复 PAX xattr;7zz 会丢)。
             // tar 没有密码概念;压缩 tar 壳(tgz/zst…)与选条目解压仍走 7zz。
             if resolved.url.pathExtension.lowercased() == "tar", password.isEmpty {
                 try await NativeZipBackend.extractWholeTar(
@@ -492,7 +492,7 @@ enum ArchiveService {
     /// 取样实证(Swift 6 / macOS 26):光标 `nonisolated` **并不会**让函数真正 hop 到 cooperative pool ——
     /// `@MainActor` 调用方 `await` 一个 `nonisolated async` 函数时,runtime 直接在主线程跑其函数体,
     /// 子进程虽借 runAndCapture 的 continuation 在后台,但 await 返回后的解析仍回主线程,大包冻死 UI
-    /// (实测 1437ms 全卡在 parseSevenZipList → DateFormatter)。**只有 `Task.detached` 才确定性保证
+    /// (1437ms 全卡在 parseSevenZipList → DateFormatter)。**只有 `Task.detached` 才确定性保证
     /// 整段(子进程 + 解析)在后台执行**;backend metatype 与 url/password 都 Sendable,可安全捕获。
     nonisolated static func list(_ archive: URL, password: String = "", operationID: UUID? = nil, force: Bool = false) async throws -> [ArchiveItem] {
         let signpost = PerfSignpost.begin("archive.list")

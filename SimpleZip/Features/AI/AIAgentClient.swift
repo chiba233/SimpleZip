@@ -7,11 +7,11 @@
 //       App 关也能被 launchd 周期拉起做后台索引;在 Login Items 可见、受「允许在后台」开关门控。
 //    ② 前台 XPC Service 通道(runForegroundProbe / runForegroundQuery):连内嵌 XPC Service(serviceName =
 //       其 CFBundleIdentifier),App 连接即按需拉起、随 App 生命周期、不进 Login Items、不受该开关 gate。
-//  实测:用户在 Login Items 关掉「允许在后台」会让 LaunchAgent 一切启动被拒(连前台 on-demand 唤醒也拒),
+//  用户在 Login Items 关掉「允许在后台」会让 LaunchAgent 一切启动被拒(连前台 on-demand 唤醒也拒),
 //  所以前台推理走 XPC Service 通道兜底,后台索引仍走 LaunchAgent。跑通后再扩成完整 client facade(配置同步 /
 //  数据投影 / 诊断,坑 9 payload 带 schemaVersion)。后台定时索引的开 / 关 + 频率由 Settings → AI 驱动。
 //
-//  ⚠️ 冷启动 race(实测:首次「通信出错」、重试就好):首次连接时 LaunchAgent `register` 后 service 还没 ready /
+//  冷启动 race:首次连接时 LaunchAgent `register` 后 service 还没 ready /
 //  XPC Service 进程刚被 launchd 拉起,连接级 errorHandler 会先触发。统一走 `invokeWithRetry` —— 连接级失败短
 //  延迟后重连重试几次,`ReplyOnce` 保证最终 completion 恰好回一次(避免 errorHandler 与远程 reply 的竞态重复)。
 //
@@ -22,7 +22,7 @@ import ServiceManagement
 enum AIAgentClient {
     #if DEBUG
     /// DEBUG:每个 App 启动只重注册一次 dev LaunchAgent(自愈 rebuild 后的 LWCR 失配);之后同进程内不再每次重注册,
-    /// 避免每次点探针都吃 register 的异步准备延迟 —— 那正是「经常要重试才拉起」的来源。nonisolated(unsafe):仅
+    /// 避免每次点探针都吃 register 的异步准备延迟 —— 那是「经常要重试才拉起」的来源。nonisolated(unsafe):仅
     /// DevTools 主线程串行访问。
     nonisolated(unsafe) private static var didRegisterDevAgentThisLaunch = false
     #endif
@@ -153,22 +153,22 @@ enum AIAgentClient {
         // 1. 注册 LaunchAgent。register() 可能要求 helper 与 App 同签名身份、且 App 不在 DerivedData 而在
         //    /Applications —— 失败把人话原因回传,不崩。plistName 跟 machService 走构建配置:Debug → .dev.aiagent.plist。
         //
-        // ⚠️ dev「重建不重注册」坑(实测 `job state = spawn failed`、`needs LWCR update`):每次 rebuild,agent 二进制 +
+        // ⚠️ 「重建不重注册」坑:每次 rebuild,agent 二进制 +
         // 签名都变,但旧注册缓存的**代码要求(LWCR)/程序路径**不刷新 → launchd 拿旧 LWCR 校验新二进制失配 → spawn 失败。
         // 光「status != .enabled 才注册」永远只注册第一次。**DEBUG 下先 unregister 清陈旧注册、再强制 register 当前构建**,
         // 让 dev 探针跨 rebuild / 改名自愈;Release 不反复重建,保持「未注册才注册」。
-        // ⚠️ A18:SMAppService unregister/register 是**同步阻塞**调用,等 launchd 响应时会冻住调用线程。
+        // SMAppService unregister/register 是**同步阻塞**调用,等 launchd 响应时会冻住调用线程。
         // 绝不能在主线程跑(DevTools 按钮在主 actor 上),否则 dev 环境 register 卡 launchd 会假死整个 UI、触发
-        // watchdog(实测 __sigsuspend_nocancel 主线程 park)。整段挪后台线程,结果经 ReplyOnce → 主线程回。
+        // watchdog(__sigsuspend_nocancel 主线程 park)。整段挪后台线程,结果经 ReplyOnce → 主线程回。
         DispatchQueue.global(qos: .userInitiated).async {
             let service = SMAppService.agent(plistName: SimpleZipAIAgentXPCNames.machService + ".plist")
             let needsRegister: Bool
             #if DEBUG
-            // dev 失稳真因(codex 实测,非「DerivedData 跑不了」——toggle 后照样从 DerivedData 拉起):rebuild 后 helper
-            // 签名变,但 BTM/SMAppService 缓存的旧记录 + LWCR(launch code requirement)陈旧 → launchd 报 `needs LWCR
-            // update` + spawn failed(EX_CONFIG 78)。Login Items 手动开关会换 BTM uuid + 刷新 LWCR 才恢复;代码里
-            // unregister 紧接 register 太快会撞「旧记录还没清完」的异步竞争。每个 App 启动首刀 unregister 后**轮询
-            // status 到 .notRegistered(最多 ~3s)再 register**,确保旧记录真清掉、register 建一条带当前 LWCR 的新记录。
+            // dev rebuild 后 helper 签名变,但 BTM/SMAppService 缓存的旧记录 + LWCR(launch code requirement)陈旧
+            // → launchd 报 `needs LWCR update` + spawn failed(EX_CONFIG 78)。Login Items 手动开关会换 BTM uuid
+            // + 刷新 LWCR 才恢复;代码里 unregister 紧接 register 太快会撞「旧记录还没清完」的异步竞争。
+            // 每个 App 启动首刀 unregister 后**轮询 status 到 .notRegistered(最多 ~3s)再 register**,
+            // 确保旧记录真清掉、register 建一条带当前 LWCR 的新记录。
             if didRegisterDevAgentThisLaunch {
                 needsRegister = service.status != .enabled
             } else {
@@ -432,7 +432,7 @@ enum AIAgentClient {
     /// **App 启动时确保周期索引 LaunchAgent 处于该有的状态**(仅在「静默后台索引」开启时调,见 AppDelegate):
     ///   - `.notRegistered`(首次 / 记录丢失)→ 注册;
     ///   - `.enabled` 但 **app 版本变了**(更新后 helper 二进制变 → 系统的启动校验可能陈旧 → launchd spawn 失败)→
-    ///     重注册刷新(治用户点名的「发布包也罕见出现 stale BTM/LWCR」),并记下当前版本;
+    ///     重注册刷新(治「发布包也罕见出现 stale BTM/LWCR」),并记下当前版本;
     ///   - `.requiresApproval`(用户在登录项关了)/ `.notFound`(构建问题)→ **不动**(尊重 / 无从修)。
     /// 版本号记 UserDefaults.standard(注册是按 app 版本的二进制绑定)。内部各调用已 off-main。
     nonisolated static func ensureBackgroundIndexRegistered(appVersion: String) async {
@@ -456,7 +456,7 @@ enum AIAgentClient {
     /// 校验 —— 治会让 launchd 拒绝拉起(spawn failed)的陈旧:改 app / helper bundle id 或 plist label、换签名团队、
     /// 发布包罕见陈旧记录。**不跑模型、不需 sudo**(用户级 LaunchAgent)。
     /// 🔴 **绝不偷偷重启用用户已禁用的后台项**:进入时若 `.requiresApproval`(用户自己关了),直接返回、**不 unregister /
-    /// register**。A18:同步阻塞 → 后台队列跑、经 continuation 回。
+    /// register**。同步阻塞 → 后台队列跑、经 continuation 回。
     nonisolated static func repairBackgroundAgentRegistration() async -> RepairOutcome {
         await withCheckedContinuation { (cont: CheckedContinuation<RepairOutcome, Never>) in
             DispatchQueue.global(qos: .userInitiated).async {

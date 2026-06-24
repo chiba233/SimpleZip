@@ -44,7 +44,7 @@ struct SimpleZipApp: App {
 
             CommandGroup(replacing: .appInfo) {
                 Button(L10n.text("menu.aboutSimpleZip")) {
-                    // 0.4.2 用户点名：系统 About 面板下岗，重定向到内容更全的「设置 → 关于」。
+                    // 0.4.2 系统 About 面板下岗，重定向到内容更全的「设置 → 关于」。
                     SettingsDeepLink.open(.about)
                 }
                 // 「重新运行欢迎助手」放在 SimpleZip 菜单里、紧跟「关于」后面 ——
@@ -103,7 +103,7 @@ struct ArchiveFileCommands: Commands {
 
             Divider()
 
-            // 0.4.2（用户点名菜单栏 parity）：批量重命名（文件浏览 / 归档内都通,按模式路由）。
+            // 0.4.2 批量重命名（文件浏览 / 归档内都通,按模式路由）。
             Button(L10n.text("archive.batchRename.menu")) {
                 model?.requestBatchRenameAnywhere()
             }
@@ -121,11 +121,11 @@ struct ArchiveFileCommands: Commands {
             }())
         }
 
-        // 0.4.2 用户点名「左上角菜单栏选项不全」：顶级「操作」菜单 —— 右键里的主力操作全部上桌。
+        // 0.4.2 顶级「操作」菜单 —— 右键里的主力操作全部上桌。
         // GPG 项按 A4 门控（关总开关不渲染）；其余粗粒度 disabled(model == nil)，
         // 细粒度前置条件由各 model 方法自己把关（选区不对会给明确错误提示,不会静默）。
         // 「操作」= 对所选执行的主动作(高频,保持短)。工具 / 分析 / 校验全家搬去新顶级菜单「归档」
-        // (用户点名:菜单栏同步右键的新结构 + 长平铺折成分组)。
+        // (菜单栏同步右键的新结构 + 长平铺折成分组)。
         CommandMenu(L10n.text("menu.actions")) {
             Button(L10n.text("button.addToArchive")) { model?.createArchive() }
                 .disabled(model == nil)
@@ -216,7 +216,7 @@ struct ArchiveFileCommands: Commands {
             // #44 快速核对发布组(单选普通文件夹,只看文件名)。
             Button(L10n.text("quickVerify.menu")) { model?.quickVerifyReleaseGroup() }
                 .disabled(!isFolderMode)
-            // #11 发布目录完整性检查(单选普通文件夹,实测哈希/验签/孤儿)。
+            // #11 发布目录完整性检查(单选普通文件夹,检查哈希/验签/孤儿)。
             Button(L10n.text("dirAudit.menu")) { model?.auditSelectedReleaseDirectory() }
                 .disabled(!isFolderMode)
             // #43 可复现性检查(单选普通文件夹,双打包比指纹)。

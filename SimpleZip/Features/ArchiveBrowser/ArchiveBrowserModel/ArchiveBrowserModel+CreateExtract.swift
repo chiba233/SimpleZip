@@ -318,7 +318,7 @@ extension ArchiveBrowserModel {
         // **必须延后一个 runloop**：本方法由创建选项 sheet 的「创建」按钮调用，调用方刚把
         // `archiveCreationRequest = nil`（请求 SwiftUI 关闭 sheet），但 sheet 的关闭是异步的。
         // 若立刻在同步路径里跑 `NSApp.runModal`（同名冲突对话框），会卡在 sheet 还没关、模态面板
-        // 拿不到 key window 的死锁 → 整个 app 卡死（用户报：创建后撞同名直接卡死）。
+        // 拿不到 key window 的死锁 → 整个 app 卡死（创建后撞同名直接卡死）。
         // 延后到下一拍让 sheet 先关掉,模态面板就能正常成为 key window。
         DispatchQueue.main.async { [weak self] in
             self?.performCreateArchiveNow(request)
@@ -496,18 +496,17 @@ extension ArchiveBrowserModel {
         guard case .archive(let url) = mode else { return nil }
         if archiveDisplayOverride != nil { return .temporaryExtractedCopy }
         if !nestedArchiveReturnStack.isEmpty { return .nestedArchive }
-        // ⚠️ A17: fileExists(stat) をここで呼ばない。
-        // ファイル消失は beginWatchingOpenArchive の FSEvents watcher が通知で拾う。
-        // 実際の書き込み口(拖入 / 注释编辑)がそれぞれ自身で検証するため、render hot path での stat は不要かつ有害。
+        // 文件消失事件由 beginWatchingOpenArchive 的 FSEvents watcher 用通知拾取。
+        // 实际写入路径(拖入 / 注释编辑)各自校验。render hot path 里 stat 无用且有害。
         return ArchiveService.entryUpdateRestriction(forExtension: url.pathExtension)
     }
 
     /// 当前是否允许把外部文件拖进打开的压缩包：必须是**真实顶层** zip/7z（非嵌套 / 非 `.siz`·`.gpg` 解出来的临时包），
     /// 否则写回 `/tmp` 临时包毫无意义、还可能误导。判定收敛到 `archiveWriteRestriction`(#13 单一来源)。
     var canDropIntoOpenArchive: Bool {
-        // ⚠️ 不在这个 getter 里 stat(A17):本属性会被菜单栏 `.commands` 树读取,而 FSEvents 每 ~120ms
+        // 本属性会被菜单栏 `.commands` 树读取,而 FSEvents 每 ~120ms
         // 触发的 @Published 变动会让 SwiftUI 把整棵 commands 树重建一遍,每次都 `fileManager.fileExists`
-        // → 内核 `stat()`,慢速卷(网络盘 / NFS / 断开的共享)上直接冻死主线程(取样实证 2491ms)。
+        // → 内核 `stat()`,慢速卷(网络盘 / NFS / 断开的共享)上直接冻死主线程。
         // 归档文件存在性由打开时装的 FSEvents watcher(beginWatchingOpenArchive,见 Loading)盯着,
         // 文件消失会走通知更新状态;真要写入(拖入 / 改注释)的路径自身会校验,getter 里再 stat 多余。
         guard case .archive = mode else { return false }
@@ -925,7 +924,7 @@ extension ArchiveBrowserModel {
             exportContainerContents()
             return
         }
-        // 0.4.2 用户点名：`.gpg`/`.pgp`/`.asc` 的「解压」要真的能用 —— 弹确认对话框（产物名 / 目标目录），
+        // 0.4.2 `.gpg`/`.pgp`/`.asc` 的「解压」要真的能用 —— 弹确认对话框（产物名 / 目标目录），
         // 走完整任务管线（活动中心 / 可重跑）。钥匙串材料则引去导入。
         if case .folder = mode,
            let gpgURL = selectedFileItems.first(where: { !$0.isDirectory && GPGFileService.isRecognizedGPGFile($0.url) })?.url {
@@ -961,7 +960,7 @@ extension ArchiveBrowserModel {
         )
     }
 
-    /// 0.4.2：虚拟浏览导出确认请求（非 nil = 弹专用对话框）。用户点名「不能偷懒用系统面板」。
+    /// 0.4.2：虚拟浏览导出确认请求（非 nil = 弹专用对话框）。不偷懒用系统面板。
     struct VirtualExportRequest: Identifiable {
         let id = UUID()
         let files: [URL]
@@ -1308,7 +1307,7 @@ extension ArchiveBrowserModel {
         var fileURLs: [URL]? = nil
     }
 
-    /// 0.4.2（用户点名）：批量重命名扩展到**文件浏览** —— 选中 ≥2 个文件 / 文件夹右键或菜单栏触发。
+    /// 0.4.2 批量重命名扩展到**文件浏览** —— 选中 ≥2 个文件 / 文件夹右键或菜单栏触发。
     /// 引擎与归档内共用（替换 / 前后缀 / 大小写 / 序号 + 实时预览 + 冲突标红）；
     /// 落盘 = 逐个 moveItem + 整批注册撤销（⌘Z 一次全部回退）。
     func requestBatchRenameFiles() {

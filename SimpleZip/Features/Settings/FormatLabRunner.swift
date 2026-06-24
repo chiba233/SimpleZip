@@ -3,7 +3,7 @@
 //  SimpleZip
 //
 //  0.4.4 #6:格式兼容性实验室(只进 DevTools —— 调试件,不是用户功能)。
-//  对用户选的小文件夹逐格式跑 create → extract → 实测对比:结构 / 权限 / xattr / 符号链接 /
+//  对用户选的小文件夹逐格式跑 create → extract → 验证对比:结构 / 权限 / xattr / 符号链接 /
 //  时间戳 / 注释往返 / 可复现 —— 与 SelfTestSampleRunner 同一习语(真后端、临时目录、跑完即清)。
 //  样本会先**复制**进临时区再增补探针(xattr / symlink / 可执行位),绝不改用户的原文件夹。
 //
@@ -75,7 +75,7 @@ enum FormatLabRunner {
 
         var options = ArchiveCreationOptions()
         options.format = format
-        // 链接 / 权限尽量保真:7z 显式开符号链接保留(zip/tar 由后端默认行为决定 —— 实测就是目的)。
+        // 链接 / 权限尽量保真:7z 显式开符号链接保留(zip/tar 由后端默认行为决定 —— 验证即目的)。
         if format == .sevenZip {
             options.sevenZipStoreSymbolicLinks = true
         }

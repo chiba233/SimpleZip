@@ -58,7 +58,7 @@ struct ContentView: View {
 
     /// 发布助手确认后的请求，压到 sheet 的 onDismiss 再起任务 —— 小目录打包快到能在助手
     /// sheet 收场动画结束前完成，refreshOnSuccess 此时 set 报告 item 会被 SwiftUI 静默丢弃
-    /// （报告 sheet 不弹，实测）。等 onDismiss（动画完毕）再 run，报告必能呈现。
+    /// （报告 sheet 不弹）。等 onDismiss（动画完毕）再 run，报告必能呈现。
     @State private var pendingReleaseAssistantRun: ReleaseAssistantRequest?
     /// 右键「以虚拟目录浏览」静默校验失败时的警告 alert 状态。
     /// nil = 没问题（已直接进入虚拟模式）/ 还没触发；非 nil = 验证发现问题，用户需决定。
@@ -170,7 +170,7 @@ struct ContentView: View {
                     .help(L10n.text("help.refresh"))
                 }
 
-                // 0.4.2 上下文动态双操作 v3：`.principal` 会被系统顶到正中、离右簇一大截（用户报）——
+                // 0.4.2 上下文动态双操作 v3：`.principal` 会被系统顶到正中、离右簇一大截——
                 // 改回 `.primaryAction` 紧邻右簇，中间垫 ToolbarSpacer(.fixed) 拆成**相邻但独立**的玻璃囊。
                 ToolbarItemGroup(placement: .primaryAction) {
                     ContextualToolbarButtons(model: model)
@@ -207,7 +207,7 @@ struct ContentView: View {
                     .help(L10n.text("button.reveal"))
                 }
 
-                // 活动中心独立成簇（用户点名）：它是「窗口级面板」不是档案操作,
+                // 活动中心独立成簇：它是「窗口级面板」不是档案操作,
                 // 与上下文双操作同款 —— ToolbarSpacer(.fixed) 拆出相邻但独立的玻璃囊。
                 if #available(macOS 26.0, *) {
                     ToolbarSpacer(.fixed, placement: .primaryAction)
@@ -262,7 +262,7 @@ struct ContentView: View {
                 }
             } else if let full = model.operationFailureFullMessage, !full.isEmpty {
                 // 没有诊断 session（如把非归档文件当压缩包打开 → list 直接失败）时也给一个
-                // 「复制日志」—— 把完整错误（含 7zz 原始输出）拷到剪贴板,方便用户贴出来排查（用户点名）。
+                // 「复制日志」—— 把完整错误（含 7zz 原始输出）拷到剪贴板,方便贴出来排查。
                 Button(L10n.text("button.copyLog")) {
                     NSPasteboard.general.clearContents()
                     NSPasteboard.general.setString(full, forType: .string)
@@ -479,7 +479,7 @@ struct ContentView: View {
                 signature: pending.signature,
                 onOpen: { decryptionKey, decryptionPassphrase in
                     // 成功 → 关 sheet + 浏览，返回 nil；失败（密码 / 密钥错）→ **返回错误文案**让 sheet 内联红字显示、
-                    // 保留让用户改了重试。之前走 model.errorMessage，alert 被 sheet 盖住 → 用户看不到任何提示（已修）。
+                    // 保留让用户改了重试。旧代码走 model.errorMessage，alert 被 sheet 盖住 → 用户看不到任何提示。
                     do {
                         let urlToOpen = try await decryptInnerArchiveIfNeeded(
                             pending.innerArchiveURL,
@@ -808,7 +808,7 @@ struct ContentView: View {
         ExternalFileOpenQueue.shared.drain().forEach(openExternalURL)
         FinderServiceActionQueue.shared.drain().forEach(handleFinderServiceAction)
         // 0.4.5 #89:启动后台发现编排者(与当前文件夹无关 —— 从全局数据层生成跨位置推荐 AI 工作区)。
-        // 重复调用安全;订阅任务历史变化自动重跑(A17:不挂导航/reload 路径)。
+        // 重复调用安全;订阅任务历史变化自动重跑(不挂导航/reload 路径)。
         AIWorkspaceDiscoveryCoordinator.shared.activate()
         // 独立浮窗「在主窗口打开」.szs：已验签报告直达，直接进虚拟目录浏览，不再重弹验签 sheet。
         if let request = openSZSVirtualFolderOnAppear {
@@ -1323,8 +1323,8 @@ struct ContentView: View {
 
     /// 外部打开（Finder 双击 / 打开方式 / 拖到 Dock）要用主窗口浏览时，把 app 激活并把主窗口前置。
     ///
-    /// 修复用户反馈：app 已在后台运行时从 Finder 打开压缩包，只是「打开了程序」却没唤起窗口，
-    /// 得再点一下 Dock 图标才进得去。根因是这条路径从不 `NSApp.activate` / 前置主窗口
+    /// app 已在后台运行时从 Finder 打开压缩包，只是「打开了程序」却没唤起窗口，
+    /// 得再点一下 Dock 图标才进得去。根因是这条路径不 `NSApp.activate` / 前置主窗口
     /// （只有 Finder 服务路径做了）。
     ///
     /// 放在 drain 时机（`openExternalURL`）而不是 `AppDelegate.application(_:openFile:)`：冷启动时

@@ -7,7 +7,7 @@
 //    ① LaunchAgent(SMAppService,后台,Login Items 可见、受「允许后台」门控)—— 入口 AIAgentMain.swift。
 //    ② 内嵌 XPC Service(Contents/XPCServices/,前台按需,App 连接即拉起、随 App 活、不在 Login Items、
 //       不受「允许后台」门控)—— 入口 AIXPCServiceMain.swift。
-//  为什么要两条:实测「Login Items → 允许在后台」开关其实是 BTM 对 LaunchAgent 的 disposition,关掉后
+//  为什么要两条:「Login Items → 允许在后台」开关其实是 BTM 对 LaunchAgent 的 disposition,关掉后
 //  launchd 拒绝它**一切**启动(连前台 on-demand 唤醒也拒)→ 前台 AI 也起不来。XPC Service 由 App 私有持有、
 //  不进 Login Items、不受该开关 gate,正是前台按需推理的稳妥通道;LaunchAgent 仍负责 App 关闭后的后台索引。
 //
@@ -684,7 +684,7 @@ enum AIPassEngine {
     private static func archiveEntryPicks(_ input: ArchiveEntryPicksInput) async throws -> [Int] {
         guard !input.entryPaths.isEmpty else { return [] }
         // FoundationModels 上下文 4096 token:按字符保守裁剪(每条 ≤160、最多 60 条、总预算 3000 字符),
-        // 大归档的长路径列表不再爆 token(原来只 prefix(60)、不限每条长度 → 实测 5654 token 超限)。
+        // 大归档的长路径列表不再爆 token(原来只 prefix(60)、不限每条长度会超限)。
         // 路径保尾部(文件名 / 末层更有判别力);编号语义仍对齐 input.entryPaths 的前缀,App 端用编号回查原路径。
         var cands: [String] = []
         var budget = 3_000
@@ -759,7 +759,7 @@ enum AIPassEngine {
         """
         var lines = ["Archive: \(input.archiveName)", "Entries (number<TAB>type<TAB>path):"]
         // 字符预算保守对齐 4096 token 上下文(扣 instructions + 结构化 schema + 输出余量);
-        // 原 6000 字符实测整条 content 达 4357 token、超 4096 上限 → 收紧到 3000。
+        // 3000 字符上限保证不超上下文。
         var promptBudget = 3_000
         for (i, entry) in input.entries.enumerated() {
             if i >= 200 || promptBudget <= 0 { break }
@@ -841,9 +841,9 @@ enum AIPassEngine {
     // MARK: - Prompt 预算兜底(对齐 FoundationModels 4096-token 上下文,CJK aware)
     //
     // 所有「喂列表 / 大文本给模型」的 pass 都必须裁,否则大输入(长文件名列表、整本设置目录、长摘录)会静默超
-    // 4096 token 上下文 → 整条 pass 报错返回空(用户侧像「AI 老不出东西」)。镜像已落地的 archiveKindGuess /
+    // 4096 token 上下文 → 整条 pass 报错返回空。镜像已落地的 archiveKindGuess /
     // archiveEntryPicks 兜底,统一抽成下面三个 helper。FoundationModels 不暴露 token 计数,故用保守字符预算:
-    // 实测最坏内容(文件名 / 路径)≈ 0.73 token/char → 3000 char ≈ 2190 token + 固定开销(instructions+schema+
+    // 最坏内容(文件名 / 路径)≈ 0.73 token/char → 3000 char ≈ 2190 token + 固定开销(instructions+schema+
     // 输出)≈ 757 < 4096;CJK 1 token/char → 3000 < 4096。列表类用字符预算最稳;散文类(reportText)用 token 估算。
 
     /// 单字段截断到 limit 字符(超长末尾加 …)。把进 prompt 的名字 / 标签 / 标题裁短,防单条爆预算。

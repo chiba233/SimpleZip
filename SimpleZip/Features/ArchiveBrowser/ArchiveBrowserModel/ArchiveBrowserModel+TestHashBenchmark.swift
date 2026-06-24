@@ -613,7 +613,7 @@ extension ArchiveBrowserModel {
                     ))
                 }
                 task.transferLog = rows
-                // 用户点名:检查报告可从活动中心重开(只在本次开了发布检查时给)。
+                // 检查报告可从活动中心重开(只在本次开了发布检查时给)。
                 if request.runInspection {
                     var reopened = report
                     reopened.steps = recorder.steps
@@ -985,7 +985,7 @@ extension ArchiveBrowserModel {
         return nil
     }
 
-    /// 右键文件夹「检查发布目录…」:SHA256SUMS 覆盖与实测 / .szs 清单文件级核对 / VERIFY.md 引用 /
+    /// 右键文件夹「检查发布目录…」:SHA256SUMS 覆盖与逐项哈希 / .szs 清单文件级核对 / VERIFY.md 引用 /
     /// 随包公钥独立验签(临时 GNUPGHOME) / 孤儿文件。**只读** —— 不改目录里任何文件。
     func auditSelectedReleaseDirectory() {
         guard let directory = releaseScopeFolder() else {
@@ -996,7 +996,7 @@ extension ArchiveBrowserModel {
     }
 
     /// 右键文件夹「快速核对发布组」(#44):**只看文件名**、瞬时判断 产物 / .szs / SHA256SUMS /
-    /// 公钥 / 验证文档 是否组成完整发布组。不实测哈希、不验签(那是 `auditSelectedReleaseDirectory`
+    /// 公钥 / 验证文档 是否组成完整发布组。不计算哈希、不验签(那是 `auditSelectedReleaseDirectory`
     /// 的重型版),只读目录列举。结果复用同一份 `ReleaseDirectoryAuditReport` / 视图,不另造 UI。
     func quickVerifyReleaseGroup() {
         guard let directory = releaseScopeFolder() else {
@@ -1062,7 +1062,7 @@ extension ArchiveBrowserModel {
                 ArchiveService.isSupportedArchive(directory.appendingPathComponent(name))
             }
 
-            // ① SHA256SUMS:覆盖情况 + 在场条目逐个实测哈希。
+            // ① SHA256SUMS:覆盖情况 + 在场条目逐个计算哈希。
             if inventory.checksumFiles.isEmpty {
                 if !inventory.artifacts.isEmpty {
                     findings.append(ReleaseDirectoryAuditFinding(severity: .warning, message: L10n.text("dirAudit.noChecksums")))
@@ -1399,7 +1399,7 @@ extension ArchiveBrowserModel {
                 self?.releaseInspectionReport = report
             },
             onSucceeded: { [weak self] task in
-                // 用户点名:报告可从活动中心重开,不必重跑;0.4.4 报告本体随历史落盘,重启后照旧。
+                // 报告可从活动中心重开,不必重跑;0.4.4 报告本体随历史落盘,重启后照旧。
                 task.openReport = { self?.releaseInspectionReport = report }
                 task.reportAttachment = .releaseInspection(report)
             },

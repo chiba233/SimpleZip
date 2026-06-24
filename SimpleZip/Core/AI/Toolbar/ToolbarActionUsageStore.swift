@@ -72,7 +72,7 @@ nonisolated final class ToolbarActionUsageStore {
         case .folder, .tag:
             let mode = snapshot.mode.rawValue
             if snapshot.selectedFiles.isEmpty { return "\(mode)|empty" }
-            // 复选(≥2):统一一个桶,不按后缀细分(用户拍板:勾选很多文件即使同后缀也别那么细)。
+            // 复选(≥2):统一一个桶,不按后缀细分(勾选很多文件即使同后缀也别那么细)。
             // 池子外的习惯信号会被白名单候选池自动忽略,所以共享桶不会让不支持的动作冒出灰按钮。
             if snapshot.selectedFiles.count >= 2 { return "\(mode)|multi" }
             // 单选:按类型 / 后缀细分(配合 AI 文件级 / 类型级烘焙颗粒度)。

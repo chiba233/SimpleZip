@@ -2,7 +2,7 @@
 //  AIWorkspaceStore.swift
 //  SimpleZip
 //
-//  0.4.5 #80 #89:动态 AI 工作区的 App 层 store(白皮书建议四 + 用户拍板的统一框架)。
+//  0.4.5 #80 #89:动态 AI 工作区的 App 层 store(白皮书建议四 + 统一框架设计)。
 //
 //  ⚠️ AI 文件夹 = 跨物理位置按语义聚成的虚拟主题目录,**和当前文件夹 0 关系**(那是 AI Suggestion 的事)。
 //  内容来自后台发现的全局数据层:`refreshRecommendations` 吃派生记录(持久文件索引 / 活动任务 / 归档…,由后台
@@ -115,7 +115,7 @@ final class AIWorkspaceStore: ObservableObject {
     private static let autoExcludedKey = "SimpleZip.ai.autoExcluded.v1"
 
     /// 这 8 个 key 历史上写在 `UserDefaults.standard`;现统一迁到独立文件存储(避免大对象——尤其 treeSnapshots
-    /// (实测 0.66 MB,且随工作区增长)——撑大主偏好域、拖垮启动)。供一次性防丢迁移用。
+    /// (约 0.66 MB,且随工作区增长)——撑大主偏好域、拖垮启动)。供一次性防丢迁移用。
     private static let allStorageKeys = [
         storageKey, suppressionKey, feedbackKey, structureKey, seedsKey, learningKey, treeSnapshotKey, autoExcludedKey
     ]
@@ -275,7 +275,7 @@ final class AIWorkspaceStore: ObservableObject {
         let candidateLimit = AIReportAssistant.isReady ? reviewPolicy.candidateLimit : displayLimit
         let policy = AIRecommendationPolicy(maxThemes: candidateLimit)
         let suppression = self.suppression
-        // **重活(跨位置语义聚类)挪出 MainActor** —— 开窗首帧不被 AI 发现拖住(用户实测卡;倒排索引已降复杂度,
+        // **重活(跨位置语义聚类)挪出 MainActor** —— 开窗首帧不被 AI 发现拖住(倒排索引已降复杂度,
         // 但聚类仍不该占主线程)。纯 Core(Sendable)→ Task.detached,回主线程原子安装。
         let sourceHadRecords = !files.isEmpty || !tasks.isEmpty
         Task.detached(priority: .utility) { [files, tasks, attention, suppression, policy, pool, pathsBySourceRef, sourceHadRecords, now] in
@@ -330,7 +330,7 @@ final class AIWorkspaceStore: ObservableObject {
                                  Set(members.flatMap(\.sourceRefs)))
         }
         // **跨发现轮次保留**正在复核中 / 已复核通过的旧主题:本轮 discovery 没再聚出它,不代表它没用 —— 否则在飞的
-        // 慢复核回来算「过期」白跑,已通过的可见文件夹也会被刷掉,永远攒不起可见数(用户实测 0 可见挂很久)。
+        // 慢复核回来算「过期」白跑,已通过的可见文件夹也会被刷掉,永远攒不起可见数(可能 0 可见挂很久)。
         for themeID in reviewInFlight where pending[themeID] == nil {
             if let old = pendingCandidates[themeID] { pending[themeID] = old }
         }

@@ -5,8 +5,8 @@
 "welcome.button.next" = "続ける";
 "welcome.button.finish" = "SimpleZipを使い始める";
 "welcome.stepLabel" = "%d / %d ステップ";
-"welcome.intro.title" = "重要な設定を数ステップで整えます";
-"welcome.intro.body" = "SimpleZipはmacOSネイティブのアーカイブマネージャです。次の数ステップで、新しいユーザーが見落としがちな設定を確認します。このアシスタントは SimpleZip → ようこそアシスタントを再実行 からいつでも再実行できます。";
+"welcome.intro.title" = "重要な設定を数ステップで完了";
+"welcome.intro.body" = "SimpleZip は macOS ネイティブのアーカイブマネージャです。以下のステップでは新規ユーザー向けの基本設定を案内します。このアシスタントは SimpleZip → ようこそアシスタントを再実行 からいつでも再実行できます。";
 "welcome.intro.note" = "ここでの設定は、後から SimpleZip → 設定 でも変更できます。";
 "welcome.language.title" = "表示言語を選択";
 "welcome.language.body" = "アプリのUI言語はシステム言語とは独立しています。変更はすぐ適用されますが、macOS上部メニューバーは次回再起動後に反映されます。";
@@ -30,8 +30,8 @@
 "welcome.backend.sevenZip.missing" = "7-Zip ✗ 利用不可";
 "welcome.backend.rar.available" = "RAR ✓ 利用可能";
 "welcome.backend.rar.missing" = "RAR ⓘ 利用不可（.rarの作成時のみ必要）";
-"welcome.completion.title" = "準備完了";
-"welcome.completion.body" = "重要な設定が完了しました。Dock、Finder、またはフォルダをメインウィンドウへドラッグしてSimpleZipを使い始められます。\n\nこれらの設定は後で設定から変更できます。このアシスタントはSimpleZipメニューから再実行できます。";
+"welcome.completion.title" = "完了";
+"welcome.completion.body" = "基本設定が完了しました。Dock、Finder、またはフォルダをメインウィンドウにドラッグして使用を開始できます。\n\nこれらの設定は後から「設定」で変更でき、アシスタントは SimpleZip メニューから再実行できます。";
 "welcome.backupRestore.title" = "以前のバックアップから復元しますか？";
 "welcome.backupRestore.body" = "以前に設定 → バックアップと復元からSimpleZipの環境設定JSONを書き出している場合は、ここで読み込んで以降の手動選択を省略できます。そうでなければ「続ける」をクリックしてください。";
 "welcome.backupRestore.button" = "バックアップファイルを選択…";
@@ -733,7 +733,7 @@
 
 /* Fallback strings synced from English; keep keys present in every locale. */
 "welcome.gpg.title" = "GPG（PGP 署名）— 任意";
-"welcome.gpg.body" = "GPG を使うと、書庫に署名して受信者が出所と完全性を検証できるようにしたり、特定の受信者の公開鍵宛てに暗号化したりできます。完全に任意です。オフにすれば SimpleZip は GPG がまったく存在しないかのように動作し、いつでもここから有効にできます。";
+"welcome.gpg.body" = "GPG によりアーカイブへの署名と受信者指定の暗号化が可能です。オフ時はすべての GPG エントリが非表示になり、設定からいつでも再有効化できます。";
 "welcome.gpg.enable" = "GPG 連携を有効化";
 "welcome.gpg.enable.description" = "オンにすると、書庫作成シートに「GPG で署名」オプションが現れ、.siz を開くと署名者情報が表示され、「設定 → GPG」で鍵を管理できます。オフにすると、すべての GPG の入口がメイン画面から消えます。";
 "welcome.gpg.backendCheck" = "GPG バックエンド";
@@ -778,7 +778,7 @@
 "settings.section.gpg" = "GPG（PGP 署名）";
 "settings.section.gpg.subtitle" = "GPG の有効化、キーリングと信頼の管理、キーサーバーの検索、デフォルト署名鍵の設定。";
 "settings.gpg.enabledTitle" = "GPG 連携を有効化";
-"settings.gpg.enabledDescription" = "オンにすると、書庫作成シートに署名のチェックボックスが表示され、.siz コンテナを開くと署名者情報が表示され、設定で鍵を管理できます。オフにすると、すべての GPG の入口が非表示になり、GPG を使わないユーザーの邪魔になりません。";
+"settings.gpg.enabledDescription" = "オンにすると、作成時に署名オプションが表示され、.siz を開くと署名情報が表示され、設定で鍵を管理できます。オフでは GPG エントリはすべて非表示になります。";
 "settings.gpg.backend.title" = "GPG バックエンド";
 "settings.gpg.resolvedPath" = "GPG のパス：%@";
 "settings.gpg.resolvedVersion" = "GnuPG バージョン：%@";
@@ -887,7 +887,7 @@
 "settings.gpg.defaults.signingStrategy.label" = "署名鍵の選択方法";
 "settings.gpg.defaults.signingStrategy.silent" = "デフォルト鍵を自動使用";
 "settings.gpg.defaults.signingStrategy.ask" = "毎回確認";
-"settings.gpg.defaults.signingStrategy.silentDescription" = "書庫は鍵束で「デフォルト」に設定された鍵で署名され、確認は表示されません。鍵を 1 つだけ使うユーザー向けの通常のデフォルトです。";
+"settings.gpg.defaults.signingStrategy.silentDescription" = "作成時にデフォルトの秘密鍵で自動署名します。単一鍵ユーザー向けです。";
 "settings.gpg.defaults.signingStrategy.askDescription" = "書庫の作成時に「GPG で署名」の下に鍵の選択欄が表示され、この書庫にどの秘密鍵で署名するかを選べます。複数の鍵（仕事用／個人用／プロジェクトごと）を使い分ける場合に必要です。";
 "archive.gpgSign.keyLabel" = "署名鍵";
 "archive.gpgSign.key.auto" = "デフォルト / GPG に任せる";
@@ -940,7 +940,7 @@
 "settings.gpg.newKey.subkey.encryptFixed" = "暗号化 — 暗号化用副鍵（自動）";
 "settings.gpg.newKey.subkey.encryptFixedDetail" = "gpg が暗号化専用の副鍵を自動生成し、他の人から送られてきたコンテンツを復号できるようにします。";
 "settings.gpg.newKey.subkey.authOption" = "認証 — 認証用副鍵";
-"settings.gpg.newKey.subkey.authOptionDetail" = "任意。GPG 鍵を SSH 鍵として使えるようにします（gpg-agent が ssh-agent プロトコルに対応しています）。鍵を SSH 認証に使う予定がなければオフのままにしてください。";
+"settings.gpg.newKey.subkey.authOptionDetail" = "任意。GPG 鍵を SSH 鍵として使用可能にします（gpg-agent が ssh-agent プロトコルを提供）。SSH 認証に使用しない場合はオフのままで構いません。";
 "settings.gpg.keys.deletePublicTitle" = "「%@」の公開鍵を削除しますか？";
 "settings.gpg.keys.deleteSecretTitle" = "「%@」の鍵（秘密鍵を含む）を削除しますか？";
 "settings.gpg.keys.deletePublicMessage" = "公開鍵のフィンガープリント …%1$@、提供元 %2$@。\n\nこれは公開鍵のみを削除します。後でこの公開鍵を再び使う必要がある場合（検証や暗号化など）は、再インポートが必要です。";
@@ -1070,11 +1070,11 @@
 "welcome.fileAssociations.setAllDone" = "対応するすべての書庫形式の既定が SimpleZip になりました。";
 "welcome.fileAssociations.setAllPartial" = "既定に設定しました（除く：%@）";
 "welcome.hiddenFiles.title" = "隠しファイル";
-"welcome.hiddenFiles.body" = "ブラウザに隠しファイルを表示します。オンのときは、リストを散らかさず折りたためる「隠しファイル」グループにまとめます。何を隠しとみなすか、グループが折りたたみ状態をどう記憶するかを選べます。";
+"welcome.hiddenFiles.body" = "ブラウザに隠しファイルを表示します。表示時は独立した「隠しファイル」グループに折りたたみ、通常ファイルと混在させません。隠しファイルの判定基準やグループの折りたたみ動作はカスタマイズ可能です。";
 "welcome.rowDensity.title" = "リストのサイズ";
 "welcome.rowDensity.body" = "リストの行の高さ（アイコンと文字サイズも連動）。ファイルブラウザと書庫ブラウザの両方に適用されます。";
 "welcome.grouping.title" = "グループ化（任意）";
-"welcome.grouping.body" = "任意：ブラウザのリストを折りたためるセクションに分けます。全体の既定を設定するか、フォルダごとにグループ化を記憶できます（その後フォルダ内で右クリックして設定）。「なし」のままならフラットなリストになります。";
+"welcome.grouping.body" = "ブラウザのリストを折りたたみ可能なセクションに分割します。全体の既定を設定するか、フォルダごとにグループ化を記憶します。「なし」でフラット表示です。";
 "welcome.backupRestore.importReplaceHint" = "インポートすると現在の設定がバックアップの内容で置き換えられます。";
 
 /* 0.2.1 — 常规设置合并页 */
@@ -1348,7 +1348,7 @@
 "szs.instructions.passphraseNote" = "SimpleZip があなたの秘密鍵のパスフレーズを扱うことはありません。GPG 自身のエージェント（pinentry）が入力を求めます。";
 "szs.instructions.senderNote" = "送信者からのメッセージ：";
 "szs.instructions.title" = "タイトル：";
-"szs.instructions.withSimpleZip" = "SimpleZip の場合：この .szs を開くだけで署名を検証し、各ファイルの SHA-256 を自動で照合します。";
+"szs.instructions.withSimpleZip" = "SimpleZip の場合：この .szs を開くだけで署名が検証され、各ファイルの SHA-256 が自動照合されます。";
 "transfer.retryFailed" = "失敗した %@ 件を再試行";
 "transfer.section.changed" = "変更済み";
 "transfer.section.failed" = "失敗";
@@ -1357,7 +1357,7 @@
 "error.siz.versionTooNew" = "この .siz は新しい SimpleZip バージョンで作成されました（形式 v%1$@、このバージョンは v%2$@ まで対応）。通常どおり開くには SimpleZip を更新してください。";
 "error.szs.versionTooNew" = "この .szs は新しい SimpleZip バージョンで作成されました（形式 v%1$@、このバージョンは v%2$@ まで対応）。通常どおり開くには SimpleZip を更新してください。";
 "container.versionTooNew.title" = "新しい SimpleZip バージョンで作成されました";
-"container.versionTooNew.message" = "「%1$@」は形式バージョン v%2$@ を使用していますが、この SimpleZip は v%3$@ までしか理解できません — そのため開けません。SimpleZip の更新が安全な解決策です。強制的に開くこともできますが、このバージョンが知らないフィールドは無視されるため、署名や暗号化の詳細が不完全になる可能性があります。";
+"container.versionTooNew.message" = "「%1$@」は形式 v%2$@ を使用していますが、この SimpleZip は v%3$@ まで対応しています。SimpleZip を更新して開くか、強制オープンも可能です（未知のフィールドは無視され、署名や暗号化情報が不完全になる場合があります）。";
 "container.versionTooNew.forceOpen" = "それでも開く";
 "siz.signatureSheet.section.decryption" = "復号";
 "settings.section.updates" = "ソフトウェアアップデート";
@@ -1444,7 +1444,7 @@
 "health.aiAgent.title" = "バックグラウンド AI サービス";
 "health.aiAgent.ok" = "登録済み — SimpleZip を閉じているときにバックグラウンドでインデックスします。";
 "health.aiAgent.notRegistered" = "サイレントバックグラウンドインデックスはオンですが、サービスはまだ登録されていません。";
-"health.aiAgent.requiresApproval" = "ログイン項目でオフにされています。SimpleZip が勝手に再オンにすることはありません — バックグラウンドインデックスが必要な場合はシステム設定で再度有効にしてください。";
+"health.aiAgent.requiresApproval" = "ログイン項目で無効になっています。バックグラウンドインデックスが必要な場合は、システム設定で手動で再度有効にしてください。";
 "health.aiAgent.notFound" = "バックグラウンドサービスがアプリに見つかりません(ビルドの問題)。";
 "health.aiAgent.repair" = "バックグラウンドサービスを修復";
 "health.aiAgent.openLoginItems" = "ログイン項目設定を開く";
@@ -1887,7 +1887,7 @@
 
 /* 0.4.2 GPG keyserver, release assistant, CLI */
 "settings.gpg.keys.contextCopyPublicKey" = "公開鍵をコピー";
-"settings.gpg.keys.publicKeyCopied" = "公開鍵をクリップボードにコピーしました。検証やあなた宛ての暗号化が必要な相手に貼り付けてください。";
+"settings.gpg.keys.publicKeyCopied" = "公開鍵をクリップボードにコピーしました。署名検証や暗号化が必要な相手に送信してください。";
 "settings.gpg.keys.filter.prompt" = "鍵を検索: 名前、メール、フィンガープリント";
 "settings.gpg.keys.filter.noMatch" = "「%1$@」に一致する鍵はありません。";
 "settings.gpg.keys.clipboardMenu" = "クリップボード";
@@ -2163,7 +2163,7 @@
 "help.topic.aiAssist.title" = "スマートな推奨設定とツールバー";
 "help.topic.aiAssist.body" = "作成・展開ダイアログで、推奨設定をワンタップで適用できます。ツールバーも対象ファイルに合わせて並び替わり、最も使いそうな操作が先頭に来ます。";
 "help.topic.aiBackground.title" = "バックグラウンド先読みとプライバシー";
-"help.topic.aiBackground.body" = "AI が先読みするのは許可したフォルダだけ、しかも Mac がアイドルのときだけです。何もアップロードせず、暗号化された内容は決して読まず、説明と提案を行うのみ——あなたの代わりに削除や許可は一切しません。設定 → AI でいつでもオフ・消去できます。";
+"help.topic.aiBackground.body" = "AI が先読みするのは許可したフォルダのみで、Mac がアイドル時のみ動作します。アップロードは行わず、暗号化された内容は読み取らず、説明と提案のみを行います。設定 → AI でいつでもオフ・消去できます。";
 "help.topic.fastExtract.title" = "ストリーミング高速展開";
 "help.topic.fastExtract.body" = "ZIP や tar 系のアーカイブを展開するとき、ストリーミング高速展開を選べます——順次読み込みで、大きなアーカイブやネットワークボリュームでは目に見えて高速です。展開オプションでチェックするだけです。";
 "help.topic.webExtract.title" = "URL からダウンロードして展開";
@@ -2399,13 +2399,13 @@
 "settings.ai.privacy.section" = "プライバシー";
 "settings.ai.privacy.note" = "AI アシスタントはすべて Mac 上で実行されます。パスワード、暗号化された内容、鍵が送信されることは一切ありません。";
 "settings.ai.privacy.disclosure.title" = "AI プライバシーについて";
-"settings.ai.privacy.point.data" = "取得するデータ:関連するスイッチをオンにし、フォルダを許可リストに追加した場合にのみ、バックグラウンドがそれらのフォルダ内の暗号化されていないファイルのメタデータ(名前、サイズ、日時、種類)を読み取ります。コンテンツの事前読み込みも有効にすると、書類の冒頭テキストやアーカイブ内の項目一覧も読み取りますが、必ず先に秘匿化されます。提案へのフィードバック(興味なし、タップ)もこの端末にのみ記録されます。";
+"settings.ai.privacy.point.data" = "取得するデータ: 関連するスイッチをオンにし、フォルダを許可リストに追加した場合のみ、それらのフォルダ内の非暗号化ファイルのメタデータ（名前、サイズ、日時、種類）をバックグラウンドで読み取ります。コンテンツの先読みも有効にすると、ドキュメントの冒頭テキストやアーカイブのエントリ一覧も読み取りますが、すべて事前に秘匿化されます。提案へのフィードバック（興味なし、タップ）もこのデバイスにのみ保存されます。";
 "settings.ai.privacy.point.never" = "決して取得しないもの:暗号化アーカイブの内容、パスワード、鍵、復号後の平文、完全な機微パスは、読み取りも保存もしません。";
 "settings.ai.privacy.point.use" = "利用目的:ファイルの説明、分類、一文の要約、操作の推奨、整理の提案を端末上で生成するためだけに使います。広告には使わず、販売もせず、アプリ横断のプロファイリングも行いません。";
 "settings.ai.privacy.point.model" = "使用するモデル:Apple のオンデバイスモデル(Apple Intelligence、macOS 26 以降かつ対応デバイスが必要)。すべての計算はお使いの Mac 上でローカルに実行されます。";
 "settings.ai.privacy.point.flow" = "データの流れ:データが Mac の外に出ることはありません。サーバーへのアップロード、第三者への送信、モデルの学習への利用は一切ありません。";
-"settings.ai.privacy.point.promise" = "私たちの約束:すべての AI 機能は既定でオフで、あなた自身が有効にする必要があります。派生データはこの Mac にのみ保存され、環境設定のバックアップには含まれません。いつでも消去でき、生のフィードバックは最大 30 日間しか保持しません。";
-"settings.ai.privacy.point.guarantee" = "私たちの保証:AI は説明・分類・提案のみを行います。ファイルの削除、操作の許可、危険な書き込みを自動で実行することは決してありません。移動・作成・書き込みはすべてあなたの明示的な確認が必要です。";
+"settings.ai.privacy.point.promise" = "すべての AI 機能はデフォルトでオフ、手動で有効にする必要があります。派生データはこの Mac にのみ保存され、環境設定のバックアップには含まれません。いつでも消去でき、生のフィードバックは最大 30 日間のみ保持されます。";
+"settings.ai.privacy.point.guarantee" = "AI は説明・分類・提案のみを行い、ファイルの削除、操作の許可、危険な書き込みを自動実行することはありません。移動・作成・書き込みはすべて明示的な確認が必要です。";
 "settings.automation.shortcuts.section" = "ショートカットと Siri";
 "settings.automation.shortcuts.title" = "ショートカットアクション";
 "settings.automation.shortcuts.description" = "7 つのショートカットアクション —— アーカイブ・ファイル・リリースパッケージ・タスク・設定を開く、ファイルを含むアーカイブを検索、設定を変更。";
@@ -2767,15 +2767,15 @@
 "tasks.aiWorkbench.automation.open" = "ショートカットを開く";
 
 "welcome.ai.title" = "オンデバイスの知能";
-"welcome.ai.body" = "SimpleZip は Mac 上の Apple Intelligence を使って、レポートの説明、アーカイブの分類、次の操作の提案ができます —— すべてオンデバイスで。あなたの代わりに判断したり、勝手にロック解除や変更をすることはありません。";
-"welcome.ai.privacyNote" = "すべて Mac 上で実行されます。SimpleZip は説明・分類・提案のみを行い、あなたの代わりに判断したり、暗号化されたアーカイブの内容を読み取ることはありません。";
+"welcome.ai.body" = "Mac 上の Apple Intelligence により、レポートの説明、アーカイブの分類、次の操作の提案が可能です。すべてオンデバイスで実行されます。";
+"welcome.ai.privacyNote" = "すべて Mac 上で実行されます。説明・分類・提案のみを行い、暗号化された内容は読み取りません。";
 "dupArchives.needTwo" = "重複を探すには、このフォルダに少なくとも 2 つのアーカイブが必要です。";
 "welcome.ai.background.body" = "SimpleZip がバックグラウンドで静かに要約や提案を事前に準備します。すべて任意です。";
 
 "update.window.title" = "新着情報";
 "update.hero.title" = "SimpleZip %@ に更新しました";
 "update.hero.body" = "数ステップで新機能を設定しましょう。";
-"update.done.title" = "完了!";
+"update.done.title" = "完了";
 "update.done.body" = "新機能を使う準備ができました。";
 
 /* 0.4.5 AppIntents(Shortcuts UI):标题 / 参数 / 类型 / 描述本地化(英文字面量即键) */
