@@ -52,6 +52,17 @@ jobs:
           xcodebuild -version
           echo "DEVELOPER_DIR=$DEVELOPER_DIR"
 
+      # SwiftPM build 产物跨 run 缓存，省一次完整 resolve + compile。
+      # key / path 与 pr.yml 字字一致：pr.yml 在 main 每次 push 都跑、会烤热同一份缓存，
+      # tag push 走到这里能直接命中那份缓存，省掉整个测试编译。
+      - name: Cache SwiftPM build artifacts
+        uses: actions/cache@v5
+        with:
+          path: /private/tmp/SimpleZipSwiftPM
+          key: spm-${{ runner.os }}-xcode26.5-${{ hashFiles('Package.swift', 'SimpleZip/Core/**/*.swift', 'Tests/SimpleZipCoreTests/**/*.swift') }}
+          restore-keys: |
+            spm-${{ runner.os }}-xcode26.5-
+
       # 即便 pr.yml 已经替每个改动跑过测试，这里再跑一遍是为了「释放管道」时再确认一次：
       # release 走的是 Release 配置、可能改动了 RAR 依赖，单元测试又快又便宜，
       # 是发版前最后一道防线。
