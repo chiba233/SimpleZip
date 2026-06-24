@@ -6,5 +6,5 @@ cd "$(dirname "$0")/.."
 "$(dirname "$0")/build.sh"
 APP=/private/tmp/SimpleZipDerivedData/Build/Products/Debug/SimpleZip-dev.app
 EXE="$APP/Contents/MacOS/$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$APP/Contents/Info.plist" 2>/dev/null || echo SimpleZip-dev)"
-echo "前台运行 $EXE（Ctrl-C 结束）"
+echo "前台运行 ${EXE}（Ctrl-C 结束）"
 exec "$EXE" "$@"
