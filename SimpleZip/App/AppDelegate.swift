@@ -236,6 +236,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// 0.4.2 #23：异常退出标记 key（会话状态，不进偏好备份）。
     private static let cleanShutdownKey = "SimpleZip.session.cleanShutdown"
 
+    /// XCUITest 启动时设的环境标记（`SIMPLEZIP_UI_TESTING=1`）。命中时跳过所有首启模态弹窗
+    /// （欢迎 / 更新助手、异常退出提示）—— 自动化一遇模态就阻塞;尤其异常退出提示无窗口时的 `runModal`
+    /// 回退会卡死主线程、让主窗口根本出不来。只读环境变量、不写任何持久状态;正常运行恒为 false。
+    static var isUITesting: Bool {
+        ProcessInfo.processInfo.environment["SIMPLEZIP_UI_TESTING"] == "1"
+    }
+
     /// 异常退出后的提示：临时资源已自动清理 + 中断任务已在活动中心标出，可导出诊断报告。
     /// 0.4.3 修「启动卡死假象」:以前无条件 `runModal` —— 启动 800ms 后若 app 不在前台
     /// (开机自启 / 焦点被别的 app 抢走),模态面板開在别人后面,主线程困在模态循环,
@@ -243,6 +250,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// 现在:有主窗口就挂 **sheet**(不卡全局、永远贴着自己窗口可见);没窗口才回退
     /// runModal,且先显式把 app 拉到前台。
     private func presentUncleanExitNotice() {
+        // UI 测试:一律不弹 —— 既避免模态阻塞自动化,也避开下面无窗口时 `runModal()` 卡死主线程让主窗口出不来。
+        if Self.isUITesting { return }
         // 纵深防御:只有 app 真在前台才弹。无前台会话(App Intents helper)走到这里会落进下面 `else` 的
         // `runModal()` —— 无窗口、无用户、永不返回,直接卡死主线程。这是 Shortcuts「Couldn't communicate…」的死因。
         guard NSApp.isActive else { return }

@@ -831,7 +831,15 @@ struct ContentView: View {
         // 首次启动自动弹欢迎助手 —— 只跑一次，后续 layout 重渲染不会反复触发。
         if !didCheckWelcomeAssistant {
             didCheckWelcomeAssistant = true
-            if !AppPreferences.welcomeAssistantCompleted {
+            // UI 测试启动（XCUITest 设 SIMPLEZIP_UI_TESTING=1）:跳过欢迎 / 更新助手等首启模态 ——
+            // 自动化一遇模态 sheet 就阻塞。
+            if AppDelegate.isUITesting {
+                // 首启助手一律不弹;并把 app 激活 + 主窗口前置 —— XCUITest 启动不会自动让窗口进前台,
+                // 不前置就只能查到菜单栏、查不到窗口。复用既有的外部打开激活逻辑。
+                DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(150)) {
+                    activateForMainWindowOpen()
+                }
+            } else if !AppPreferences.welcomeAssistantCompleted {
                 // 异步触发让 onAppear 的其它处理先跑完；避免一打开主窗口就立刻被 sheet 盖住。
                 DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(150)) {
                     showsWelcomeAssistant = true
