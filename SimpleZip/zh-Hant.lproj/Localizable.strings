@@ -2135,6 +2135,9 @@
 "urlScheme.confirm.check" = "測試這個壓縮檔？\n\n%@";
 "urlScheme.confirm.compare" = "比較這兩個項目？\n\n%@\n%@";
 "urlScheme.confirm.open" = "在 SimpleZip 中開啟這個路徑？\n\n%@";
+"urlScheme.confirm.extract" = "解壓這些封存檔？\n\n%@";
+"urlScheme.confirm.hash" = "計算這些項目的核對和？\n\n%@";
+"urlScheme.confirm.create" = "用這些項目建立一個 %@ 封存檔？\n\n%@";
 /* Menu names */
 "menu.archive" = "歸檔";
 

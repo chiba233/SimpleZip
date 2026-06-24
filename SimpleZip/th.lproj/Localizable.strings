@@ -2133,6 +2133,9 @@
 "urlScheme.confirm.check" = "ทดสอบไฟล์เก็บถาวรนี้หรือไม่?\n\n%@";
 "urlScheme.confirm.compare" = "เปรียบเทียบสองรายการนี้หรือไม่?\n\n%@\n%@";
 "urlScheme.confirm.open" = "เปิดเส้นทางนี้ใน SimpleZip หรือไม่?\n\n%@";
+"urlScheme.confirm.extract" = "แตกไฟล์เก็บถาวรเหล่านี้หรือไม่?\n\n%@";
+"urlScheme.confirm.hash" = "คำนวณเช็กซัมของรายการเหล่านี้หรือไม่?\n\n%@";
+"urlScheme.confirm.create" = "สร้างไฟล์เก็บถาวร %@ จากรายการเหล่านี้หรือไม่?\n\n%@";
 /* Menu names */
 "menu.archive" = "ไฟล์เก็บถาวร";
 

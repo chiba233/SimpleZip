@@ -2134,6 +2134,9 @@
 "urlScheme.confirm.check" = "이 아카이브를 테스트할까요?\n\n%@";
 "urlScheme.confirm.compare" = "이 두 항목을 비교할까요?\n\n%@\n%@";
 "urlScheme.confirm.open" = "이 경로를 SimpleZip에서 열까요?\n\n%@";
+"urlScheme.confirm.extract" = "이 아카이브를 압축 해제할까요?\n\n%@";
+"urlScheme.confirm.hash" = "이 항목의 체크섬을 계산할까요?\n\n%@";
+"urlScheme.confirm.create" = "이 항목으로 %@ 아카이브를 만들까요?\n\n%@";
 /* Menu names */
 "menu.archive" = "아카이브";
 

@@ -609,9 +609,26 @@ enum SimpleZipURLCommand: Equatable {
     case check(path: String)
     case compare(left: String, right: String)
     case open(path: String)
+    /// `simplezip://extract?path=/a&path=/b`:解压一个或多个归档(走 Finder 服务同款安全解压路径)。
+    case extract(paths: [String])
+    /// `simplezip://hash?path=/a&path=/b`:对文件/文件夹算校验和(算法在弹出的哈希面板里选)。
+    case hash(paths: [String])
+    /// `simplezip://create?path=/a&path=/b&format=zip|7z|tgz`:按该格式默认设置一键打包(无创建对话框)。
+    case create(format: ArchiveCreateFormat, inputs: [String])
 
     nonisolated static func isAppOwnedURL(_ url: URL) -> Bool {
         url.scheme?.lowercased() == "simplezip"
+    }
+
+    /// URL `format=` token → ArchiveCreateFormat(接受 rawValue 与常见别名;无法识别返回 nil,调用方默认 zip)。
+    nonisolated static func createFormat(forToken token: String) -> ArchiveCreateFormat? {
+        switch token.lowercased() {
+        case "zip": return .zip
+        case "7z", "sevenzip", "seven-zip": return .sevenZip
+        case "tgz", "targz", "tar.gz", "tar-gz", "tar.gzip": return .tarGzip
+        case "tar": return .tar
+        default: return ArchiveCreateFormat(rawValue: token)
+        }
     }
 
     nonisolated static func parse(_ url: URL) -> SimpleZipURLCommand? {
@@ -621,6 +638,13 @@ enum SimpleZipURLCommand: Equatable {
             guard let value = components.queryItems?.first(where: { $0.name == name })?.value,
                   value.hasPrefix("/") else { return nil }
             return value
+        }
+        // extract / hash / create 常含多个文件:收集**所有**名为 `path` 的绝对路径 query（重复 query 名,按出现顺序）。
+        func absolutePaths(_ name: String) -> [String] {
+            (components.queryItems ?? [])
+                .filter { $0.name == name }
+                .compactMap { $0.value }
+                .filter { $0.hasPrefix("/") }
         }
         switch url.host?.lowercased() {
         case "check", "test":
@@ -632,6 +656,20 @@ enum SimpleZipURLCommand: Equatable {
         case "open":
             guard let path = absolutePath("path") else { return nil }
             return .open(path: path)
+        case "extract":
+            let paths = absolutePaths("path")
+            guard !paths.isEmpty else { return nil }
+            return .extract(paths: paths)
+        case "hash":
+            let paths = absolutePaths("path")
+            guard !paths.isEmpty else { return nil }
+            return .hash(paths: paths)
+        case "create":
+            let inputs = absolutePaths("path")
+            guard !inputs.isEmpty else { return nil }
+            let token = components.queryItems?.first(where: { $0.name == "format" })?.value
+            let format = token.flatMap(createFormat(forToken:)) ?? .zip
+            return .create(format: format, inputs: inputs)
         default:
             return nil
         }

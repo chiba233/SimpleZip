@@ -2133,6 +2133,9 @@
 "urlScheme.confirm.check" = "Проверить этот архив?\n\n%@";
 "urlScheme.confirm.compare" = "Сравнить эти два объекта?\n\n%@\n%@";
 "urlScheme.confirm.open" = "Открыть этот путь в SimpleZip?\n\n%@";
+"urlScheme.confirm.extract" = "Извлечь эти архивы?\n\n%@";
+"urlScheme.confirm.hash" = "Вычислить контрольные суммы для этих объектов?\n\n%@";
+"urlScheme.confirm.create" = "Создать архив %@ из этих объектов?\n\n%@";
 /* Menu names */
 "menu.archive" = "Архив";
 

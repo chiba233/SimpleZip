@@ -2135,6 +2135,9 @@
 "urlScheme.confirm.check" = "このアーカイブをテストしますか？\n\n%@";
 "urlScheme.confirm.compare" = "この2つの項目を比較しますか？\n\n%@\n%@";
 "urlScheme.confirm.open" = "このパスをSimpleZipで開きますか？\n\n%@";
+"urlScheme.confirm.extract" = "これらのアーカイブを展開しますか？\n\n%@";
+"urlScheme.confirm.hash" = "これらの項目のチェックサムを計算しますか？\n\n%@";
+"urlScheme.confirm.create" = "これらの項目から %@ アーカイブを作成しますか？\n\n%@";
 /* Menu names */
 "menu.archive" = "アーカイブ";
 

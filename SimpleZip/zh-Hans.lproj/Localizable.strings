@@ -1746,6 +1746,9 @@
 "urlScheme.confirm.check" = "测试这个压缩包？\n\n%@";
 "urlScheme.confirm.compare" = "比较这两个项目？\n\n%@\n%@";
 "urlScheme.confirm.open" = "在 SimpleZip 中打开这个路径？\n\n%@";
+"urlScheme.confirm.extract" = "解压这些归档？\n\n%@";
+"urlScheme.confirm.hash" = "计算这些项目的校验和？\n\n%@";
+"urlScheme.confirm.create" = "用这些项目创建一个 %@ 归档？\n\n%@";
 "missingVolumes.panel.message" = "选择一个目录（递归）搜索缺失的分卷。";
 "missingVolumes.taskTitle" = "正在搜索 %@ 的缺失分卷";
 "missingVolumes.stillMissing" = "仍缺 %@ 个分卷。期望的文件名形如：%@";

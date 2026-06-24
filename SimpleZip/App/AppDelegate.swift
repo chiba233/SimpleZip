@@ -416,6 +416,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             alert.informativeText = L10n.format("urlScheme.confirm.compare", left, right)
         case .open(let path):
             alert.informativeText = L10n.format("urlScheme.confirm.open", path)
+        case .extract(let paths):
+            alert.informativeText = L10n.format("urlScheme.confirm.extract", paths.joined(separator: "\n"))
+        case .hash(let paths):
+            alert.informativeText = L10n.format("urlScheme.confirm.hash", paths.joined(separator: "\n"))
+        case .create(let format, let inputs):
+            alert.informativeText = L10n.format("urlScheme.confirm.create", format.rawValue.uppercased(), inputs.joined(separator: "\n"))
         }
         alert.addButton(withTitle: L10n.text("button.ok"))
         alert.addButton(withTitle: L10n.text("button.cancel"))
@@ -427,6 +433,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             FinderServiceActionQueue.shared.enqueue(.compareArchives(URL(fileURLWithPath: left), URL(fileURLWithPath: right)))
         case .open(let path):
             ExternalFileOpenQueue.shared.enqueue(URL(fileURLWithPath: path))
+        case .extract(let paths):
+            FinderServiceActionQueue.shared.enqueue(.extract(paths.map { URL(fileURLWithPath: $0) }))
+        case .hash(let paths):
+            FinderServiceActionQueue.shared.enqueue(.calculateHash(paths.map { URL(fileURLWithPath: $0) }))
+        case .create(let format, let inputs):
+            FinderServiceActionQueue.shared.enqueue(.quickCreate(format, inputs.map { URL(fileURLWithPath: $0) }))
         }
     }
 
