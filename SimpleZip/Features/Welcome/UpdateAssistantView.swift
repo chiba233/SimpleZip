@@ -32,9 +32,8 @@ struct UpdateAssistantRequest: Identifiable {
 /// DevTools 测试可单独触发任意一张。**新增卡片 = 在这里加 case + `WelcomeCardBody` 加渲染**,老用户自动收到。
 enum UpdateCard: String, CaseIterable, Identifiable {
     case general          // 语言 + 常规
-    case convenience      // 预设密码 + 自动解压 + 文件关联
+    case convenience      // Finder 个人收藏同步 + 自动解压 + 文件关联
     case finderServices   // Finder 右键集成
-    case safety           // 安全策略 + 访达收藏同步
     case engine           // 压缩后端 + GPG
     case ai               // 端上智能(0.4.5 新增)
     var id: String { rawValue }

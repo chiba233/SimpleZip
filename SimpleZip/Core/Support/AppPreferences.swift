@@ -471,7 +471,7 @@ enum AppPreferences {
     }
 
     nonisolated static var confirmBeforeDeletingFiles: Bool {
-        defaultTrueBool(forKey: Key.confirmBeforeDeletingFiles)
+        defaults.bool(forKey: Key.confirmBeforeDeletingFiles)
     }
 
     /// 0.4.2:任务失败时自动弹出活动中心（默认关）。

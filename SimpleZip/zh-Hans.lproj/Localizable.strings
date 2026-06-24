@@ -51,7 +51,7 @@
 "welcome.gpg.pinentry.warning" = "⚠ 检测到 GnuPG 但 pinentry-mac 缺失。签名能正常做；但解密 / 解锁私钥时 gpg-agent 没有 GUI 弹窗会卡住。建议 `brew install pinentry-mac`。";
 "welcome.gpg.passphraseNote" = "ℹ SimpleZip 不保管 / 不缓存 GPG 私钥 passphrase —— 解锁私钥全交给本机 gpg-agent + pinentry-mac 弹原生密码框。碰到 GPG 相关问题时，请优先检查本机 gpg / pinentry / 密钥信任级别配置。";
 "welcome.completion.title" = "完成";
-"welcome.completion.body" = "你已完成关键设置。SimpleZip 可以从 Dock、Finder 或拖文件夹到主窗口开始使用。\n\n后续若需调整设置，在「偏好设置」中修改即可；重新运行此助手请从 SimpleZip 菜单进入。";
+"welcome.completion.body" = "你已完成关键设置。SimpleZip 可以从 Dock、Finder 或拖文件夹到主窗口开始使用。\n\n安全策略（可疑路径、符号链接、可执行内容）可在「设置 → 压缩」中随时调整。更多帮助见「设置 → 帮助」。";
 "welcome.backupRestore.title" = "导入之前的备份？";
 "welcome.backupRestore.body" = "如果你之前从「偏好设置 → 备份与还原」导出过 SimpleZip 偏好 JSON 备份，可以现在直接导入恢复，跳过后面手工选项。没有的话点「下一步」继续即可。";
 "welcome.backupRestore.importReplaceHint" = "导入会用备份里的设置替换你当前的设置。";

@@ -35,11 +35,10 @@ struct WelcomeAssistantView: View {
 
     @State private var currentStep: Int = 0
 
-    /// 总页数。0.3.3 压到 6 页后 0.4.3 加回 Finder 右键集成,0.4.5 加 AI 一页 ——
-    /// 0 欢迎（hero + 版本检查 + 备份导入）/ 1 通用（语言 + 常规）/ 2 便利（预设密码 + 自动解压 + 文件关联）/
-    /// 3 Finder 右键集成 / 4 安全策略 / 5 引擎（后端 + GPG）/ 6 AI（端上智能,默认隐私优先）/ 7 完成。
-    /// 每个设置仍直接绑 @AppStorage，改的瞬间落盘。AI 卡(`WelcomeAIStep`)被更新助手复用(只显示新增卡)。
-    private let totalSteps = 8
+    /// 总页数。
+    /// 0 欢迎（hero + 版本检查 + 备份导入）/ 1 通用（语言 + 常规）/ 2 便利（Finder 收藏同步 + 自动解压 + 文件关联）/
+    /// 3 Finder 右键集成 / 4 引擎（后端 + GPG）/ 5 AI（端上智能）/ 6 完成。
+    private let totalSteps = 7
 
     /// 「取消」按钮的二次确认 alert flag。
     /// 不直接关 sheet：用户可能误点 ESC / 关闭，已经做出的选项可能想留也想看后面的步骤。
@@ -175,9 +174,8 @@ struct WelcomeAssistantView: View {
         case 1: WelcomeCardBody(card: .general)
         case 2: WelcomeCardBody(card: .convenience)
         case 3: WelcomeCardBody(card: .finderServices)
-        case 4: WelcomeCardBody(card: .safety)
-        case 5: WelcomeCardBody(card: .engine)
-        case 6: WelcomeCardBody(card: .ai)
+        case 4: WelcomeCardBody(card: .engine)
+        case 5: WelcomeCardBody(card: .ai)
         default:
             WelcomeCompletionStep()
         }
@@ -264,15 +262,8 @@ struct WelcomeCardBody: View {
     @AppStorage(AppPreferences.Key.appLanguage) private var appLanguage = AppLanguage.system.rawValue
     @AppStorage(AppPreferences.Key.startupLocation) private var startupLocation = StartupLocation.home.rawValue
     @AppStorage(AppPreferences.Key.overwriteBehavior) private var overwriteBehavior = OverwriteBehavior.ask.rawValue
-    @AppStorage(AppPreferences.Key.presetPasswordEnabled) private var presetPasswordEnabled = false
     @AppStorage(AppPreferences.Key.finderOpenAutoExtract) private var finderOpenAutoExtract = false
-    @AppStorage(AppPreferences.Key.suspiciousPathPolicy) private var suspiciousPathPolicy = ArchiveSecurityDecision.ask.rawValue
-    @AppStorage(AppPreferences.Key.symbolicLinkPolicy) private var symbolicLinkPolicy = ArchiveSecurityDecision.ask.rawValue
-    @AppStorage(AppPreferences.Key.activeContentOpenPolicy) private var activeContentOpenPolicy = ArchiveSecurityDecision.ask.rawValue
     @AppStorage(AppPreferences.Key.showHiddenFiles) private var showHiddenFiles = false
-    @AppStorage(AppPreferences.Key.confirmBeforeDeletingFiles) private var confirmBeforeDeletingFiles = true
-    @AppStorage(AppPreferences.Key.verifyAfterArchiveRewrite) private var verifyAfterArchiveRewrite = true
-    @AppStorage(AppPreferences.Key.verifyAfterArchiveCreate) private var verifyAfterArchiveCreate = false
 
     @ViewBuilder
     var body: some View {
@@ -286,22 +277,12 @@ struct WelcomeCardBody: View {
             }
         case .convenience:
             VStack(alignment: .leading, spacing: 16) {
-                WelcomePresetPasswordStep(enabled: $presetPasswordEnabled)
+                WelcomeFinderFavoritesSyncStep()
                 WelcomeFinderAutoExtractStep(enabled: $finderOpenAutoExtract)
                 WelcomeFileAssociationsStep()
             }
         case .finderServices:
             WelcomeFinderServicesStep()
-        case .safety:
-            VStack(alignment: .leading, spacing: 16) {
-                WelcomeSafetyStep(suspiciousPathPolicy: $suspiciousPathPolicy,
-                                  symbolicLinkPolicy: $symbolicLinkPolicy,
-                                  activeContentOpenPolicy: $activeContentOpenPolicy,
-                                  confirmBeforeDelete: $confirmBeforeDeletingFiles,
-                                  verifyAfterRewrite: $verifyAfterArchiveRewrite,
-                                  verifyAfterCreate: $verifyAfterArchiveCreate)
-                WelcomeFinderFavoritesSyncStep()
-            }
         case .engine:
             VStack(alignment: .leading, spacing: 16) {
                 WelcomeBackendStep()

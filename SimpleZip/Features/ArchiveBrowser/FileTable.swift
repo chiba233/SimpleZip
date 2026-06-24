@@ -626,7 +626,13 @@ struct FileNSOutlineView: NSViewRepresentable {
                     return node
                 }
                 topLevelNodes = nextBaseNodes + aiGroupTail
+                // 删的就是当前选中行 → removeItems 会同步发 selectionDidChange,delegate 异步回写空选区,
+                // 盖掉同一拍里 performPendingSelectionIfNeeded 刚落到邻居的选区(表现为删完焦点消失)。
+                // 用 isApplyingSelection 挡住这次结构性变更引发的回写(同 applySelection(_:));
+                // 整表 reloadData 不发此通知,故兜底路径无需此守卫。
+                isApplyingSelection = true
                 outlineView.removeItems(at: removedIndices, inParent: nil, withAnimation: [])
+                isApplyingSelection = false
             } else {
                 // 纯增:新位置插入新文件节点;存活节点复用并刷新 FileItem。
                 var insertedIndices = IndexSet()
