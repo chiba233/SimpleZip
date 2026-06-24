@@ -160,6 +160,9 @@ extension ArchiveBrowserModel {
         // (保持上一帧),applyLoadedFolder 在同一事务里提交 items + 清标志,一帧成型。
         // 旧同步版本天然没有中间帧(中间帧导致「先闪未分组再闪分组」)。
         folderListingInFlight = true
+        // 捕获并立即复位「同目录刷新保选区」标记 —— 每次加载只携带各自那次的值，避免后续导航加载误用上一拍的标记。
+        let preserveSelection = preserveSelectionAcrossReload
+        preserveSelectionAcrossReload = false
         let generation = nextLoadGeneration()
         let showHidden = AppPreferences.showHiddenFiles
         let followFinder = AppPreferences.followFinderStructure
@@ -223,7 +226,7 @@ extension ArchiveBrowserModel {
                 if listed.exitsVirtualMode {
                     self.exitManifestVirtualMode()
                 }
-                self.applyLoadedFolder(listed.items)
+                self.applyLoadedFolder(listed.items, preserveSelection: preserveSelection)
             } catch is CancellationError {
                 return
             } catch {
@@ -294,9 +297,20 @@ extension ArchiveBrowserModel {
     /// `status = ...` 之前**每次都无条件重新赋值** —— `@Published` 不做去重，赋同样的值也照发
     /// `objectWillChange` → `@FocusedObject` 把整条 `.commands`（顶部菜单栏）反复重建 → 正打开的菜单
     /// 被冲掉 → 一直闪、一级菜单都难点开。所以这里**每个 @Published 都先比对、只在真变了才赋值**。
-    private func applyLoadedFolder(_ newItems: [FileItem]) {
+    private func applyLoadedFolder(_ newItems: [FileItem], preserveSelection: Bool) {
         folderListingInFlight = false
         let sameListing = Self.fileItemsRepresentSameListing(newItems, fileItems)
+        // 同目录自动刷新（preserveSelection）且列表真换了内容时:在替换 fileItems 前,先记下当前选区对应的 URL +
+        // 锚点位置。loadFolder 异步重建 FileItem（id 每次全新），不按 URL 重映射,选区里的旧 id 会全部失配 ——
+        // 表现为内容一变（删除 / 外部增删）选区与键盘焦点就蒸发。重映射放在这里（新列表真正就位处），
+        // 而非 reloadFromFolderWatcher（那里 loadFolder 还没异步返回、fileItems 仍是旧的，重映射等于空跑）。
+        let preserveContext: (selectedURLs: Set<URL>, anchorIndex: Int?)? = {
+            guard preserveSelection, !sameListing else { return nil }
+            let oldListed = fileItems + expandedFolderChildrenByPath.values.flatMap { $0 }
+            let urls = Set(oldListed.filter { selection.contains($0.id) }.map { $0.url.standardizedFileURL })
+            let anchor = fileItems.firstIndex { selection.contains($0.id) }
+            return (urls, anchor)
+        }()
         if !sameListing {
             fileItems = newItems
         }
@@ -308,6 +322,22 @@ extension ArchiveBrowserModel {
         session.clearArchive()
         // 已展开文件夹的子级同步核对（增删改 / 目录消失都在这里反映,详见方法注释）。
         refreshExpandedFolderChildren()
+        if let context = preserveContext {
+            // 顶层 + 已展开子级一起参与重映射（展开子行的选区也要保住，否则自动刷新一来就蒸发）。
+            let listedEverything = fileItems + expandedFolderChildrenByPath.values.flatMap { $0 }
+            let remapped = context.selectedURLs.isEmpty
+                ? Set<UUID>()
+                : Set(listedEverything.filter { context.selectedURLs.contains($0.url.standardizedFileURL) }.map(\.id))
+            if selection != remapped {
+                selection = remapped
+            }
+            // 选中项被刷没了（删除 / 移走 / 外部删除）→ 把键盘光标落到原位置的相邻文件并恢复焦点，
+            // 而不是丢焦点回到列表顶端。删除等已显式设了更精确的 pendingSelectionURL（上一项）时不覆盖。
+            if remapped.isEmpty, pendingSelectionURL == nil, !fileItems.isEmpty, let anchorIndex = context.anchorIndex {
+                let neighborIndex = min(anchorIndex, fileItems.count - 1)
+                pendingSelectionURL = fileItems[neighborIndex].url.standardizedFileURL
+            }
+        }
         let newStatus = L10n.format("status.itemCount", fileItems.count)
         if status != newStatus {
             status = newStatus

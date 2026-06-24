@@ -417,6 +417,15 @@ final class ArchiveBrowserModel: ObservableObject {
     /// 删除后键盘光标应落到的「邻居」URL：等 FileTable 刷出后选中它并把焦点交回表格，
     /// 这样删除一项后方向键能从邻居继续，而不是丢焦点、回到列表顶端。
     @Published var pendingSelectionURL: URL?
+    /// 「下一次文件夹加载是同目录自动刷新、需保留选区」标记。`loadFolder` 异步重建 `fileItems`（id 每次全新），
+    /// 由 `applyLoadedFolder` 在新列表就位后按 URL 重映射选区 + 邻居兜底时消费。仅 `reloadFromFolderWatcher`
+    /// 置位（导航换目录不置位 → 选区按预期不保留）。普通 var：每次 reload 都翻动，设 `@Published` 会随 FSEvents 高频
+    /// 发 `objectWillChange`、把菜单栏 `.commands` 反复重建（菜单狂闪），故不发布。
+    var preserveSelectionAcrossReload = false
+    /// 视图注册的「按当前**可见行**顺序求删除后邻居 URL」回调。删除时优先用它 —— 只有视图（NSOutlineView 的扁平
+    /// 可见行）才知道真实可见序：隐藏分组折叠时其文件不是可见行、不能当邻居；展开了就能；分类分组 / 分卷折叠同理。
+    /// 没有视图（菜单 / 快捷键在无表场景、或未注册）时退回 `selectionNeighborURL` 的 fileItems 顺序近似。普通闭包,非 @Published。
+    var visibleNeighborProvider: ((Set<UUID>) -> URL?)?
     /// 双击 `.gpg` 嗅探出是公钥/私钥时承载的导入请求 → ContentView 观察它弹 GPGKeyImportSheet（复用 importKey 后端）。
     @Published var pendingGPGKeyImport: GPGKeyImportRequest?
     /// 当前文件夹的 FSEvents 监视器：内容变化（外部改动 + 本应用自己的增删改 / 重命名）自动刷新列表。

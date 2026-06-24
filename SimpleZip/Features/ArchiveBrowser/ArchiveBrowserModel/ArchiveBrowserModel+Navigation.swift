@@ -974,30 +974,12 @@ extension ArchiveBrowserModel {
             handleFolderContentsChanged()
             return
         }
-        // 必须在 loadFolder（重建 fileItems）之前取旧选区的 URL + 选区在旧列表里的「锚点位置」。
-        // 锚点 = 旧 fileItems 里第一个被选中项的下标 —— 用于「选中项被刷没了」时落到原位置的相邻项。
-        let previousSelectedURLs = Set(selectedFileItems.map { $0.url.standardizedFileURL })
-        let anchorIndex = fileItems.firstIndex { previousSelectedURLs.contains($0.url.standardizedFileURL) }
+        // 选区「按 URL 保留 + 邻居兜底」已下沉到 applyLoadedFolder —— 那是 loadFolder 异步重建 fileItems 的真正落点。
+        // 在这里做会赶在异步列举返回之前、对着尚未更新的旧 fileItems 空跑（id 没变 → 重映射等于原样，毫无作用），
+        // 真正用新 id 重建列表的那一步反而没人保选区，于是内容一变选区就连同键盘焦点一起蒸发。
+        // 这里只标记「本次是同目录自动刷新、需保留选区」，供 applyLoadedFolder 在新列表就位后消费。
+        preserveSelectionAcrossReload = true
         loadFolder(current)
-        // 按 URL 重映射选区（loadFolder 内容没变时会跳过赋值，fileItems / id 不变 → 重映射结果与现状一致）。
-        // 只在结果真的不同才赋值，避免无谓的 @Published 抖动。
-        // 0.4.1 文件夹原位展开：展开子级也参与重映射 —— 上一版漏了这层,自动刷新一来子行选区直接蒸发
-        // （revert 信里的「闪一下就没了」）。loadFolder 刚 refresh 过注册表,这里读到的已是新实例。
-        let listedEverything = fileItems + expandedFolderChildrenByPath.values.flatMap { $0 }
-        let remapped = previousSelectedURLs.isEmpty
-            ? Set<UUID>()
-            : Set(listedEverything.filter { previousSelectedURLs.contains($0.url.standardizedFileURL) }.map(\.id))
-        if selection != remapped {
-            selection = remapped
-        }
-        // 通用兜底：之前有选区、刷新后却全没了（删除 / 改名 / 移走 / 外部删除…任何让选中项消失的刷新），
-        // 就把光标落到原位置的相邻文件并恢复键盘焦点，而不是丢焦点、回到列表顶端。
-        // 删除 / 改名等已显式设了更精确的 pendingSelectionURL（上一项 / 改名后的文件）→ 这里不覆盖。
-        if pendingSelectionURL == nil, !previousSelectedURLs.isEmpty, remapped.isEmpty, !fileItems.isEmpty,
-           let anchorIndex {
-            let neighborIndex = min(anchorIndex, fileItems.count - 1)
-            pendingSelectionURL = fileItems[neighborIndex].url.standardizedFileURL
-        }
     }
 
     func revealInFinder() {

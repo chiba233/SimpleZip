@@ -228,6 +228,10 @@ struct FileNSOutlineView: NSViewRepresentable {
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
         guard let outlineView = scrollView.documentView as? NSOutlineView else { return }
         context.coordinator.model = model
+        // 删除时让 model 按真实可见行求邻居（弱引用协调器，避免环；普通 var 不触发 @Published）。
+        model.visibleNeighborProvider = { [weak coordinator = context.coordinator] in
+            coordinator?.visibleNeighborURL(removing: $0)
+        }
         configureColumns(for: outlineView)
         // 密度变化：rowHeight 改了要 reloadData 才会按新行高 + 新图标/字号重画（syncContent 内部已 reload）。
         // 只在真的变化时赋值 —— 赋同一个值也会把表标记为需重绘，框选时每帧都赋会加剧闪烁。
@@ -626,10 +630,9 @@ struct FileNSOutlineView: NSViewRepresentable {
                     return node
                 }
                 topLevelNodes = nextBaseNodes + aiGroupTail
-                // 删的就是当前选中行 → removeItems 会同步发 selectionDidChange,delegate 异步回写空选区,
-                // 盖掉同一拍里 performPendingSelectionIfNeeded 刚落到邻居的选区(表现为删完焦点消失)。
-                // 用 isApplyingSelection 挡住这次结构性变更引发的回写(同 applySelection(_:));
-                // 整表 reloadData 不发此通知,故兜底路径无需此守卫。
+                // 被删行若是当前选中行,removeItems 会同步发 selectionDidChange,delegate 据此把表上的「现选区」
+                // 回写进 model.selection —— 这是结构性刷新的副作用而非用户操作,应屏蔽。用 isApplyingSelection
+                // 挡住(同 applySelection(_:) 对自身选区赋值的处理);整表 reloadData 不发此通知,故不需此守卫。
                 isApplyingSelection = true
                 outlineView.removeItems(at: removedIndices, inParent: nil, withAnimation: [])
                 isApplyingSelection = false
@@ -2280,6 +2283,33 @@ struct FileNSOutlineView: NSViewRepresentable {
             } else if let item = ancestor.fileItem, item.isDirectory {
                 expandedFolderPaths.insert(item.standardizedPath)
             }
+        }
+
+        /// 按当前扁平**可见行**顺序，求删除给定项后键盘光标该落到的邻居 URL（model.visibleNeighborProvider 回调到此）。
+        /// 删除尚未生效、被删行此刻仍在表上：取被删块**之前**第一个「可选文件行且不在被删集合」的行；没有则取之后第一个。
+        /// 折叠分组的子级不在可见行里（自然不会被选中）；隐藏分组展开时其文件就是可见行、可作邻居 —— 与肉眼所见一致。
+        func visibleNeighborURL(removing removedIDs: Set<UUID>) -> URL? {
+            guard let outlineView else { return nil }
+            let rowCount = outlineView.numberOfRows
+            func fileItem(atRow row: Int) -> FileItem? {
+                (outlineView.item(atRow: row) as? FileOutlineNode)?.fileItem
+            }
+            var removedRows: [Int] = []
+            for row in 0..<rowCount where fileItem(atRow: row).map({ removedIDs.contains($0.id) }) == true {
+                removedRows.append(row)
+            }
+            guard let firstRemoved = removedRows.first, let lastRemoved = removedRows.last else { return nil }
+            if firstRemoved > 0 {
+                for row in stride(from: firstRemoved - 1, through: 0, by: -1) {
+                    if let item = fileItem(atRow: row), !removedIDs.contains(item.id) { return item.url }
+                }
+            }
+            if lastRemoved + 1 < rowCount {
+                for row in (lastRemoved + 1)..<rowCount {
+                    if let item = fileItem(atRow: row), !removedIDs.contains(item.id) { return item.url }
+                }
+            }
+            return nil
         }
 
         /// 删除后把光标落到邻居：选中 pendingSelectionURL 对应的行，并把第一响应者交回 outline，

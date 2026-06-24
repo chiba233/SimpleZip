@@ -1002,9 +1002,9 @@ extension ArchiveBrowserModel {
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 
-    /// 删除选中项后，键盘光标应落到的「邻居」URL。
-    /// 取 fileItems 顺序里**第一个被删项的前一项**（一定是幸存项）；若删的就是开头，则取被删之后第一个幸存项。
-    /// 全删空 / 算不出 → nil。用 fileItems（模型排序顺序）近似视觉顺序，符合「回到上一个文件」的直觉。
+    /// 删除选中项后，键盘光标应落到的「邻居」URL。取 fileItems 顺序里第一个被删项的前一项（一定是幸存项），
+    /// 删的就是开头则取被删之后第一个幸存项；全删空 → nil。这是**视图未提供可见邻居时的兜底**
+    /// （菜单 / 快捷键 / 非视图调用路径）；视图删除会按真实可见行顺序算好邻居传进来（见 `deleteSelectedFiles`）。
     private func selectionNeighborURL(removing removedIDs: Set<UUID>) -> URL? {
         guard let firstIdx = fileItems.firstIndex(where: { removedIDs.contains($0.id) }) else { return nil }
         if firstIdx > 0 { return fileItems[firstIdx - 1].url }
@@ -1061,7 +1061,9 @@ extension ArchiveBrowserModel {
 
         // 删除前先算好「光标该落到哪」—— 用删除前的 fileItems 顺序，删成功后置 pendingSelectionURL，
         // FileTable 刷新后会选中它并把键盘焦点交回表格（删一项后方向键从邻居继续，不回顶端）。
-        let neighborURL = selectionNeighborURL(removing: Set(targets.map(\.id)))
+        // 优先按视图的真实可见行顺序求邻居（尊重隐藏分组折叠/展开、分类分组、分卷折叠）；无视图时退回 fileItems 近似。
+        let removedIDSet = Set(targets.map(\.id))
+        let neighborURL = visibleNeighborProvider?(removedIDSet) ?? selectionNeighborURL(removing: removedIDSet)
 
         // 删除前记下每项是否目录 —— 用于活动中心逐文件「已删除」记录里加「（文件夹）」后缀。
         let isDirectoryByPath = Dictionary(
