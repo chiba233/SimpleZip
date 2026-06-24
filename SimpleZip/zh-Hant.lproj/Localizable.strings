@@ -1761,6 +1761,7 @@
 "virtual.export.note" = "複製時重名自動編號——目標目錄裡的任何檔案都不會被覆寫。";
 "welcome.completion.highlight.search" = "搜尋框認進階 token：*.swift size:>1MB encrypted:true";
 "welcome.completion.highlight.compare" = "比較兩個壓縮檔——或拿資料夾跟壓縮檔比——差異可匯出";
+"welcome.completion.highlight.safety" = "可疑路徑、符號連結、可執行內容預設彈窗確認";
 "welcome.completion.highlight.help" = "圖文使用指南就在 設定 → 說明";
 "devtools.title" = "開發者工具";
 "devtools.section.environment" = "環境";

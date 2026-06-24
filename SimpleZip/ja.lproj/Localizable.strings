@@ -1761,6 +1761,7 @@
 "virtual.export.note" = "ファイルは衝突しない名前でコピーされます — 保存先のものは何も上書きしません。";
 "welcome.completion.highlight.search" = "強力なトークンで検索: *.swift size:>1MB encrypted:true";
 "welcome.completion.highlight.compare" = "アーカイブ同士、またはフォルダとアーカイブを比較して差分を書き出し";
+"welcome.completion.highlight.safety" = "不審なパス、シンボリックリンク、実行可能ファイルは実行前に確認されます";
 "welcome.completion.highlight.help" = "図解ガイドは 設定 → ヘルプ にあります";
 "devtools.title" = "開発者ツール";
 "devtools.section.environment" = "環境";

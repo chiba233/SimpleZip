@@ -51,7 +51,7 @@
 "welcome.gpg.pinentry.warning" = "⚠ GnuPG is present but pinentry-mac is missing. Signing will work; decryption / unlocking private keys will hang because gpg-agent has no native GUI prompt. Consider `brew install pinentry-mac`.";
 "welcome.gpg.passphraseNote" = "ℹ SimpleZip does NOT manage or cache your GPG private-key passphrase — unlocking is handled entirely by your local gpg-agent + pinentry-mac. If GPG-related issues come up, check your gpg / pinentry / key trust configuration first.";
 "welcome.completion.title" = "Done";
-"welcome.completion.body" = "Key settings are configured. You can start using SimpleZip from the Dock, Finder, or by dragging a folder onto the main window.\n\nSafety policies (suspicious paths, symlinks, executable content) can be adjusted anytime in Settings → Compression. See Settings → Help for more.";
+"welcome.completion.body" = "Key settings are configured. You can start using SimpleZip from the Dock, Finder, or by dragging a folder onto the main window.\n\nChange settings later in Settings, and replay this assistant from the SimpleZip menu.";
 "welcome.backupRestore.title" = "Restore from a previous backup?";
 "welcome.backupRestore.body" = "If you previously exported a SimpleZip preferences JSON from Settings → Backup & Restore, you can import it now and skip the later manual choices. Otherwise click Continue.";
 "welcome.backupRestore.importReplaceHint" = "Importing replaces your current settings with the backup's.";
@@ -2552,6 +2552,7 @@
 "virtual.export.note" = "Files are copied with collision-safe names — nothing in the destination is ever overwritten.";
 "welcome.completion.highlight.search" = "Search with power tokens: *.swift size:>1MB encrypted:true";
 "welcome.completion.highlight.compare" = "Compare archives — or a folder against an archive — and export the diff";
+"welcome.completion.highlight.safety" = "Suspicious paths, symlinks, and executables are confirmed before use";
 "welcome.completion.highlight.help" = "The illustrated guide lives in Settings → Help";
 
 /* 0.4.2 dev tools (cmd-click the version pill in About) */

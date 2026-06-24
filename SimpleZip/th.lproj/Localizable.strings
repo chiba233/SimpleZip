@@ -1759,6 +1759,7 @@
 "virtual.export.note" = "ไฟล์จะถูกคัดลอกด้วยชื่อที่ปลอดภัยต่อชื่อชนกัน — ไม่เขียนทับสิ่งใดในปลายทาง";
 "welcome.completion.highlight.search" = "ค้นหาด้วยโทเคนขั้นสูง: *.swift size:>1MB encrypted:true";
 "welcome.completion.highlight.compare" = "เปรียบเทียบไฟล์บีบอัด — หรือโฟลเดอร์กับไฟล์บีบอัด — แล้วส่งออก diff";
+"welcome.completion.highlight.safety" = "เส้นทางที่น่าสงสัย ลิงก์สัญลักษณ์ และไฟล์ปฏิบัติการจะได้รับการยืนยันก่อนใช้งาน";
 "welcome.completion.highlight.help" = "คู่มือพร้อมภาพอยู่ใน การตั้งค่า → วิธีใช้";
 "devtools.title" = "เครื่องมือนักพัฒนา";
 "devtools.section.environment" = "สภาพแวดล้อม";

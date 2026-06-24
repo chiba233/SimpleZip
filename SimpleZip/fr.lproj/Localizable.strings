@@ -1759,6 +1759,7 @@
 "virtual.export.note" = "Les fichiers sont copiés avec des noms sûrs en cas de collision — rien n’est jamais écrasé à destination.";
 "welcome.completion.highlight.search" = "Recherche avec jetons puissants : *.swift size:>1MB encrypted:true";
 "welcome.completion.highlight.compare" = "Comparez des archives — ou un dossier avec une archive — et exportez le diff";
+"welcome.completion.highlight.safety" = "Les chemins suspects, liens symboliques et exécutables sont confirmés avant accès";
 "welcome.completion.highlight.help" = "Le guide illustré se trouve dans Réglages → Aide";
 "devtools.title" = "Outils de développement";
 "devtools.section.environment" = "Environnement";

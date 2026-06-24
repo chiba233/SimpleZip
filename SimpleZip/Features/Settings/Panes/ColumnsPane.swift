@@ -47,7 +47,7 @@ struct ColumnsPane: View {
 
     // #20 从「浏览器」搬来的呈现类选项(key 一个不改):「列出什么归浏览器、怎么呈现归视图」。
     // showHiddenFiles 本体留在浏览器,这里只读同一 key 做跨 pane 置灰。
-    @AppStorage(AppPreferences.Key.showHiddenFiles) private var showHiddenFiles = false
+    @AppStorage(AppPreferences.Key.showHiddenFiles) private var showHiddenFiles = true
     @AppStorage(AppPreferences.Key.hiddenGroupCollapseMode) private var hiddenGroupCollapseModeRaw = FileBrowserOutline.CollapseMode.alwaysCollapsed.rawValue
     @AppStorage(AppPreferences.Key.hiddenWithGrouping) private var hiddenWithGroupingRaw = BrowserGrouping.HiddenWithGrouping.separateGroup.rawValue
     @AppStorage(AppPreferences.Key.folderInlineExpansion) private var folderInlineExpansion = true

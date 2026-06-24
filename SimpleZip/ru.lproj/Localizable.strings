@@ -1759,6 +1759,7 @@
 "virtual.export.note" = "Файлы копируются с именами, безопасными при конфликтах — в месте назначения ничего не перезаписывается.";
 "welcome.completion.highlight.search" = "Поиск с мощными токенами: *.swift size:>1MB encrypted:true";
 "welcome.completion.highlight.compare" = "Сравните архивы — или папку с архивом — и экспортируйте различия";
+"welcome.completion.highlight.safety" = "Подозрительные пути, символические ссылки и исполняемые файлы подтверждаются перед использованием";
 "welcome.completion.highlight.help" = "Иллюстрированное руководство находится в Настройки → Справка";
 "devtools.title" = "Инструменты разработчика";
 "devtools.section.environment" = "Окружение";

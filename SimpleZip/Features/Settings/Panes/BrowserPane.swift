@@ -15,7 +15,7 @@ import SwiftUI
 /// 这些选项一旦改变都会让主窗口立即重新列目录,所以每个控件都要广播
 /// `browserPreferencesChanged` 通知 —— 由 ContentView 接收并刷新文件列表。
 struct BrowserPane: View {
-    @AppStorage(AppPreferences.Key.showHiddenFiles) private var showHiddenFiles = false
+    @AppStorage(AppPreferences.Key.showHiddenFiles) private var showHiddenFiles = true
     @AppStorage(AppPreferences.Key.hiddenDetectionMode) private var hiddenDetectionModeRaw = FileBrowserOutline.HiddenDetectionMode.dotfilesOnly.rawValue
     @AppStorage(AppPreferences.Key.showSymbolicLinks) private var showSymbolicLinks = true
     @AppStorage(AppPreferences.Key.finderFavoritesSyncEnabled) private var finderFavoritesSyncEnabled = false

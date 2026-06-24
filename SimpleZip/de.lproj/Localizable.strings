@@ -1760,6 +1760,7 @@
 "virtual.export.note" = "Dateien werden mit kollisionssicheren Namen kopiert — im Ziel wird nie etwas überschrieben.";
 "welcome.completion.highlight.search" = "Suche mit starken Token: *.swift size:>1MB encrypted:true";
 "welcome.completion.highlight.compare" = "Archive vergleichen — oder einen Ordner mit einem Archiv — und den Diff exportieren";
+"welcome.completion.highlight.safety" = "Verdächtige Pfade, Symlinks und ausführbare Dateien werden vor dem Zugriff bestätigt";
 "welcome.completion.highlight.help" = "Die bebilderte Anleitung finden Sie unter Einstellungen → Hilfe";
 "devtools.title" = "Entwicklerwerkzeuge";
 "devtools.section.environment" = "Umgebung";

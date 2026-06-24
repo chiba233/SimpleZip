@@ -26,7 +26,7 @@ struct GeneralPane: View {
     /// 用户在 Menu 里点了某项，但对应目录已经不存在 —— 在 Picker 下显示红字提示，并不提交选择。
     @State private var startupLocationErrorMessage: String?
     @AppStorage(AppPreferences.Key.overwriteBehavior) private var overwriteBehavior = OverwriteBehavior.ask.rawValue
-    @AppStorage(AppPreferences.Key.confirmBeforeDeletingFiles) private var confirmBeforeDeletingFiles = true
+    @AppStorage(AppPreferences.Key.confirmBeforeDeletingFiles) private var confirmBeforeDeletingFiles = false
     @AppStorage(AppPreferences.Key.finderOpenAutoExtract) private var finderOpenAutoExtract = false
     @AppStorage(AppPreferences.Key.openExternalInNewTab) private var openExternalInNewTab = true
     @AppStorage(AppPreferences.Key.extractionUsageTrackingEnabled) private var extractionUsageTracking = true

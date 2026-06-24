@@ -1548,6 +1548,7 @@ private struct WelcomeCompletionStep: View {
             VStack(alignment: .leading, spacing: 8) {
                 highlightRow("magnifyingglass", "welcome.completion.highlight.search")
                 highlightRow("arrow.left.arrow.right.circle", "welcome.completion.highlight.compare")
+                highlightRow("shield.lefthalf.filled", "welcome.completion.highlight.safety")
                 highlightRow("lifepreserver", "welcome.completion.highlight.help")
             }
             .padding(16)
