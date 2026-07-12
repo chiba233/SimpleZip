@@ -89,8 +89,32 @@ final class ArchiveSession {
 
     /// 批量展开，去重并按名字自然排序。
     /// 用户多选了「目录 + 目录里的某个文件」时，去重避免后端重复处理。
+    /// 单次遍历 `allItems`:目录前缀先收集,子项名只归一化一次 —— 逐项调 `expand(_:)` 会对每个选中目录
+    /// 全量过滤一遍条目、每遍都重新构造归一化名(万条目 × 多目录时是热点)。集合语义与逐项展开
+    /// 完全一致:空目录保留自身、嵌套重复由 Set 去重。
     func expand(_ items: [ArchiveItem]) -> [ArchiveItem] {
-        let expanded = items.flatMap(expand)
+        var expanded: [ArchiveItem] = []
+        var directories: [(item: ArchiveItem, prefix: String, hasChild: Bool)] = []
+        for item in items {
+            if item.isDirectory {
+                directories.append((item, Self.normalizedDirectoryPrefix(item.name), false))
+            } else {
+                expanded.append(item)
+            }
+        }
+        if !directories.isEmpty {
+            for child in allItems {
+                let childName = Self.normalizedEntryName(child.name, isDirectory: child.isDirectory)
+                for i in directories.indices
+                where childName.hasPrefix(directories[i].prefix) && childName != directories[i].prefix {
+                    expanded.append(child)
+                    directories[i].hasChild = true
+                }
+            }
+            for dir in directories where !dir.hasChild {
+                expanded.append(dir.item)
+            }
+        }
         return Array(Set(expanded)).sorted { lhs, rhs in
             lhs.name.localizedStandardCompare(rhs.name) == .orderedAscending
         }
