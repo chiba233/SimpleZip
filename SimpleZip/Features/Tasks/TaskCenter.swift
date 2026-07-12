@@ -38,9 +38,20 @@ final class TaskCenter: ObservableObject {
         AppPreferences.activityHistoryLimit
     }
 
+    /// 活动历史是否已从盘上加载合并完(init 后台解码 → `finishHistoryBootstrap`)。加载完成前 `persistHistory`
+    /// 只暂存请求 —— 此时 `history` 只有本会话条目,直接写盘会用半截数据覆盖盘上的完整历史。
+    private var historyLoaded = false
+    private var pendingPersistAfterLoad = false
+    private var pendingReindexAfterLoad = false
+
     init() {
-        history = Self.loadPersistedHistory()
-        trimHistoryToLimit()
+        // 活动历史解码挪出启动关键路径:首帧用不到历史(只在活动中心展示),大历史 JSON 在主线程同步解码
+        // 会拖慢首帧和 App Intents helper 就绪。后台解码 → 回主 actor 合并(见 finishHistoryBootstrap)。
+        Task.detached(priority: .utility) { [weak self] in
+            let snapshots = Self.loadPersistedSnapshots()
+            guard let self else { return }   // let 绑定:weak var 直接进 @Sendable 闭包会告警
+            await MainActor.run { self.finishHistoryBootstrap(snapshots) }
+        }
         // CLI companion:接收 `simplezip` 进程发来的已完成任务记录(分布式通知,真·跨进程,
         // 不在 A3 禁区)。app 在跑时 CLI 走这条道,记录实时进活动中心;没在跑时 CLI 直接写偏好域。
         DistributedNotificationCenter.default().addObserver(
@@ -361,12 +372,14 @@ final class TaskCenter: ObservableObject {
     }
 
     func clearHistory() {
+        ensureHistoryLoadedNow()
         history.removeAll()
         persistHistory(thenReindexSpotlight: true)
     }
 
     /// 0.4.4 D:只清成功(含「相同已跳过」)的历史 —— 失败 / 取消留着排查。
     func clearSucceededHistory() {
+        ensureHistoryLoadedNow()
         history.removeAll { task in
             switch task.status {
             case .succeeded, .skipped: return true
@@ -377,6 +390,7 @@ final class TaskCenter: ObservableObject {
     }
 
     func applyHistoryLimitChange() {
+        ensureHistoryLoadedNow()
         trimHistoryToLimit()
         persistHistory(thenReindexSpotlight: true)
     }
@@ -407,6 +421,13 @@ final class TaskCenter: ObservableObject {
     /// Spotlight 任务索引重建成当前历史 —— 删掉的任务不会残留在 Spotlight(旧索引必须删得掉)。
     /// 必须排在异步写之后(reindex 读同一 UserDefaults key);所以放进 persistQueue 块尾、写完再 reindex。
     private func persistHistory(thenReindexSpotlight: Bool = false) {
+        // 初始加载还没合并完 → 暂存请求(合并后补发)。此时 history 只有本会话条目,直接写盘会用
+        // 半截数据覆盖盘上的完整历史。
+        guard historyLoaded else {
+            pendingPersistAfterLoad = true
+            if thenReindexSpotlight { pendingReindexAfterLoad = true }
+            return
+        }
         // 快照在主 actor 上取（读 OperationTask 的隔离状态），编码/写盘丢到后台串行队列。
         let snapshots = history.map(PersistedTask.init(task:))
         // 任务记录投影:给后台 agent(App 关后)读来跑活动中心工作台 pass(失败解释 / 真建议命名…)+ 预烘焙「文件有活动」
@@ -431,6 +452,8 @@ final class TaskCenter: ObservableObject {
     /// 退出前同步落盘 —— persistQueue 的异步写在 terminate 时可能没跑完，最后一批完成的任务会丢。
     /// applicationWillTerminate 调它（sync 等队列排空即可，写本身极快）。
     func flushHistoryNow() {
+        // 极早退出:初始加载还没合并而会话内已有待写条目 → 先同步补齐合并(内部补发 persist),再排空队列。
+        if !historyLoaded && pendingPersistAfterLoad { ensureHistoryLoadedNow() }
         Self.persistQueue.sync { }
     }
 
@@ -444,21 +467,48 @@ final class TaskCenter: ObservableObject {
         }
     }
 
-    private static func loadPersistedHistory() -> [OperationTask] {
+    /// 只做「读文件 + JSON 解码」的纯值部分(nonisolated → init 里可后台跑);OperationTask 对象重建
+    /// 留在主 actor(`finishHistoryBootstrap`),隔离不变。
+    private nonisolated static func loadPersistedSnapshots() -> [PersistedTask] {
         guard let data = loadActivityHistoryData(),
               let lossy = try? JSONDecoder().decode([LossyTask].self, from: data)
         else { return [] }
-        let snapshots = lossy.compactMap(\.value)
-        return snapshots.map { snapshot in
-            let task = snapshot.task
-            // 0.4.2 #23：上次会话退出时仍在运行的任务 = 被中断。恢复成明确的「已中断」失败态，
-            // 不再在历史里永远转圈 —— 这本身也是「上次没退干净」的可见痕迹。
-            if task.status.isRunning {
-                task.status = .failed(L10n.text("tasks.interruptedPreviousSession"))
-                if task.finishedAt == nil { task.finishedAt = task.startedAt }
+        return lossy.compactMap(\.value)
+    }
+
+    /// 后台解码完成后在主 actor 合并历史:本会话已落的新条目在前(history 新→旧),盘上旧条目按 id
+    /// 去重后接尾;加载期间被暂存的持久化请求在合并后补发。幂等(`ensureHistoryLoadedNow` 可能抢先)。
+    private func finishHistoryBootstrap(_ snapshots: [PersistedTask]) {
+        guard !historyLoaded else { return }
+        historyLoaded = true
+        if !snapshots.isEmpty {
+            let loaded = snapshots.map { snapshot in
+                let task = snapshot.task
+                // 0.4.2 #23：上次会话退出时仍在运行的任务 = 被中断。恢复成明确的「已中断」失败态，
+                // 不再在历史里永远转圈 —— 这本身也是「上次没退干净」的可见痕迹。
+                if task.status.isRunning {
+                    task.status = .failed(L10n.text("tasks.interruptedPreviousSession"))
+                    if task.finishedAt == nil { task.finishedAt = task.startedAt }
+                }
+                return task
             }
-            return task
+            let sessionIDs = Set(history.map(\.id))
+            history.append(contentsOf: loaded.filter { !sessionIDs.contains($0.id) })
+            trimHistoryToLimit()
         }
+        if pendingPersistAfterLoad {
+            pendingPersistAfterLoad = false
+            let reindex = pendingReindexAfterLoad
+            pendingReindexAfterLoad = false
+            persistHistory(thenReindexSpotlight: reindex)
+        }
+    }
+
+    /// 删减类操作(清空 / 只清成功 / 收上限)动手前确保历史已加载:未加载则同步补齐,
+    /// 避免「先删、后台合并再把旧条目带回来」。已加载时零开销。
+    private func ensureHistoryLoadedNow() {
+        guard !historyLoaded else { return }
+        finishHistoryBootstrap(Self.loadPersistedSnapshots())
     }
 }
 
@@ -809,7 +859,7 @@ nonisolated struct ArchiveTaskSnapshot: Identifiable, Sendable {
 /// 活动历史的 **nonisolated 只读查询入口** —— 直接读 `activityHistory` 的 UserDefaults JSON,
 /// 不触碰 @MainActor 的 `TaskCenter` 运行态。App Intents 的 `ArchiveTaskEntity` 据此查询。
 nonisolated enum ActivityHistoryStore {
-    /// 逐条 lossy 解码(与 `TaskCenter.loadPersistedHistory` 同口径:坏的丢、好的留)。
+    /// 逐条 lossy 解码(与 `TaskCenter.loadPersistedSnapshots` 同口径:坏的丢、好的留)。
     private struct LossyTask: Decodable {
         let value: PersistedTask?
         init(from decoder: Decoder) throws { value = try? PersistedTask(from: decoder) }
