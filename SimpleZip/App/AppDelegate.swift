@@ -224,6 +224,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillTerminate(_ notification: Notification) {
         // 0.4.2:活动中心历史的异步写盘在退出前排空 —— 否则最后完成的任务可能丢。
         TaskCenter.shared.flushHistoryNow()
+        // AI 索引的合并写窗口同样在退出前排空(persistIndex 的 1s 合并窗,见 AIBackgroundIndexStore)。
+        AIBackgroundIndexStore.shared.flushPendingIndexPersist()
         SecureScratchVolume.shared.teardown()
         // 0.4.2 #23：正常退出 → 落「干净关闭」标记；崩溃 / 强杀走不到这里，下次启动据此提示。
         // **仅前台会话**落标记:helper(从不 becomeActive → 从不 set false)即便走到这里也不该把上一个前台

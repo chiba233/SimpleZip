@@ -556,6 +556,7 @@ final class AIBackgroundIndexStore: ObservableObject {
         workbenchClusterChipsByCategory = [:]
         workbenchClusterChipsGeneration += 1
         persistIndex()
+        flushPendingIndexPersist()   // 清空要立即持久化(恢复出厂 / 隐私路径),不吃合并窗
         persistFolderGroups()
         persistOrganize()
         persistWorkbenchChipRanking()
@@ -576,7 +577,24 @@ final class AIBackgroundIndexStore: ObservableObject {
         }
     }
 
+    /// 合并写:一轮 pass 会连着写多条建议/条目,每条都全量编码整份索引 → 突发窗口(1s)内只编码落盘一次。
+    /// 派生数据可再生,合并窗内丢失的只是可重烘的建议;退出前 AppDelegate 调 `flushPendingIndexPersist()`
+    /// 兜底,需要立即持久化的路径(`clearDerivedData`)也显式 flush。
+    private var persistIndexScheduled = false
+
     private func persistIndex() {
+        guard !persistIndexScheduled else { return }
+        persistIndexScheduled = true
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: 1_000_000_000)
+            self?.flushPendingIndexPersist()
+        }
+    }
+
+    /// 把待写的索引立即落盘(无待写则 no-op)。
+    func flushPendingIndexPersist() {
+        guard persistIndexScheduled else { return }
+        persistIndexScheduled = false
         if let data = try? JSONEncoder().encode(fileIndex) {
             derived.set(data, forKey: AppPreferences.Key.aiFileMemoryIndexData)
         }
