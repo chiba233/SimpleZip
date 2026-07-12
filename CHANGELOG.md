@@ -26,6 +26,10 @@
 
 ### improvements
 
+**User-facing**
+
+- **Snappier launch and lighter background housekeeping.** The activity history is no longer decoded during launch — it loads in the background and merges in, so a long task history doesn't slow the first window (or Shortcuts readiness). The AI assistant now writes its index once per batch of new suggestions instead of after every single one, and extracting many folders from a large archive no longer re-scans the entry list once per selected folder.
+
 **Developer-facing**
 
 - **Large derived/cache data moved out of the main preferences store into dedicated files.** The archive listing cache, the AI workspace data, and the activity history were each a single ever-growing blob inside the app's main preferences (UserDefaults), which has a hard 4 MB-per-value limit — once any of them crossed it, every launch had to repeatedly re-serialize a multi-megabyte preferences file and stalled. All three now live in their own on-disk files under Application Support, each with a one-time loss-safe migration, so the main preferences stay small and launches stay fast. The store backend is now a small protocol, which also lets the test suite inject an in-memory store and stop littering ~/Library/Preferences.
