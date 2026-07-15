@@ -2746,6 +2746,7 @@
 "aiWorkspace.suggest.openURL" = "เปิดหน้าเว็บ %@";
 "aiWorkspace.suggest.install" = "ติดตั้ง %@";
 "suggestion.moveToApplications" = "ย้าย %@ ไปยังแอปพลิเคชัน";
+"archive.showPackageContents" = "แสดงเนื้อหาแพ็กเกจ";
 "aiWorkspace.suggest.activity" = "ดูในศูนย์กิจกรรม";
 "aiWorkspace.suggest.revealEntry" = "คุณอาจต้องการ %@";
 "aiWorkspace.suggest.installGeneric" = "ติดตั้งแอป";

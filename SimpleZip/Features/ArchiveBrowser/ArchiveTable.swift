@@ -507,6 +507,11 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
             }
 
             menu.addItem(menuItem(L10n.text("button.open"), systemImage: "arrow.turn.up.right", action: #selector(openSelected)))
+            // 目录包(.app / .pkg …):双击 =「解出并打开」(带安全确认),进包内浏览走这项(与 Finder 同名操作)。
+            if model.isOpenableArchiveDirectoryPackage(item) {
+                menu.addItem(menuItem(L10n.text("archive.showPackageContents"), systemImage: "shippingbox",
+                                      action: #selector(showPackageContentsSelected)))
+            }
             // 「打开方式 ▸」—— 单选时出现，**不白名单**：任何格式的条目解出来都能用外部 app 打开。
             if model.selectedArchiveItems.count == 1, !item.isDirectory {
                 appendArchiveOpenWithMenu(to: menu, for: item)
@@ -761,6 +766,13 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
             }
         }
 
+        /// 目录包的「显示包内容」:进包内浏览(即普通目录的双击导航;包的双击已让位给「解出并打开」)。
+        @objc private func showPackageContentsSelected() {
+            guard let item = model.selectedArchiveItems.first,
+                  model.isOpenableArchiveDirectoryPackage(item) else { return }
+            model.openArchiveDirectory(item)
+        }
+
         @objc private func refreshArchive() {
             model.reload()
         }
@@ -903,10 +915,14 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
         }
 
         private func icon(for item: ArchiveItem) -> NSImage {
+            let ext = URL(fileURLWithPath: item.displayName).pathExtension
             if item.isDirectory {
+                // 目录包(.app / .pkg …):显示为其类型形态(与双击「解出并打开」的判定同源),不再一刀切文件夹。
+                if model.isOpenableArchiveDirectoryPackage(item), let type = UTType(filenameExtension: ext) {
+                    return NSWorkspace.shared.icon(for: type)
+                }
                 return NSWorkspace.shared.icon(for: .folder)
             }
-            let ext = URL(fileURLWithPath: item.displayName).pathExtension
             if let contentType = UTType(filenameExtension: ext) {
                 return NSWorkspace.shared.icon(for: contentType)
             }

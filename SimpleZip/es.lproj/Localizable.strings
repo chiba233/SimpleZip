@@ -2746,6 +2746,7 @@
 "aiWorkspace.suggest.openURL" = "Abrir página %@";
 "aiWorkspace.suggest.install" = "Instalar %@";
 "suggestion.moveToApplications" = "Trasladar %@ a Aplicaciones";
+"archive.showPackageContents" = "Mostrar contenido del paquete";
 "aiWorkspace.suggest.activity" = "Ver en el Centro de actividad";
 "aiWorkspace.suggest.revealEntry" = "Quizás necesites %@";
 "aiWorkspace.suggest.installGeneric" = "Instalar la app";
