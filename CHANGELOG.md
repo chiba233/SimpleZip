@@ -29,7 +29,7 @@
 
 **User-facing**
 
-- **Snappier launch and lighter background housekeeping.** The activity history is no longer decoded during launch — it loads in the background and merges in, so a long task history doesn't slow the first window (or Shortcuts readiness). The AI assistant now writes its index once per batch of new suggestions instead of after every single one, and extracting many folders from a large archive no longer re-scans the entry list once per selected folder.
+- **Snappier launch and lighter background housekeeping.** The activity history is no longer decoded during launch — it loads in the background and merges in, so a long task history doesn't slow the first window (or Shortcuts readiness). The AI assistant now writes its index once per batch of new suggestions instead of after every single one, extracting many folders from a large archive no longer re-scans the entry list once per selected folder, and while you browse, the file list only recomputes its suggestion fingerprints when a suggestion actually changed instead of on every refresh tick.
 
 **Developer-facing**
 
