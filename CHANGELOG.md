@@ -4,14 +4,6 @@
 
 ## 1.0.2
 
-### UX
-
-**User-facing**
-
-- **Apps inside an archive now look and act the part.** An `.app` (or installer package) entry in an opened archive shows its application icon instead of a generic folder, and the right-click menu gains Finder's "Show Package Contents" to browse inside the bundle. Double-clicking still extracts and opens it behind the existing active-content safety confirmation.
-
-## 1.0.1
-
 ### feat
 
 **User-facing**
@@ -23,6 +15,7 @@
 
 **User-facing**
 
+- **Apps inside an archive now look and act the part.** An `.app` (or installer package) entry in an opened archive shows its application icon instead of a generic folder, and the right-click menu gains Finder's "Show Package Contents" to browse inside the bundle. Double-clicking still extracts and opens it behind the existing active-content safety confirmation.
 - **Finder task windows behave like normal windows.** Finder auto-extract and right-click "Compress as..." progress windows no longer stay above everything; they can be minimized, and their current-file line reserves space while running so action buttons do not jump when the backend reports a file name.
 
 ### bugfix
