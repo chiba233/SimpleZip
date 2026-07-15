@@ -1120,20 +1120,34 @@ struct FileNSOutlineView: NSViewRepresentable {
             return children
         }
 
-        /// 0.4.5 #80:文件行展开后的 **AI 抽屉**。**拒绝假AI**:只读后台**端上模型**产出的缓存(一句话摘要 + 模型挑的
-        /// 建议动作),**没有任何写死动作**(以前的「打开/测试」固定项是假 AI,已删)。模型没产出 → `[]`(不展开)。
-        /// 抽屉内容 = [一句话摘要行] + [模型建议动作行…]。门控 = AI 主开关 + **AI 建议子开关** + 非折叠首卷。
+        /// 0.4.5 #80:文件行展开后的**建议抽屉**。两类内容,同一折叠样式:
+        /// ① 确定性「移到应用程序」:散落 .app 死读 Info.plist + 预设文案,**零模型、不受 AI 开关门控**
+        ///    (抽屉是建议容器,不是 AI 专属;.app 是目录,AI 抽屉本就不对目录出内容,两者天然不混排)。
+        /// ② **AI 建议**。**拒绝假AI**:只读后台**端上模型**产出的缓存(一句话摘要 + 模型挑的建议动作),
+        ///    **没有任何写死动作**(以前的「打开/测试」固定项是假 AI,已删)。模型没产出 → 不出 AI 行。
+        ///    门控 = AI 主开关 + **AI 建议子开关** + 非折叠首卷。
         private func loadedSuggestionChildren(of node: FileOutlineNode) -> [FileOutlineNode] {
             if let cached = node.suggestionChildren { return cached }
-            guard AppPreferences.aiAssistantEnabled, AppPreferences.aiSuggestionEnabled,
-                  node.volumeChildren == nil, let item = node.fileItem,
-                  let drawer = AIWorkspaceNodeActions.fileBrowserDrawer(for: item) else {
+            guard node.volumeChildren == nil, let item = node.fileItem else {
                 node.suggestionChildren = []
                 return []
             }
             var children: [FileOutlineNode] = []
-            if let summary = drawer.summary { children.append(FileOutlineNode.summary(summary)) }
-            children.append(contentsOf: drawer.actions.map { FileOutlineNode.suggestion($0) })
+            // ① 确定性行。廉价门槛(后缀/目录/符号链接)在 detect 内先挡,plist 只在 .app 行读一次,结果随节点缓存。
+            if let install = AppBundleInstallSuggestion.detect(
+                url: item.url, isDirectory: item.isDirectory, isSymbolicLink: item.isSymbolicLink) {
+                children.append(FileOutlineNode.suggestion(AIWorkspaceNodeAction(
+                    titleKey: "suggestion.moveToApplications",
+                    displayTitle: L10n.format("suggestion.moveToApplications", install.displayName),
+                    systemImage: "arrow.down.app",
+                    action: .moveAppToApplications(appPath: item.url.path))))
+            }
+            // ② AI 行(原有行为不变)。
+            if AppPreferences.aiAssistantEnabled, AppPreferences.aiSuggestionEnabled,
+               let drawer = AIWorkspaceNodeActions.fileBrowserDrawer(for: item) {
+                if let summary = drawer.summary { children.append(FileOutlineNode.summary(summary)) }
+                children.append(contentsOf: drawer.actions.map { FileOutlineNode.suggestion($0) })
+            }
             node.suggestionChildren = children
             return children
         }

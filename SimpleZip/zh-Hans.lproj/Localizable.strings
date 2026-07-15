@@ -2824,6 +2824,7 @@
 "aiWorkspace.suggest.openWith" = "用 %@ 打开";
 "aiWorkspace.suggest.openURL" = "打开网页 %@";
 "aiWorkspace.suggest.install" = "安装 %@";
+"suggestion.moveToApplications" = "将 %@ 移到应用程序";
 "aiWorkspace.suggest.activity" = "在活动中心查看";
 "aiWorkspace.suggest.revealEntry" = "也许你要 %@";
 "aiWorkspace.suggest.installGeneric" = "安装应用";

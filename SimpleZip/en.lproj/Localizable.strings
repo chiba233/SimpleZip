@@ -2824,6 +2824,7 @@
 "aiWorkspace.suggest.openWith" = "Open with %@";
 "aiWorkspace.suggest.openURL" = "Open webpage %@";
 "aiWorkspace.suggest.install" = "Install %@";
+"suggestion.moveToApplications" = "Move %@ to Applications";
 "aiWorkspace.suggest.activity" = "View in Activity Center";
 "aiWorkspace.suggest.revealEntry" = "Maybe you need %@";
 "aiWorkspace.suggest.installGeneric" = "Install app";

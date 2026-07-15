@@ -2743,6 +2743,7 @@
 "aiWorkspace.suggest.openWith" = "Ouvrir avec %@";
 "aiWorkspace.suggest.openURL" = "Ouvrir la page %@";
 "aiWorkspace.suggest.install" = "Installer %@";
+"suggestion.moveToApplications" = "Déplacer %@ vers Applications";
 "aiWorkspace.suggest.activity" = "Afficher dans le centre d’activité";
 "aiWorkspace.suggest.revealEntry" = "Vous voulez peut-être %@";
 "aiWorkspace.suggest.installGeneric" = "Installer l’app";

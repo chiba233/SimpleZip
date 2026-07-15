@@ -2747,6 +2747,7 @@
 "aiWorkspace.suggest.openWith" = "用 %@ 打開";
 "aiWorkspace.suggest.openURL" = "開啟網頁 %@";
 "aiWorkspace.suggest.install" = "安裝 %@";
+"suggestion.moveToApplications" = "將 %@ 移到應用程式";
 "aiWorkspace.suggest.activity" = "在活動中心查看";
 "aiWorkspace.suggest.revealEntry" = "也許你要 %@";
 "aiWorkspace.suggest.installGeneric" = "安裝 App";

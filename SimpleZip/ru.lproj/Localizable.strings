@@ -2745,6 +2745,7 @@
 "aiWorkspace.suggest.openWith" = "Открыть в %@";
 "aiWorkspace.suggest.openURL" = "Открыть страницу %@";
 "aiWorkspace.suggest.install" = "Установить %@";
+"suggestion.moveToApplications" = "Переместить %@ в «Программы»";
 "aiWorkspace.suggest.activity" = "Показать в Центре активности";
 "aiWorkspace.suggest.revealEntry" = "Возможно, вам нужен %@";
 "aiWorkspace.suggest.installGeneric" = "Установить приложение";

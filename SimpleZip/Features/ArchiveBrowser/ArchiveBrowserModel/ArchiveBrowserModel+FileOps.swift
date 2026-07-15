@@ -1412,6 +1412,14 @@ extension ArchiveBrowserModel {
         }
     }
 
+    /// 确定性建议「移到应用程序」:把浏览器里散落的 `.app` 移进 /Applications。与 DMG 安装同一条内置
+    /// 转移管线(`dropFileURLs`:冲突弹窗 + 撤销 + 活动中心任务,绝不自己造轮子);源卷只读(如在只读
+    /// 镜像里浏览)→ 退化为复制。不碰隔离标记 —— 首次打开的 Gatekeeper 校验属于系统安全流程,不代替系统放行。
+    func moveAppToApplications(_ appURL: URL) {
+        let readOnly = (try? appURL.resourceValues(forKeys: [.volumeIsReadOnlyKey]))?.volumeIsReadOnly ?? false
+        dropFileURLs([appURL], to: URL(fileURLWithPath: "/Applications"), shouldMove: !readOnly)
+    }
+
     /// 在已挂载的 DMG 卷里定位要装的 `.app`:优先卷根的同名包,否则扫卷根第一层第一个 `.app`。无 → nil。
     private nonisolated static func locateAppBundle(named appName: String, under mountPoint: URL) -> URL? {
         let fm = FileManager.default

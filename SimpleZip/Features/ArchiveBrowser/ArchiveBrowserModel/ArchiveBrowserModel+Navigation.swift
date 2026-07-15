@@ -78,6 +78,8 @@ extension ArchiveBrowserModel {
             openWebURL(rawURL)
         case .installAppFromDiskImage(let diskImagePath, let appName):
             installAppFromDiskImage(URL(fileURLWithPath: diskImagePath), appName: appName)
+        case .moveAppToApplications(let appPath):
+            moveAppToApplications(URL(fileURLWithPath: appPath))
         case .organizeIntoNewFolder(let folderName, let memberPaths):
             organizeIntoNewFolder(folderName: folderName, memberPaths: memberPaths)
         default:

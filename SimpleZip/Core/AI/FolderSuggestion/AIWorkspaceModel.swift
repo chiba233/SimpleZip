@@ -37,6 +37,9 @@ nonisolated enum AISuggestionAction: Codable, Equatable, Sendable {
     /// 把 DMG 里的 App 装进 /Applications(走 app 内置复制逻辑:冲突弹窗 + 活动中心任务)。用户明确授权的写盘动作 ——
     /// 由 App 据 DMG 行 + 7zz peek 出的 .app 名安全合成,**模型只决定「要不要建议装」(布尔),不构造路径**。
     case installAppFromDiskImage(diskImagePath: String, appName: String)
+    /// 把浏览器里散落的 `.app` 移进 /Applications(**确定性建议**:死读 Info.plist + 预设文案,零模型)。
+    /// 走 app 内置转移逻辑(冲突弹窗 + 活动中心任务);源卷只读时退化为复制。
+    case moveAppToApplications(appPath: String)
 
     // AI 文件夹 / 推荐主题虚拟管理(不碰硬盘文件)。
     case pinRecommendedWorkspace(UUID)
@@ -96,7 +99,7 @@ nonisolated enum AISuggestionAction: Codable, Equatable, Sendable {
         case .calculateHash, .calculateHashForEvidence, .createArchive, .createArchiveFromSuggestion,
              .testArchive, .testArchives, .testArchiveForEvidence, .convertArchive, .inspectRelease,
              .refreshArchiveListingForEvidence, .copySourceRefsToFolder, .installAppFromDiskImage,
-             .organizeIntoNewFolder, .deleteAIWorkspace:
+             .moveAppToApplications, .organizeIntoNewFolder, .deleteAIWorkspace:
             return AISuggestionSafety(requiresConfirmation: true,
                                       reason: "opens an existing confirm/sheet/task flow")
         // 真实硬盘删除 —— 破坏性 + 强确认。
