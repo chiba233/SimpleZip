@@ -302,6 +302,8 @@ struct FileNSOutlineView: NSViewRepresentable {
         private var lastContentSignature: Int?
         // 上次定点比对时各可见文件行的 AI 建议内容哈希(path → hash)。结构没变、只有建议变了时据此定点 reload 抽屉。
         private var lastSuggestionHashByPath: [String: Int] = [:]
+        /// 上次算建议哈希时的 store 建议内容世代(-1 = 还没算过)。世代没动 → 哈希必没变 → 整树遍历直接跳过。
+        private var lastSuggestionStoreGeneration = -1
         private var menuGroupFileItems: [FileItem] = []
         /// 右键 AI 建议行时暂存的派发动作 + 「我不喜欢」抑制 key(菜单项点击时用)。
         private var menuDrawerAction: AISuggestionAction?
@@ -461,6 +463,12 @@ struct FileNSOutlineView: NSViewRepresentable {
 
             // ── ③ 行集合稳定后:只有「当前可见行」的 AI 建议内容变了 → 只 reloadItem 那几行的抽屉子树(不整表刷)。
             guard renamingItem == nil else { return }
+            // 世代跳过闸:建议哈希只依赖 store 的 fileIndex + dislike 集合,两者世代没动 → 哈希必没变,
+            // 跳过整树重算(FSEvents 稳定 tick 从每 120ms 一轮 O(可见行) 降到零)。与 reload 解耦:世代变了
+            // 也只是「重算一次哈希」,刷不刷仍看下面的逐行 diff,后台 ingest 不会因此闪表(A17)。
+            let storeGeneration = AIBackgroundIndexStore.shared.suggestionContentGeneration
+            guard storeGeneration != lastSuggestionStoreGeneration else { return }
+            lastSuggestionStoreGeneration = storeGeneration
             let currentSuggestions = currentSuggestionHashes()
             guard currentSuggestions != lastSuggestionHashByPath else { return }
             // 只把「**之前就在快照里、现在哈希变了**」的行当作建议变化 → 定点刷新抽屉。
@@ -501,6 +509,7 @@ struct FileNSOutlineView: NSViewRepresentable {
             enforceExpansion()
             performPendingInlineRenameIfNeeded()
             lastSuggestionHashByPath = currentSuggestionHashes()   // 整表刷后重置建议快照
+            lastSuggestionStoreGeneration = AIBackgroundIndexStore.shared.suggestionContentGeneration   // 快照与世代成对
         }
 
         /// 当前可见文件行(顶层 + 已展开区块 / 文件夹 / 分卷子级,排除分卷折叠首卷 —— 它不显示 AI 抽屉)→ 它的 AI 建议内容哈希。

@@ -31,10 +31,19 @@ final class AIBackgroundIndexStore: ObservableObject {
         // path→记录 缓存**只置脏、按需懒重建**(浏览器按 path O(1) 查建议),不在每次写索引时即时全量重建:
         // 一轮后台烘焙会多次写 fileIndex(每条建议各一次),旧的 didSet 即时重建 = 主 actor 上 O(n)×多次(日常开销
         // 最重的一块);改脏标记后,多次写只在下次 record(forPath:) 读取时重建一次,浏览器没在显示 AI 抽屉就根本不建。
-        // 不再维护全局「文件索引世代」:文件表的 reload 指纹只看**当前可见行**的建议内容(见 FileTable.syncContent),
-        // 后台心跳每轮 ingest 重写 scope 元数据 / 给别处烤建议都不该 reload 用户正看的文件夹(否则闪烁,A17)。
-        didSet { recordByPathDirty = true }
+        // 文件表的 reload 指纹仍只看**当前可见行**的建议内容(见 FileTable.syncContent),后台心跳每轮 ingest
+        // 重写 scope 元数据 / 给别处烤建议都不该 reload 用户正看的文件夹(否则闪烁,A17)。
+        // `suggestionContentGeneration` 不违背这一条 —— 它只是「哈希要不要重算」的跳过闸,从不直接触发 reload。
+        didSet {
+            recordByPathDirty = true
+            suggestionContentGeneration &+= 1
+        }
     }
+
+    /// 建议内容世代:`fileIndex` / dislike 集合任一变化 +1。**只作 FileTable 每 tick「要不要重算可见行建议哈希」
+    /// 的跳过闸**(世代没变 → 哈希必没变 → 整棵树的遍历直接省掉);刷不刷仍由可见行哈希逐行 diff 决定,世代
+    /// **从不**直接触发 reload —— 后台 ingest 风暴最多让下一 tick 多算一轮哈希,不会闪表(A17)。普通 var,非 @Published。
+    private(set) var suggestionContentGeneration = 0
 
     /// `path → 记录` 缓存(文件浏览器每行 O(1) 查模型建议用)。**按需懒建**:fileIndex 变更只置脏,下次 `record(forPath:)`
     /// 读取时才重建一次 —— 避免一轮多写时反复 O(n) 重建,且浏览器不查 AI 抽屉时根本不建(省内存,不再常驻镜像副本)。
@@ -43,8 +52,10 @@ final class AIBackgroundIndexStore: ObservableObject {
     private var recordByPathDirty = true
 
     /// 用户对 AI 建议「我不喜欢」的抑制 key 集合(右键「我不喜欢」加入)。文件浏览器抽屉据此过滤掉被嫌弃的建议。
-    /// 持久(派生数据,不进偏好备份)。
-    @Published private(set) var dislikedSuggestionKeys: Set<String>
+    /// 持久(派生数据,不进偏好备份)。didSet 翻建议内容世代:dislike 是建议哈希的第二个输入(过滤可见建议)。
+    @Published private(set) var dislikedSuggestionKeys: Set<String> {
+        didSet { suggestionContentGeneration &+= 1 }
+    }
     /// 文件夹批量分组建议缓存。key = 文件夹真实路径;空数组也表示「已评估,无建议」。
     private(set) var folderGroupsByPath: [String: [CachedFolderGroup]]
     /// 文件夹分组缓存内容世代。FileTable 纳入内容指纹,让后台 pass 写缓存后追加组行,但不把字典设成 @Published。
