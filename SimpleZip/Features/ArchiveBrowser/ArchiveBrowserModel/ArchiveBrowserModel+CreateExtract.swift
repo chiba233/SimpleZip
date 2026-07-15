@@ -1429,8 +1429,15 @@ extension ArchiveBrowserModel {
     /// 成功后回调解出的 URL。「快速预览」与「保存副本到…」共用。
     /// 口令：已解析口令 + 会话缓存静默试，失败弹框重试 —— 与打开条目同款语义。
     private func extractSelectedFileEntriesToTemp(completion: @escaping ([URL]) -> Void) {
+        extractArchiveEntriesToTemp(selectedArchiveItems.filter { !$0.isDirectory }, completion: completion)
+    }
+
+    /// 上面的参数化内核:把**指定**条目解到注册过清理的临时目录。`resolving` 非空时回调只回它们对应的
+    /// URL(如整包 .app:entries 传展开后的全部落地条目,resolving 传 .app 目录条目本身拿包根)。
+    private func extractArchiveEntriesToTemp(_ items: [ArchiveItem],
+                                             resolving: [ArchiveItem]? = nil,
+                                             completion: @escaping ([URL]) -> Void) {
         guard case .archive(let archiveURL) = mode else { return }
-        let items = selectedArchiveItems.filter { !$0.isDirectory }
         guard !items.isEmpty else { return }
         // ZIP 加密类型读打开时缓存的结果(session.detectedZipEncryption),不在主线程同步读中央目录。
         let detectedZipEncryption = session.detectedZipEncryption
@@ -1487,11 +1494,55 @@ extension ArchiveBrowserModel {
                         isRetry = true
                     }
                 }
-                extracted = items.compactMap { try? self.extractedURL(for: $0, in: destination) }
+                extracted = (resolving ?? items).compactMap { try? self.extractedURL(for: $0, in: destination) }
             }
             if didSucceed, !extracted.isEmpty {
                 completion(extracted)
             }
+        }
+    }
+
+    /// 归档内建议「移到应用程序」:把 .app 目录条目解到临时(注册清理,阅后即焚 —— 不进任何缓存 / 索引),
+    /// 再走 `dropFileURLs` 移进 /Applications(冲突弹窗 + 活动中心任务)。解压沿用条目安全检查与口令流程;
+    /// 临时副本被移走即消失,残留由临时目录清理收口。
+    func moveArchiveAppEntryToApplications(_ item: ArchiveItem) {
+        guard case .archive = mode, item.isDirectory else { return }
+        let entries = session.expand(item)
+        extractArchiveEntriesToTemp(entries, resolving: [item]) { [weak self] urls in
+            guard let self, let app = urls.first else { return }
+            self.dropFileURLs([app], to: URL(fileURLWithPath: "/Applications"), shouldMove: true)
+        }
+    }
+
+    /// 归档内 .app 建议行的「名称 + 版本」解析:**静默**解出该包的 `Contents/Info.plist` 到临时,读完即删
+    /// (实时探测,不进缓存 / 不记任务 / 绝不弹口令框 —— 加密或读不出就回 nil,行保持条目名文案)。
+    func resolveArchiveAppEntryDisplayName(_ item: ArchiveItem, completion: @escaping (String?) -> Void) {
+        guard case .archive(let archiveURL) = mode, item.isDirectory else { completion(nil); return }
+        let prefix = ArchiveSession.normalizedDirectoryPrefix(item.name)
+        guard let plistEntry = session.allItems.first(where: {
+            !$0.isDirectory
+                && ArchiveSession.normalizedEntryName($0.name, isDirectory: false) == prefix + "Contents/Info.plist"
+        }) else { completion(nil); return }
+        let password = resolvedArchivePassword
+        let force = isForced(archiveURL)
+        // 相对路径在主 actor 上先算好(normalizedEntryName 是 MainActor 隔离),detached 里只做 IO。
+        let plistRelativePath = ArchiveSession.normalizedEntryName(plistEntry.name, isDirectory: false)
+        Task.detached(priority: .userInitiated) {
+            let scratch = FileManager.default.temporaryDirectory
+                .appendingPathComponent("SimpleZip-AppEntryProbe-\(UUID().uuidString)", isDirectory: true)
+            defer { try? FileManager.default.removeItem(at: scratch) }   // 阅后即焚
+            var resolved: String?
+            do {
+                try FileManager.default.createDirectory(at: scratch, withIntermediateDirectories: true)
+                try await ArchiveService.extract(
+                    archiveURL, entries: [plistEntry], to: scratch,
+                    overwriteBehavior: .overwrite, pathMode: .preserve,
+                    password: password, safetyPolicy: .skipValidation, force: force)
+                resolved = AppBundleInstallSuggestion.displayName(
+                    fromInfoPlistAt: scratch.appendingPathComponent(plistRelativePath))
+            } catch { resolved = nil }
+            let name = resolved
+            await MainActor.run { completion(name) }
         }
     }
 

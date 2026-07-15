@@ -71,12 +71,16 @@ private final class ArchiveOutlineNode {
     enum Kind {
         case item(ArchiveItem)
         case section
+        /// 「移到应用程序」确定性建议行(父级是 .app 目录条目;实时判断,零缓存)。关联值 = 父条目。
+        case suggestion(ArchiveItem)
     }
 
     let kind: Kind
     let sectionKey: String
     var title: String
     var children: [ArchiveOutlineNode]
+    /// .app 条目行:包内 Info.plist 的「名称 + 版本」是否已实时探测过(展开时一次,阅后即焚)。
+    var appInfoResolved = false
 
     private init(kind: Kind, sectionKey: String, title: String) {
         self.kind = kind
@@ -93,8 +97,17 @@ private final class ArchiveOutlineNode {
         ArchiveOutlineNode(kind: .section, sectionKey: key, title: "")
     }
 
+    static func suggestion(for item: ArchiveItem, title: String) -> ArchiveOutlineNode {
+        ArchiveOutlineNode(kind: .suggestion(item), sectionKey: "", title: title)
+    }
+
     var archiveItem: ArchiveItem? {
         if case .item(let item) = kind { return item }
+        return nil
+    }
+
+    var suggestionItem: ArchiveItem? {
+        if case .suggestion(let item) = kind { return item }
         return nil
     }
 
@@ -303,19 +316,34 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
 
         func outlineView(_ outlineView: NSOutlineView, numberOfChildrenOfItem item: Any?) -> Int {
             guard let node = item as? ArchiveOutlineNode else { return topLevelNodes.count }
-            return node.isSection ? node.children.count : 0
+            return node.isSection ? node.children.count : appSuggestionChildren(of: node).count
         }
 
         func outlineView(_ outlineView: NSOutlineView, child index: Int, ofItem item: Any?) -> Any {
             guard let node = item as? ArchiveOutlineNode else {
                 return index < topLevelNodes.count ? topLevelNodes[index] : topLevelNodes
             }
-            guard index < node.children.count else { return node }
-            return node.children[index]
+            let children = node.isSection ? node.children : appSuggestionChildren(of: node)
+            guard index < children.count else { return node }
+            return children[index]
         }
 
         func outlineView(_ outlineView: NSOutlineView, isItemExpandable item: Any) -> Bool {
-            (item as? ArchiveOutlineNode)?.isSection == true
+            guard let node = item as? ArchiveOutlineNode else { return false }
+            return node.isSection || !appSuggestionChildren(of: node).isEmpty
+        }
+
+        /// 归档内「移到应用程序」确定性建议(与文件浏览器同一折叠样式):.app 目录条目行 → 一条建议子行。
+        /// 判定纯看条目名(零 I/O,可进渲染路径);文案先用条目名(去 .app),展开时后台实时探测包内
+        /// Info.plist 补「名称 + 版本」(阅后即焚,见 resolveAppInfoIfNeeded)。子行懒建、随节点缓存。
+        private func appSuggestionChildren(of node: ArchiveOutlineNode) -> [ArchiveOutlineNode] {
+            guard let item = node.archiveItem, item.isDirectory,
+                  item.displayName.lowercased().hasSuffix(".app") else { return [] }
+            if node.children.isEmpty {
+                let base = (item.displayName as NSString).deletingPathExtension
+                node.children = [.suggestion(for: item, title: L10n.format("suggestion.moveToApplications", base))]
+            }
+            return node.children
         }
 
         // MARK: - Delegate
@@ -337,6 +365,14 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
                     iconSize: density.iconSize,
                     font: .systemFont(ofSize: density.textPointSize)
                 )
+            }
+
+            // 「移到应用程序」建议行:只在 name 列画,复用建议 cell 的淡色/反色样式。
+            if case .suggestion = node.kind {
+                guard column == .name else { return nil }
+                return makeSuggestionCell(in: outlineView, owner: self, title: node.title,
+                                          iconName: "arrow.down.app",
+                                          font: .systemFont(ofSize: density.textPointSize))
             }
 
             guard let item = node.archiveItem else { return nil }
@@ -382,8 +418,26 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
         }
 
         func outlineViewItemDidExpand(_ notification: Notification) {
-            guard !isSyncingExpansion, let node = sectionNode(from: notification) else { return }
-            userCollapsedSectionKeys.remove(node.sectionKey)
+            guard !isSyncingExpansion else { return }
+            if let node = sectionNode(from: notification) {
+                userCollapsedSectionKeys.remove(node.sectionKey)
+                return
+            }
+            resolveAppInfoIfNeeded(from: notification)
+        }
+
+        /// 展开 .app 条目行时,后台实时探测包内 Info.plist 的「名称 + 版本」并原位刷新建议行文案。
+        /// 一次性(节点标记);读完即删、不进任何缓存;加密/读不出 → 保持条目名文案,绝不弹口令框。
+        private func resolveAppInfoIfNeeded(from notification: Notification) {
+            guard let node = notification.userInfo?["NSObject"] as? ArchiveOutlineNode,
+                  !node.appInfoResolved, let item = node.archiveItem,
+                  let child = appSuggestionChildren(of: node).first else { return }
+            node.appInfoResolved = true
+            model.resolveArchiveAppEntryDisplayName(item) { [weak self, weak child] name in
+                guard let self, let child, let name else { return }
+                child.title = L10n.format("suggestion.moveToApplications", name)
+                self.outlineView?.reloadItem(child)
+            }
         }
 
         func outlineViewItemDidCollapse(_ notification: Notification) {
@@ -689,6 +743,11 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
                 } else {
                     sender.expandItem(node)
                 }
+                return
+            }
+            if let item = node.suggestionItem {
+                // 「移到应用程序」建议行:双击 = 解出该 .app 到临时并移入 /Applications(与文件浏览器抽屉同语义)。
+                model.moveArchiveAppEntryToApplications(item)
                 return
             }
             if let item = node.archiveItem {

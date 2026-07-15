@@ -27,16 +27,27 @@ nonisolated struct AppBundleInstallSuggestion: Equatable, Sendable {
             return nil
         }
         let plistURL = url.appendingPathComponent("Contents/Info.plist")
+        guard let displayName = displayName(
+            fromInfoPlistAt: plistURL,
+            fallbackName: url.deletingPathExtension().lastPathComponent,
+            fileManager: fileManager) else { return nil }
+        return AppBundleInstallSuggestion(displayName: displayName)
+    }
+
+    /// 从一个已落地的 Info.plist 读出「App 名 + 版本」显示名(要求 CFBundleExecutable,残缺/超限 → nil)。
+    /// 文件浏览器 detect 与归档内 .app 条目的实时探测共用这一处组装。
+    static func displayName(fromInfoPlistAt plistURL: URL, fallbackName: String? = nil,
+                            fileManager: FileManager = .default) -> String? {
         guard let attrs = try? fileManager.attributesOfItem(atPath: plistURL.path),
               let size = attrs[.size] as? Int, size > 0, size <= maxInfoPlistBytes,
               let data = try? Data(contentsOf: plistURL),
               let plist = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any],
               let executable = plist["CFBundleExecutable"] as? String, !executable.isEmpty else { return nil }
-        let baseName = nonEmpty(plist["CFBundleDisplayName"])
+        guard let baseName = nonEmpty(plist["CFBundleDisplayName"])
             ?? nonEmpty(plist["CFBundleName"])
-            ?? url.deletingPathExtension().lastPathComponent
+            ?? nonEmpty(fallbackName) else { return nil }
         let version = nonEmpty(plist["CFBundleShortVersionString"])
-        return AppBundleInstallSuggestion(displayName: version.map { "\(baseName) \($0)" } ?? baseName)
+        return version.map { "\(baseName) \($0)" } ?? baseName
     }
 
     private static func nonEmpty(_ value: Any?) -> String? {
